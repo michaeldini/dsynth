@@ -1,0 +1,32 @@
+[package]
+name = "dsynth"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "dsynth"
+path = "src/lib.rs"
+
+[features]
+default = ["simd"]
+simd = []
+
+[dependencies]
+iced = "0.13"
+cpal = "0.15"
+midir = "0.10"
+triple_buffer = "6.0"
+crossbeam-channel = "0.5"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+rfd = "0.15"
+
+[dev-dependencies]
+approx = "0.5"
+criterion = "0.5"
+tempfile = "3.0"
+serde_json = "1.0"
+
+[[bench]]
+name = "dsp_bench"
+harness = false
