@@ -1212,6 +1212,7 @@ dependencies = [
  "crossbeam-channel",
  "iced",
  "midir",
+ "rand 0.8.5",
  "rfd",
  "serde",
  "serde_json",

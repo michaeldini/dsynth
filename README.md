@@ -32,10 +32,11 @@ A high-performance, cross-platform digital synthesizer built in Rust using test-
 ### GUI
 - **Cross-platform** GUI using Iced 0.13
 - **Real-time controls** for all synthesis parameters:
-  - 3 oscillator panels (waveform, pitch, detune, gain)
-  - 3 filter sections (type, cutoff, resonance)
+  - 3 oscillator panels (waveform, pitch, detune, gain, pan, unison, phase)
+  - 3 filter sections (type, cutoff, resonance, drive)
   - Master gain control
   - Panic button (all notes off)
+- **Preset management**: Save and load presets as JSON files
 - Lock-free parameter updates to audio thread
 
 ### Testing
@@ -128,8 +129,14 @@ cargo bench
 6. Adjust master gain
 7. Press "PANIC" to stop all notes
 
+### Preset Management
+- **Save Preset**: Enter a name in the preset field and click "Save" to export current settings as JSON
+- **Load Preset**: Click "Load" to open a file dialog and load a previously saved preset
+- Presets are stored as human-readable JSON files for easy editing and sharing
+
 ### Computer Keyboard Mapping
-QWERTY keyboard rows map to piano keys (configurable via GUI).
+- **AWSEDFTGYHUJKOLP**: Chromatic piano keys (C4 to D#5)
+- **ZXCVBNM**: Lower octave (C3 to B3)
 
 ## Project Structure
 
@@ -169,6 +176,7 @@ benches/
 - `triple_buffer` 6.0 - Lock-free triple buffering
 - `crossbeam-channel` 0.5 - MPSC channels for MIDI events
 - `serde` 1.0 - Serialization for presets
+- `rfd` 0.15 - Native file dialogs
 
 ### Development
 - `approx` 0.5 - Floating-point assertions
@@ -228,11 +236,12 @@ cargo bench -- --baseline main
 - [ ] Additional waveforms (pulse, noise)
 - [ ] LFO modulation
 - [ ] Effects (reverb, delay, chorus)
-- [ ] Preset browser
+- [ ] Preset browser with categories
 - [ ] Automation recording
 - [ ] VST3 plugin wrapper
 - [ ] Additional filter types (notch, allpass)
 - [ ] Polyphonic aftertouch support
+- [ ] Preset search and tagging
 
 ## License
 

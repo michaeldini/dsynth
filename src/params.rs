@@ -7,6 +7,7 @@ pub enum Waveform {
     Saw,
     Square,
     Triangle,
+    Pulse,
 }
 
 impl fmt::Display for Waveform {
@@ -16,6 +17,7 @@ impl fmt::Display for Waveform {
             Waveform::Saw => write!(f, "Saw"),
             Waveform::Square => write!(f, "Square"),
             Waveform::Triangle => write!(f, "Triangle"),
+            Waveform::Pulse => write!(f, "Pulse"),
         }
     }
 }
@@ -59,6 +61,7 @@ pub struct OscillatorParams {
     pub unison: usize,      // Number of unison voices (1-7)
     pub unison_detune: f32, // Unison spread in cents (0-50)
     pub phase: f32,         // Initial phase offset (0.0 to 1.0)
+    pub shape: f32,         // Wave shaping amount (-1.0 to 1.0)
 }
 
 impl Default for OscillatorParams {
@@ -72,6 +75,7 @@ impl Default for OscillatorParams {
             unison: 1,
             unison_detune: 10.0,
             phase: 0.0,
+            shape: 0.0,
         }
     }
 }
@@ -79,9 +83,10 @@ impl Default for OscillatorParams {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct FilterParams {
     pub filter_type: FilterType,
-    pub cutoff: f32,    // Hz, 20.0 to 20000.0
-    pub resonance: f32, // Q factor, 0.5 to 10.0
-    pub drive: f32,     // Pre-filter drive/saturation (1.0 to 10.0)
+    pub cutoff: f32,       // Hz, 20.0 to 20000.0
+    pub resonance: f32,    // Q factor, 0.5 to 10.0
+    pub drive: f32,        // Pre-filter drive/saturation (1.0 to 10.0)
+    pub key_tracking: f32, // Key tracking amount (0.0 to 1.0)
 }
 
 impl Default for FilterParams {
@@ -91,6 +96,89 @@ impl Default for FilterParams {
             cutoff: 1000.0,
             resonance: 0.707,
             drive: 1.0,
+            key_tracking: 0.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct FilterEnvelopeParams {
+    pub attack: f32,  // seconds, 0.001 to 5.0
+    pub decay: f32,   // seconds, 0.001 to 5.0
+    pub sustain: f32, // level, 0.0 to 1.0
+    pub release: f32, // seconds, 0.001 to 5.0
+    pub amount: f32,  // modulation depth in Hz, -10000.0 to 10000.0
+}
+
+impl Default for FilterEnvelopeParams {
+    fn default() -> Self {
+        Self {
+            attack: 0.01,
+            decay: 0.1,
+            sustain: 0.5,
+            release: 0.2,
+            amount: 2000.0, // 2kHz modulation range
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum LFOWaveform {
+    Sine,
+    Triangle,
+    Square,
+    Saw,
+}
+
+impl fmt::Display for LFOWaveform {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LFOWaveform::Sine => write!(f, "Sine"),
+            LFOWaveform::Triangle => write!(f, "Triangle"),
+            LFOWaveform::Square => write!(f, "Square"),
+            LFOWaveform::Saw => write!(f, "Saw"),
+        }
+    }
+}
+
+impl Default for LFOWaveform {
+    fn default() -> Self {
+        Self::Sine
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct LFOParams {
+    pub waveform: LFOWaveform,
+    pub rate: f32,          // Hz, 0.01 to 20.0
+    pub depth: f32,         // 0.0 to 1.0
+    pub filter_amount: f32, // Filter modulation in Hz, 0.0 to 5000.0
+}
+
+impl Default for LFOParams {
+    fn default() -> Self {
+        Self {
+            waveform: LFOWaveform::Sine,
+            rate: 2.0,
+            depth: 0.5,
+            filter_amount: 500.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct VelocityParams {
+    pub amp_sensitivity: f32,        // 0.0 to 1.0
+    pub filter_sensitivity: f32,     // 0.0 to 1.0 (affects cutoff)
+    pub filter_env_sensitivity: f32, // 0.0 to 1.0 (affects envelope amount)
+}
+
+impl Default for VelocityParams {
+    fn default() -> Self {
+        Self {
+            amp_sensitivity: 0.7,
+            filter_sensitivity: 0.5,
+            filter_env_sensitivity: 0.3,
         }
     }
 }
@@ -99,6 +187,9 @@ impl Default for FilterParams {
 pub struct SynthParams {
     pub oscillators: [OscillatorParams; 3],
     pub filters: [FilterParams; 3],
+    pub filter_envelopes: [FilterEnvelopeParams; 3],
+    pub lfos: [LFOParams; 3],
+    pub velocity: VelocityParams,
     pub master_gain: f32, // 0.0 to 1.0
 }
 
@@ -107,6 +198,9 @@ impl Default for SynthParams {
         Self {
             oscillators: [OscillatorParams::default(); 3],
             filters: [FilterParams::default(); 3],
+            filter_envelopes: [FilterEnvelopeParams::default(); 3],
+            lfos: [LFOParams::default(); 3],
+            velocity: VelocityParams::default(),
             master_gain: 0.5,
         }
     }

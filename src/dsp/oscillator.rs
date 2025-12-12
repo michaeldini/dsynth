@@ -3,7 +3,7 @@ use crate::params::Waveform;
 use std::f32::consts::PI;
 
 #[cfg(feature = "simd")]
-use std::simd::{cmp::SimdPartialOrd, f32x4, StdFloat};
+use std::simd::{StdFloat, cmp::SimdPartialOrd, f32x4};
 
 /// Sample-rate-agnostic oscillator with 4× oversampling for anti-aliasing
 pub struct Oscillator {
@@ -14,6 +14,7 @@ pub struct Oscillator {
     downsampler: Downsampler,
     waveform: Waveform,
     initial_phase: f32, // Initial phase offset for unison
+    shape: f32,         // Wave shaping amount (-1.0 to 1.0)
 }
 
 impl Oscillator {
@@ -30,9 +31,10 @@ impl Oscillator {
             downsampler: Downsampler::new(20),
             waveform: Waveform::Sine,
             initial_phase: 0.0,
+            shape: 0.0,
         }
     }
-    
+
     /// Set initial phase offset (0.0 to 1.0)
     pub fn set_phase(&mut self, phase: f32) {
         self.initial_phase = phase.clamp(0.0, 1.0);
@@ -48,6 +50,70 @@ impl Oscillator {
         self.waveform = waveform;
     }
 
+    /// Set the wave shaping amount (-1.0 to 1.0)
+    pub fn set_shape(&mut self, shape: f32) {
+        self.shape = shape.clamp(-1.0, 1.0);
+    }
+
+    /// Apply wave shaping to samples based on waveform type
+    #[cfg(feature = "simd")]
+    fn apply_wave_shaping(&self, samples: f32x4) -> f32x4 {
+        let shape_amount = f32x4::splat(self.shape.abs());
+        match self.waveform {
+            Waveform::Sine => {
+                // Sine: add harmonics via soft clipping/saturation
+                let drive = f32x4::splat(1.0 + self.shape.abs() * 3.0);
+                let driven = samples * drive;
+                // Soft clip using tanh approximation
+                let x2 = driven * driven;
+                let x3 = x2 * driven;
+                let tanh_approx = driven - x3 / f32x4::splat(3.0);
+                tanh_approx / drive.sqrt()
+            }
+            Waveform::Saw => {
+                // Saw: morph towards triangle (removes harsh harmonics)
+                let triangle = f32x4::from_array([
+                    if self.phase < 0.5 {
+                        4.0 * self.phase - 1.0
+                    } else {
+                        -4.0 * self.phase + 3.0
+                    },
+                    if self.phase + self.phase_increment < 0.5 {
+                        4.0 * (self.phase + self.phase_increment) - 1.0
+                    } else {
+                        -4.0 * (self.phase + self.phase_increment) + 3.0
+                    },
+                    if self.phase + 2.0 * self.phase_increment < 0.5 {
+                        4.0 * (self.phase + 2.0 * self.phase_increment) - 1.0
+                    } else {
+                        -4.0 * (self.phase + 2.0 * self.phase_increment) + 3.0
+                    },
+                    if self.phase + 3.0 * self.phase_increment < 0.5 {
+                        4.0 * (self.phase + 3.0 * self.phase_increment) - 1.0
+                    } else {
+                        -4.0 * (self.phase + 3.0 * self.phase_increment) + 3.0
+                    },
+                ]);
+                samples * (f32x4::splat(1.0) - shape_amount) + triangle * shape_amount
+            }
+            Waveform::Square => {
+                // Square: morph pulse width (but this is handled by Pulse waveform)
+                samples
+            }
+            Waveform::Triangle => {
+                // Triangle: add corners/sharpness (morph towards saw)
+                let saw = f32x4::from_array([
+                    2.0 * self.phase - 1.0,
+                    2.0 * (self.phase + self.phase_increment) - 1.0,
+                    2.0 * (self.phase + 2.0 * self.phase_increment) - 1.0,
+                    2.0 * (self.phase + 3.0 * self.phase_increment) - 1.0,
+                ]);
+                samples * (f32x4::splat(1.0) - shape_amount) + saw * shape_amount
+            }
+            Waveform::Pulse => samples, // Pulse uses shape for PWM, not morphing
+        }
+    }
+
     /// Generate one output sample (processes 4× oversampled internally)
     #[cfg(feature = "simd")]
     pub fn process(&mut self) -> f32 {
@@ -59,16 +125,14 @@ impl Oscillator {
             self.phase + 2.0 * self.phase_increment,
             self.phase + 3.0 * self.phase_increment,
         ]);
-        
+
         // Generate samples based on waveform using SIMD
-        let samples = match self.waveform {
+        let mut samples = match self.waveform {
             Waveform::Sine => {
                 let two_pi = f32x4::splat(2.0 * PI);
                 (phases * two_pi).sin()
             }
-            Waveform::Saw => {
-                f32x4::splat(2.0) * phases - f32x4::splat(1.0)
-            }
+            Waveform::Saw => f32x4::splat(2.0) * phases - f32x4::splat(1.0),
             Waveform::Square => {
                 let half = f32x4::splat(0.5);
                 let one = f32x4::splat(1.0);
@@ -81,19 +145,33 @@ impl Oscillator {
                 let neg_four = f32x4::splat(-4.0);
                 let one = f32x4::splat(1.0);
                 let three = f32x4::splat(3.0);
-                
+
                 let low_branch = four * phases - one;
                 let high_branch = neg_four * phases + three;
                 phases.simd_lt(half).select(low_branch, high_branch)
             }
+            Waveform::Pulse => {
+                // Pulse width is controlled by shape parameter
+                // shape: -1.0 = 10% duty, 0.0 = 50% duty (square), 1.0 = 90% duty
+                let pulse_width = 0.5 + self.shape * 0.4; // Maps to 0.1 - 0.9 range
+                let threshold = f32x4::splat(pulse_width);
+                let one = f32x4::splat(1.0);
+                let neg_one = f32x4::splat(-1.0);
+                phases.simd_lt(threshold).select(one, neg_one)
+            }
         };
-        
+
+        // Apply wave shaping if shape parameter is non-zero
+        if self.shape != 0.0 && self.waveform != Waveform::Pulse {
+            samples = self.apply_wave_shaping(samples);
+        }
+
         // Advance phase by 4 increments
         self.phase += 4.0 * self.phase_increment;
         while self.phase >= 1.0 {
             self.phase -= 1.0;
         }
-        
+
         // Convert SIMD to array and downsample
         self.downsampler.process(samples.to_array())
     }
@@ -109,7 +187,13 @@ impl Oscillator {
                 Waveform::Saw => self.generate_saw(),
                 Waveform::Square => self.generate_square(),
                 Waveform::Triangle => self.generate_triangle(),
+                Waveform::Pulse => self.generate_pulse(),
             };
+
+            // Apply wave shaping if not Pulse (Pulse uses shape for PWM)
+            if self.shape != 0.0 && self.waveform != Waveform::Pulse {
+                *sample = self.apply_wave_shaping_scalar(*sample);
+            }
 
             // Advance phase
             self.phase += self.phase_increment;
@@ -134,11 +218,7 @@ impl Oscillator {
 
     /// Generate square wave sample (naive)
     fn generate_square(&self) -> f32 {
-        if self.phase < 0.5 {
-            1.0
-        } else {
-            -1.0
-        }
+        if self.phase < 0.5 { 1.0 } else { -1.0 }
     }
 
     /// Generate triangle wave sample
@@ -147,6 +227,44 @@ impl Oscillator {
             4.0 * self.phase - 1.0
         } else {
             -4.0 * self.phase + 3.0
+        }
+    }
+
+    /// Generate pulse wave sample
+    fn generate_pulse(&self) -> f32 {
+        // Pulse width controlled by shape: -1.0 = 10% duty, 0.0 = 50%, 1.0 = 90%
+        let pulse_width = 0.5 + self.shape * 0.4;
+        if self.phase < pulse_width { 1.0 } else { -1.0 }
+    }
+
+    /// Apply wave shaping to scalar sample (non-SIMD version)
+    #[cfg(not(feature = "simd"))]
+    fn apply_wave_shaping_scalar(&self, sample: f32) -> f32 {
+        let shape_amount = self.shape.abs();
+        match self.waveform {
+            Waveform::Sine => {
+                // Add harmonics via soft clipping
+                let drive = 1.0 + shape_amount * 3.0;
+                let driven = sample * drive;
+                let tanh_approx = driven - (driven * driven * driven) / 3.0;
+                tanh_approx / drive.sqrt()
+            }
+            Waveform::Saw => {
+                // Morph towards triangle
+                let triangle = if self.phase < 0.5 {
+                    4.0 * self.phase - 1.0
+                } else {
+                    -4.0 * self.phase + 3.0
+                };
+                sample * (1.0 - shape_amount) + triangle * shape_amount
+            }
+            Waveform::Square => sample,
+            Waveform::Triangle => {
+                // Add sharpness (morph towards saw)
+                let saw = 2.0 * self.phase - 1.0;
+                sample * (1.0 - shape_amount) + saw * shape_amount
+            }
+            Waveform::Pulse => sample,
         }
     }
 
@@ -174,7 +292,7 @@ mod tests {
     fn test_frequency_setting() {
         let mut osc = Oscillator::new(44100.0);
         osc.set_frequency(440.0);
-        
+
         // Phase increment should be freq / oversample_rate
         let expected_increment = 440.0 / 176400.0;
         assert_relative_eq!(osc.phase_increment, expected_increment, epsilon = 1e-6);
@@ -196,9 +314,17 @@ mod tests {
         let min = samples.iter().cloned().fold(f32::INFINITY, f32::min);
 
         assert!(max > 0.9, "Max value {} should be close to 1.0", max);
-        assert!(max < 1.1, "Max value {} should not exceed 1.0 significantly", max);
+        assert!(
+            max < 1.1,
+            "Max value {} should not exceed 1.0 significantly",
+            max
+        );
         assert!(min < -0.9, "Min value {} should be close to -1.0", min);
-        assert!(min > -1.1, "Min value {} should not be below -1.0 significantly", min);
+        assert!(
+            min > -1.1,
+            "Min value {} should not be below -1.0 significantly",
+            min
+        );
     }
 
     #[test]
@@ -328,7 +454,11 @@ mod tests {
         let average = sum / num_samples as f32;
 
         // Sine wave should have near-zero DC offset
-        assert!(average.abs() < 0.01, "DC offset {} should be near zero", average);
+        assert!(
+            average.abs() < 0.01,
+            "DC offset {} should be near zero",
+            average
+        );
     }
 
     #[test]

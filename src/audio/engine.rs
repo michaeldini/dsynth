@@ -44,6 +44,8 @@ impl SynthEngine {
             voice.update_parameters(
                 &self.current_params.oscillators,
                 &self.current_params.filters,
+                &self.current_params.filter_envelopes,
+                &self.current_params.lfos,
             );
             return;
         }
@@ -54,6 +56,8 @@ impl SynthEngine {
         self.voices[quietest_idx].update_parameters(
             &self.current_params.oscillators,
             &self.current_params.filters,
+            &self.current_params.filter_envelopes,
+            &self.current_params.lfos,
         );
     }
 
@@ -107,6 +111,8 @@ impl SynthEngine {
                 voice.update_parameters(
                     &self.current_params.oscillators,
                     &self.current_params.filters,
+                    &self.current_params.filter_envelopes,
+                    &self.current_params.lfos,
                 );
             }
         }
@@ -114,7 +120,13 @@ impl SynthEngine {
         // Mix all voices
         let mut output = 0.0;
         for voice in &mut self.voices {
-            output += voice.process(&self.current_params.oscillators);
+            output += voice.process(
+                &self.current_params.oscillators,
+                &self.current_params.filters,
+                &self.current_params.filter_envelopes,
+                &self.current_params.lfos,
+                &self.current_params.velocity,
+            );
         }
 
         // Apply master gain
@@ -304,16 +316,18 @@ mod tests {
         engine.note_on(60, 0.0);
         assert_eq!(engine.active_voice_count(), 1);
 
-        // Process samples - should produce very little output
+        // Process samples - with velocity sensitivity, zero velocity still produces some output
+        // (1.0 - sensitivity) * volume. Default sensitivity is 0.7, so minimum is 0.3
         let mut max_output = 0.0_f32;
         for _ in 0..1000 {
             let sample = engine.process();
             max_output = max_output.max(sample.abs());
         }
 
+        // Should produce some output (velocity scaling allows quieter but not silent notes)
         assert!(
-            max_output < 0.01,
-            "Zero velocity should produce minimal output"
+            max_output > 0.0 && max_output < 1.0,
+            "Zero velocity should produce reduced but non-zero output with velocity sensitivity"
         );
     }
 }
