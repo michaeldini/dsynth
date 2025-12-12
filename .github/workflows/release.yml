@@ -72,10 +72,8 @@ jobs:
           path: artifacts
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: artifacts/*/*
-          draft: false
-          prerelease: false
+        run: |
+          cd artifacts
+          gh release create ${{ github.ref_name }} */* --title "Release ${{ github.ref_name }}" --generate-notes
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
