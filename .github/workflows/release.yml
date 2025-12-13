@@ -139,6 +139,14 @@ jobs:
 
           perl -pi -e "s/__VERSION__/$VERSION/g" "$CLAP_BUNDLE/Contents/Info.plist"
           
+          # Code sign the bundles (ad-hoc signing)
+          codesign --force --deep --sign - "$VST3_BUNDLE"
+          codesign --force --deep --sign - "$CLAP_BUNDLE"
+          
+          # Verify signatures
+          codesign -dv "$VST3_BUNDLE" 2>&1
+          codesign -dv "$CLAP_BUNDLE" 2>&1
+          
           # Create archives
           cd bundles
           tar -czf DSynth-${{ matrix.target }}-vst3.tar.gz DSynth.vst3

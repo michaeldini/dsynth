@@ -102,8 +102,13 @@ cat > "$CLAP_BUNDLE/Contents/Info.plist" << 'EOF'
 </plist>
 EOF
 
+# Code sign the bundles (ad-hoc signing for development)
+echo "Signing bundles..."
+codesign --force --deep --sign - "$VST3_BUNDLE"
+codesign --force --deep --sign - "$CLAP_BUNDLE"
+
 echo ""
-echo "✅ Plugin bundles created successfully!"
+echo "✅ Plugin bundles created and signed successfully!"
 echo ""
 echo "VST3: $VST3_BUNDLE"
 echo "CLAP: $CLAP_BUNDLE"
@@ -111,4 +116,7 @@ echo ""
 echo "To install:"
 echo "  cp -r \"$VST3_BUNDLE\" ~/Library/Audio/Plug-Ins/VST3/"
 echo "  cp -r \"$CLAP_BUNDLE\" ~/Library/Audio/Plug-Ins/CLAP/"
+echo "  # Remove quarantine attributes if needed:"
+echo "  xattr -cr ~/Library/Audio/Plug-Ins/VST3/${PLUGIN_NAME}.vst3"
+echo "  xattr -cr ~/Library/Audio/Plug-Ins/CLAP/${PLUGIN_NAME}.clap"
 echo ""
