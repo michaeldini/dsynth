@@ -44,18 +44,172 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libasound2-dev pkg-config libx11-dev libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
 
-      - name: Build
-        run: cargo build --release --target ${{ matrix.target }}
+      - name: Build Standalone
+        run: cargo build --release --features standalone --target ${{ matrix.target }}
 
       - name: Strip binary (Linux/macOS)
         if: matrix.os != 'windows-latest'
         run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
 
-      - name: Upload artifact
+      - name: Upload Standalone
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
           path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+
+      - name: Build VST Plugin
+        run: cargo build --release --lib --features vst --target ${{ matrix.target }}
+
+      - name: Create Plugin Bundles (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          mkdir -p bundles
+          
+          # VST3 Bundle
+          VST3_BUNDLE="bundles/DSynth.vst3"
+          mkdir -p "$VST3_BUNDLE/Contents/MacOS"
+          mkdir -p "$VST3_BUNDLE/Contents/Resources"
+          cp "target/${{ matrix.target }}/release/libdsynth.dylib" "$VST3_BUNDLE/Contents/MacOS/DSynth"
+          echo "BNDL????" > "$VST3_BUNDLE/Contents/PkgInfo"
+          
+          cat > "$VST3_BUNDLE/Contents/Info.plist" << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>DSynth</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.dsynth.vst3</string>
+              <key>CFBundleName</key>
+              <string>DSynth</string>
+              <key>CFBundlePackageType</key>
+              <string>BNDL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>0.1.1</string>
+          </dict>
+          </plist>
+          EOF
+          
+          # CLAP Bundle
+          CLAP_BUNDLE="bundles/DSynth.clap"
+          mkdir -p "$CLAP_BUNDLE/Contents/MacOS"
+          cp "target/${{ matrix.target }}/release/libdsynth.dylib" "$CLAP_BUNDLE/Contents/MacOS/DSynth"
+          echo "BNDL????" > "$CLAP_BUNDLE/Contents/PkgInfo"
+          
+          cat > "$CLAP_BUNDLE/Contents/Info.plist" << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>DSynth</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.dsynth.clap</string>
+              <key>CFBundleName</key>
+              <string>DSynth</string>
+              <key>CFBundlePackageType</key>
+              <string>BNDL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>0.1.1</string>
+          </dict>
+          </plist>
+          EOF
+          
+          # Create archives
+          cd bundles
+          tar -czf DSynth-${{ matrix.target }}-vst3.tar.gz DSynth.vst3
+          tar -czf DSynth-${{ matrix.target }}-clap.tar.gz DSynth.clap
+
+      - name: Create Plugin Bundles (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path bundles
+          
+          # VST3 Bundle
+          $vst3Bundle = "bundles\DSynth.vst3"
+          New-Item -ItemType Directory -Force -Path "$vst3Bundle\Contents\x86_64-win"
+          Copy-Item "target\${{ matrix.target }}\release\dsynth.dll" "$vst3Bundle\Contents\x86_64-win\DSynth.vst3"
+          
+          @"
+          {
+            "Name": "DSynth",
+            "Version": "0.1.1",
+            "Factory Info": {
+              "Vendor": "DSynth",
+              "URL": "",
+              "E-Mail": ""
+            },
+            "Compatibility": {
+              "Classes": [
+                {
+                  "CID": "44535374445300000000000000000000"
+                }
+              ]
+            }
+          }
+          "@ | Out-File -Encoding utf8 "$vst3Bundle\Contents\x86_64-win\moduleinfo.json"
+          
+          # CLAP Bundle
+          $clapBundle = "bundles\DSynth.clap"
+          New-Item -ItemType Directory -Force -Path $clapBundle
+          Copy-Item "target\${{ matrix.target }}\release\dsynth.dll" "$clapBundle\DSynth.clap"
+          
+          # Create archives
+          Compress-Archive -Path "$vst3Bundle" -DestinationPath "bundles\DSynth-${{ matrix.target }}-vst3.zip"
+          Compress-Archive -Path "$clapBundle\DSynth.clap" -DestinationPath "bundles\DSynth-${{ matrix.target }}-clap.zip"
+
+      - name: Create Plugin Bundles (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          mkdir -p bundles
+          
+          # VST3 Bundle
+          VST3_BUNDLE="bundles/DSynth.vst3"
+          mkdir -p "$VST3_BUNDLE/Contents/x86_64-linux"
+          cp "target/${{ matrix.target }}/release/libdsynth.so" "$VST3_BUNDLE/Contents/x86_64-linux/DSynth.so"
+          
+          cat > "$VST3_BUNDLE/Contents/x86_64-linux/moduleinfo.json" << 'EOF'
+          {
+            "Name": "DSynth",
+            "Version": "0.1.1",
+            "Factory Info": {
+              "Vendor": "DSynth",
+              "URL": "",
+              "E-Mail": ""
+            },
+            "Compatibility": {
+              "Classes": [
+                {
+                  "CID": "44535374445300000000000000000000"
+                }
+              ]
+            }
+          }
+          EOF
+          
+          # CLAP Bundle
+          CLAP_BUNDLE="bundles/DSynth.clap"
+          mkdir -p "$CLAP_BUNDLE"
+          cp "target/${{ matrix.target }}/release/libdsynth.so" "$CLAP_BUNDLE/DSynth.clap"
+          
+          # Create archives
+          cd bundles
+          tar -czf DSynth-${{ matrix.target }}-vst3.tar.gz DSynth.vst3
+          tar -czf DSynth-${{ matrix.target }}-clap.tar.gz DSynth.clap
+
+      - name: Upload VST3 Plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: DSynth-${{ matrix.target }}-vst3
+          path: bundles/DSynth-${{ matrix.target }}-vst3.*
+
+      - name: Upload CLAP Plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: DSynth-${{ matrix.target }}-clap
+          path: bundles/DSynth-${{ matrix.target }}-clap.*
 
   create-release:
     needs: build
@@ -77,5 +231,28 @@ jobs:
           files: artifacts/*/*
           draft: false
           prerelease: false
+          body: |
+            ## DSynth Release
+            
+            ### Standalone Applications
+            - `dsynth-macos-x86_64` - macOS Intel
+            - `dsynth-macos-arm64` - macOS Apple Silicon
+            - `dsynth-windows-x86_64.exe` - Windows 64-bit
+            - `dsynth-linux-x86_64` - Linux 64-bit
+            
+            ### VST3 Plugins
+            - `DSynth-*-vst3.tar.gz` / `.zip` - VST3 plugins for all platforms
+            
+            ### CLAP Plugins
+            - `DSynth-*-clap.tar.gz` / `.zip` - CLAP plugins for all platforms
+            
+            ### Installation
+            
+            **Standalone:** Just run the executable
+            
+            **Plugins:**
+            - macOS: Extract and copy to `~/Library/Audio/Plug-Ins/VST3/` or `/CLAP/`
+            - Windows: Extract and copy to `C:\Program Files\Common Files\VST3\` or `\CLAP\`
+            - Linux: Extract and copy to `~/.vst3/` or `~/.clap/`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

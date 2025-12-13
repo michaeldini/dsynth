@@ -6,21 +6,26 @@ edition = "2024"
 [lib]
 name = "dsynth"
 path = "src/lib.rs"
+crate-type = ["lib", "cdylib"]
 
 [features]
-default = ["simd"]
+default = ["simd", "standalone"]
 simd = []
+standalone = ["iced", "cpal", "midir", "rfd"]
+vst = ["nih_plug", "nih_plug_iced"]
 
 [dependencies]
-iced = "0.13"
-cpal = "0.15"
-midir = "0.10"
+iced = { version = "0.13", optional = true }
+cpal = { version = "0.15", optional = true }
+midir = { version = "0.10", optional = true }
 triple_buffer = "6.0"
 crossbeam-channel = "0.5"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-rfd = "0.15"
+rfd = { version = "0.15", optional = true }
 rand = "0.8"
+nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", optional = true }
+nih_plug_iced = { git = "https://github.com/robbert-vdh/nih-plug.git", optional = true }
 
 [dev-dependencies]
 approx = "0.5"

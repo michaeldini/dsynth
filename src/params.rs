@@ -1,7 +1,11 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+#[cfg(feature = "vst")]
+use nih_plug::prelude::Enum;
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "vst", derive(Enum))]
 pub enum Waveform {
     Sine,
     Saw,
@@ -29,6 +33,7 @@ impl Default for Waveform {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "vst", derive(Enum))]
 pub enum FilterType {
     Lowpass,
     Highpass,

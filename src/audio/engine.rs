@@ -46,7 +46,7 @@ impl SynthEngine {
             if !self.note_stack.contains(&note) {
                 self.note_stack.push(note);
             }
-            
+
             // Always trigger the first voice with the new note
             self.voices[0].note_on(note, velocity);
             self.voices[0].update_parameters(
@@ -91,7 +91,7 @@ impl SynthEngine {
             if let Some(pos) = self.note_stack.iter().position(|&n| n == note) {
                 self.note_stack.remove(pos);
             }
-            
+
             // If there are still notes in the stack, retrigger the most recent one
             if let Some(&last_note) = self.note_stack.last() {
                 // Retrigger the last note in the stack (last-note priority)
@@ -184,6 +184,23 @@ impl SynthEngine {
     /// Get sample rate
     pub fn sample_rate(&self) -> f32 {
         self.sample_rate
+    }
+
+    /// Process a block of samples for VST plugin usage
+    /// This is more efficient than calling process() repeatedly
+    pub fn process_block(&mut self, left: &mut [f32], right: &mut [f32]) {
+        let len = left.len().min(right.len());
+
+        for i in 0..len {
+            let sample = self.process();
+            left[i] = sample;
+            right[i] = sample;
+        }
+    }
+
+    /// Get current parameters (for GUI synchronization)
+    pub fn current_params(&self) -> &SynthParams {
+        &self.current_params
     }
 }
 

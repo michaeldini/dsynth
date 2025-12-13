@@ -1,13 +1,20 @@
+#[cfg(feature = "standalone")]
 use dsynth::audio::{create_parameter_buffer, engine::SynthEngine, output::AudioOutput};
+#[cfg(feature = "standalone")]
 use dsynth::gui::run_gui;
+#[cfg(feature = "standalone")]
 use dsynth::midi::handler::{MidiEvent, MidiHandler};
+#[cfg(feature = "standalone")]
 use std::sync::{Arc, Mutex};
+#[cfg(feature = "standalone")]
 use std::thread;
 
+#[cfg(feature = "standalone")]
 fn velocity_to_float(v: u8) -> f32 {
     v as f32 / 127.0
 }
 
+#[cfg(feature = "standalone")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("DSynth - Digital Synthesizer");
     println!("============================\n");
@@ -78,4 +85,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     run_gui(param_producer, engine_arc)?;
 
     Ok(())
+}
+
+#[cfg(not(feature = "standalone"))]
+fn main() {
+    eprintln!("This binary requires the 'standalone' feature.");
+    eprintln!("Build with: cargo build --features standalone");
+    std::process::exit(1);
 }

@@ -1,8 +1,12 @@
 #![cfg_attr(feature = "simd", feature(portable_simd))]
 
-pub mod dsp;
 pub mod audio;
-pub mod midi;
+pub mod dsp;
+#[cfg(feature = "standalone")]
 pub mod gui;
+pub mod midi;
 pub mod params;
 pub mod preset;
+
+#[cfg(feature = "vst")]
+mod plugin;

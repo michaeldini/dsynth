@@ -95,7 +95,7 @@ MIDI Input → SynthEngine → Voice (16×) → Audio Output
 - macOS, Linux, or Windows
 - Audio output device
 
-### Build
+### Build Standalone Application
 ```bash
 # Development build
 cargo build
@@ -107,9 +107,35 @@ cargo build --release
 cargo build --release --no-default-features
 ```
 
+### Build VST3/CLAP Plugin
+
+**Local builds** (for testing):
+```bash
+./bundle.sh     # macOS
+bundle.bat      # Windows  
+./bundle-linux.sh  # Linux
+```
+
+**Automated builds** (recommended for releases):
+```bash
+# Push a version tag - GitHub Actions builds ALL platforms automatically
+git tag v0.1.1 && git push --tags
+
+# Downloads available in GitHub Releases tab
+# Includes: Standalone + VST3 + CLAP for macOS/Windows/Linux
+```
+
+See [GITHUB_ACTIONS_GUIDE.md](GITHUB_ACTIONS_GUIDE.md) for the automated workflow details.
+
+### Installing the Plugin
+Copy the plugin to your DAW's plugin folder:
+- **macOS**: `~/Library/Audio/Plug-Ins/VST3/`
+- **Windows**: `C:\Program Files\Common Files\VST3\`
+- **Linux**: `~/.vst3/`
+
 ### Run
 ```bash
-# Run the synthesizer
+# Run the standalone synthesizer
 cargo run --release
 
 # Run tests
@@ -121,6 +147,7 @@ cargo bench
 
 ## Usage
 
+### Standalone Mode
 1. Launch the application: `cargo run --release`
 2. The GUI will appear with 3 oscillator/filter sections
 3. Connect a MIDI controller (optional) or use computer keyboard
@@ -128,6 +155,14 @@ cargo bench
 5. Configure filters (type, cutoff, resonance) for each oscillator
 6. Adjust master gain
 7. Press "PANIC" to stop all notes
+
+### VST Plugin Mode
+1. Build and install the plugin (see "Build VST3 Plugin" above)
+2. Open your DAW (Ableton, FL Studio, Reaper, etc.)
+3. Scan for new plugins
+4. Load DSynth as an instrument track
+5. Send MIDI notes from your DAW or MIDI controller
+6. All parameters are automatable in your DAW
 
 ### Preset Management
 - **Save Preset**: Enter a name in the preset field and click "Save" to export current settings as JSON
@@ -238,12 +273,12 @@ cargo bench -- --baseline main
 - [ ] Effects (reverb, delay, chorus)
 - [ ] Preset browser with categories
 - [ ] Automation recording
-- [ ] VST3 plugin wrapper
+- [x] **VST3/CLAP plugin wrapper** ✅
 - [ ] Additional filter types (notch, allpass)
 - [ ] Polyphonic aftertouch support
 - [ ] Preset search and tagging
-- vst plugin wrapper
-- midi cc mapping
+- [ ] MIDI CC mapping
+- [ ] Custom plugin GUI using nih_plug_iced
 
 ## License
 
