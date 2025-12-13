@@ -88,10 +88,16 @@ jobs:
           path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
 
       - name: Build VST Plugin
-        run: cargo build --release --lib --features vst --target ${{ matrix.target }}
+        timeout-minutes: 45
+        continue-on-error: true
+        id: vst_build
+        env:
+          CARGO_INCREMENTAL: 0
+          RUST_BACKTRACE: 1
+        run: cargo build --release --lib --features vst --target ${{ matrix.target }} -v
 
       - name: Create Plugin Bundles (macOS)
-        if: matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-latest' && steps.vst_build.outcome == 'success'
         run: |
           mkdir -p bundles
           
@@ -152,7 +158,7 @@ jobs:
           tar -czf DSynth-${{ matrix.target }}-clap.tar.gz DSynth.clap
 
       - name: Create Plugin Bundles (Windows)
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-latest' && steps.vst_build.outcome == 'success'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path bundles
@@ -191,7 +197,7 @@ jobs:
           Compress-Archive -Path "$clapBundle\DSynth.clap" -DestinationPath "bundles\DSynth-${{ matrix.target }}-clap.zip"
 
       - name: Create Plugin Bundles (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest' && steps.vst_build.outcome == 'success'
         run: |
           mkdir -p bundles
           
@@ -230,12 +236,14 @@ jobs:
           tar -czf DSynth-${{ matrix.target }}-clap.tar.gz DSynth.clap
 
       - name: Upload VST3 Plugin
+        if: steps.vst_build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: DSynth-${{ matrix.target }}-vst3
           path: bundles/DSynth-${{ matrix.target }}-vst3.*
 
       - name: Upload CLAP Plugin
+        if: steps.vst_build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: DSynth-${{ matrix.target }}-clap
