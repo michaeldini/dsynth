@@ -16,10 +16,6 @@ jobs:
       matrix:
         include:
           - os: macos-latest
-            target: x86_64-apple-darwin
-            artifact_name: dsynth
-            asset_name: dsynth-macos-x86_64
-          - os: macos-latest
             target: aarch64-apple-darwin
             artifact_name: dsynth
             asset_name: dsynth-macos-arm64
@@ -58,42 +54,31 @@ jobs:
         env:
           CARGO_INCREMENTAL: 0
           RUST_BACKTRACE: 1
-        run: cargo build --release --bin dsynth --no-default-features --features standalone,simd --target ${{ matrix.target }} -v
+        run: cargo build --release --bin dsynth --features standalone --target ${{ matrix.target }} -v
 
       - name: Strip binary (Linux/macOS)
         if: matrix.os != 'windows-latest'
         run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
 
-      - name: Stage standalone artifact (macOS)
-        if: matrix.os == 'macos-latest'
-        run: |
-          mkdir -p dist
-          cp "target/${{ matrix.target }}/release/${{ matrix.artifact_name }}" "dist/${{ matrix.asset_name }}"
-
-      - name: Stage standalone artifact (Windows)
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item "target\${{ matrix.target }}\release\${{ matrix.artifact_name }}" "dist\${{ matrix.asset_name }}"
-
       - name: Upload Standalone
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-          path: dist/${{ matrix.asset_name }}
+          path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
 
       - name: Build VST Plugin
         timeout-minutes: 90
+        continue-on-error: true
+        id: vst_build
         env:
           CARGO_INCREMENTAL: 0
           RUST_BACKTRACE: 1
           CARGO_NET_GIT_FETCH_WITH_CLI: true
           CARGO_NET_RETRY: 10
-        run: cargo build --release --lib --no-default-features --features vst,simd --target ${{ matrix.target }} -v
+        run: cargo build --release --lib --features vst --target ${{ matrix.target }} -v
 
       - name: Create Plugin Bundles (macOS)
-        if: matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-latest' && steps.vst_build.outcome == 'success'
         run: |
           mkdir -p bundles
 
@@ -160,7 +145,7 @@ jobs:
           tar -czf DSynth-${{ matrix.target }}-clap.tar.gz DSynth.clap
 
       - name: Create Plugin Bundles (Windows)
-        if: matrix.os == 'windows-latest'
+        if: matrix.os == 'windows-latest' && steps.vst_build.outcome == 'success'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path bundles
@@ -201,12 +186,14 @@ jobs:
           Compress-Archive -Path "$clapBundle\DSynth.clap" -DestinationPath "bundles\DSynth-${{ matrix.target }}-clap.zip"
 
       - name: Upload VST3 Plugin
+        if: steps.vst_build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: DSynth-${{ matrix.target }}-vst3
           path: bundles/DSynth-${{ matrix.target }}-vst3.*
 
       - name: Upload CLAP Plugin
+        if: steps.vst_build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: DSynth-${{ matrix.target }}-clap
@@ -236,7 +223,6 @@ jobs:
             ## DSynth Release
             
             ### Standalone Applications
-            - `dsynth-macos-x86_64` - macOS Intel
             - `dsynth-macos-arm64` - macOS Apple Silicon
             - `dsynth-windows-x86_64.exe` - Windows 64-bit
             
