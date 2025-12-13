@@ -242,6 +242,8 @@ cargo bench -- --baseline main
 - [ ] Additional filter types (notch, allpass)
 - [ ] Polyphonic aftertouch support
 - [ ] Preset search and tagging
+- vst plugin wrapper
+- midi cc mapping
 
 ## License
 

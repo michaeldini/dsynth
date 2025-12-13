@@ -20,10 +20,9 @@ pub struct Voice {
     filter_envelopes: [Envelope; 3],
     lfos: [LFO; 3],
 
-    // RMS tracking for voice stealing
-    rms_sum: f32,
-    rms_sample_count: usize,
-    current_rms: f32,
+    // RMS tracking for voice stealing using exponential moving average
+    // Stores squared samples (before sqrt) for efficiency
+    rms_squared_ema: f32,
 }
 
 impl Voice {
@@ -62,9 +61,7 @@ impl Voice {
                 LFO::new(sample_rate),
                 LFO::new(sample_rate),
             ],
-            rms_sum: 0.0,
-            rms_sample_count: 0,
-            current_rms: 0.0,
+            rms_squared_ema: 0.0,
         }
     }
 
@@ -90,9 +87,7 @@ impl Voice {
         }
 
         // Reset RMS tracking
-        self.rms_sum = 0.0;
-        self.rms_sample_count = 0;
-        self.current_rms = 0.0;
+        self.rms_squared_ema = 0.0;
     }
 
     /// Release this voice
@@ -211,15 +206,26 @@ impl Voice {
             return 0.0;
         }
 
-        // Calculate velocity-sensitive amplitude
-        let velocity_factor = 1.0 - velocity_params.amp_sensitivity
-            + (velocity_params.amp_sensitivity * self.velocity);
+        // Calculate velocity-sensitive amplitude using standardized formula:
+        // output = 1.0 + sensitivity * (velocity - 0.5)
+        // At velocity 0.0: 1.0 - 0.5 * sensitivity (quieter)
+        // At velocity 0.5: 1.0 (no change)
+        // At velocity 1.0: 1.0 + 0.5 * sensitivity (louder)
+        let velocity_factor = 1.0 + velocity_params.amp_sensitivity * (self.velocity - 0.5);
 
         // Process each oscillator group through its filter
         let mut output = 0.0;
 
+        // Check if any oscillator is soloed
+        let any_soloed = osc_params.iter().any(|o| o.solo);
+
         for (i, osc_group) in self.oscillators.iter_mut().enumerate() {
             if osc_group.is_empty() || i >= 3 {
+                continue;
+            }
+
+            // Skip this oscillator if solo mode is active and this osc is not soloed
+            if any_soloed && !osc_params[i].solo {
                 continue;
             }
 
@@ -253,19 +259,21 @@ impl Voice {
                 0.0
             };
 
-            // Apply velocity to filter envelope amount
+            // Apply velocity to filter envelope amount using standardized formula:
+            // output = 1.0 + sensitivity * (velocity - 0.5)
             let env_amount = filter_env_params[i].amount
-                * (1.0 - velocity_params.filter_env_sensitivity
-                    + velocity_params.filter_env_sensitivity * self.velocity);
+                * (1.0 + velocity_params.filter_env_sensitivity * (self.velocity - 0.5));
 
-            // Apply velocity to filter cutoff
-            let velocity_cutoff =
+            // Apply velocity to filter cutoff using standardized formula
+            // Velocity offset is proportional to base cutoff frequency
+            // At velocity 0.0: cutoff is reduced, at velocity 1.0: cutoff is raised
+            let velocity_cutoff_offset =
                 base_cutoff * velocity_params.filter_sensitivity * (self.velocity - 0.5);
 
             // Combine all modulations
             let modulated_cutoff = (base_cutoff
                 + key_tracking_offset
-                + velocity_cutoff
+                + velocity_cutoff_offset
                 + filter_env_value * env_amount
                 + lfo_value * lfo_params[i].filter_amount * lfo_params[i].depth)
                 .clamp(20.0, 20000.0);
@@ -288,23 +296,19 @@ impl Voice {
         // Apply envelope and velocity-sensitive amplitude
         output = output * env_value * velocity_factor;
 
-        // Update RMS
-        self.rms_sum += output * output;
-        self.rms_sample_count += 1;
-
-        // Update RMS every 128 samples
-        if self.rms_sample_count >= 128 {
-            self.current_rms = (self.rms_sum / self.rms_sample_count as f32).sqrt();
-            self.rms_sum = 0.0;
-            self.rms_sample_count = 0;
-        }
+        // Update RMS using exponential moving average
+        // Alpha = 0.01 gives ~100 sample window, good balance of responsiveness and smoothness
+        const RMS_ALPHA: f32 = 0.01;
+        let squared = output * output;
+        self.rms_squared_ema = self.rms_squared_ema * (1.0 - RMS_ALPHA) + squared * RMS_ALPHA;
 
         output
     }
 
     /// Get current RMS level for voice stealing
-    pub fn rms(&self) -> f32 {
-        self.current_rms
+    /// Returns the square root of the exponentially-weighted squared samples
+    pub fn get_rms(&self) -> f32 {
+        self.rms_squared_ema.sqrt()
     }
 
     /// Check if voice is active
@@ -342,9 +346,7 @@ impl Voice {
             filter.reset();
         }
 
-        self.rms_sum = 0.0;
-        self.rms_sample_count = 0;
-        self.current_rms = 0.0;
+        self.rms_squared_ema = 0.0;
     }
 }
 
@@ -539,7 +541,7 @@ mod tests {
         }
 
         // RMS should be non-zero for active voice
-        assert!(voice.rms() > 0.0, "RMS should be > 0 for active voice");
+        assert!(voice.get_rms() > 0.0, "RMS should be > 0 for active voice");
     }
 
     #[test]
@@ -569,6 +571,6 @@ mod tests {
         assert!(!voice.is_active());
         assert_eq!(voice.note(), 0);
         assert_eq!(voice.velocity, 0.0);
-        assert_eq!(voice.rms(), 0.0);
+        assert_eq!(voice.get_rms(), 0.0);
     }
 }

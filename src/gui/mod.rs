@@ -22,100 +22,54 @@ pub struct SynthGui {
     preset_name: String,
 }
 
+/// Hierarchical message types to reduce boilerplate
+#[derive(Debug, Clone)]
+pub enum OscillatorMessage {
+    WaveformChanged(Waveform),
+    PitchChanged(f32),
+    DetuneChanged(f32),
+    GainChanged(f32),
+    PanChanged(f32),
+    UnisonChanged(usize),
+    UnisonDetuneChanged(f32),
+    PhaseChanged(f32),
+    ShapeChanged(f32),
+    SoloToggled(bool),
+}
+
+#[derive(Debug, Clone)]
+pub enum FilterMessage {
+    TypeChanged(FilterType),
+    CutoffChanged(f32),
+    ResonanceChanged(f32),
+    DriveChanged(f32),
+    KeyTrackingChanged(f32),
+}
+
+#[derive(Debug, Clone)]
+pub enum FilterEnvelopeMessage {
+    AttackChanged(f32),
+    DecayChanged(f32),
+    SustainChanged(f32),
+    ReleaseChanged(f32),
+    AmountChanged(f32),
+}
+
+#[derive(Debug, Clone)]
+pub enum LFOMessage {
+    WaveformChanged(LFOWaveform),
+    RateChanged(f32),
+    DepthChanged(f32),
+    FilterAmountChanged(f32),
+}
+
 #[derive(Debug, Clone)]
 pub enum Message {
-    // Oscillator 1
-    Osc1WaveformChanged(Waveform),
-    Osc1PitchChanged(f32),
-    Osc1DetuneChanged(f32),
-    Osc1GainChanged(f32),
-    Osc1PanChanged(f32),
-    Osc1UnisonChanged(usize),
-    Osc1UnisonDetuneChanged(f32),
-    Osc1PhaseChanged(f32),
-    Osc1ShapeChanged(f32),
-
-    // Oscillator 2
-    Osc2WaveformChanged(Waveform),
-    Osc2PitchChanged(f32),
-    Osc2DetuneChanged(f32),
-    Osc2GainChanged(f32),
-    Osc2PanChanged(f32),
-    Osc2UnisonChanged(usize),
-    Osc2UnisonDetuneChanged(f32),
-    Osc2PhaseChanged(f32),
-    Osc2ShapeChanged(f32),
-
-    // Oscillator 3
-    Osc3WaveformChanged(Waveform),
-    Osc3PitchChanged(f32),
-    Osc3DetuneChanged(f32),
-    Osc3GainChanged(f32),
-    Osc3PanChanged(f32),
-    Osc3UnisonChanged(usize),
-    Osc3UnisonDetuneChanged(f32),
-    Osc3PhaseChanged(f32),
-    Osc3ShapeChanged(f32),
-
-    // Filter 1
-    Filter1TypeChanged(FilterType),
-    Filter1CutoffChanged(f32),
-    Filter1ResonanceChanged(f32),
-    Filter1DriveChanged(f32),
-    Filter1KeyTrackingChanged(f32),
-
-    // Filter 2
-    Filter2TypeChanged(FilterType),
-    Filter2CutoffChanged(f32),
-    Filter2ResonanceChanged(f32),
-    Filter2DriveChanged(f32),
-    Filter2KeyTrackingChanged(f32),
-
-    // Filter 3
-    Filter3TypeChanged(FilterType),
-    Filter3CutoffChanged(f32),
-    Filter3ResonanceChanged(f32),
-    Filter3DriveChanged(f32),
-    Filter3KeyTrackingChanged(f32),
-
-    // Filter Envelope 1
-    FilterEnv1AttackChanged(f32),
-    FilterEnv1DecayChanged(f32),
-    FilterEnv1SustainChanged(f32),
-    FilterEnv1ReleaseChanged(f32),
-    FilterEnv1AmountChanged(f32),
-
-    // Filter Envelope 2
-    FilterEnv2AttackChanged(f32),
-    FilterEnv2DecayChanged(f32),
-    FilterEnv2SustainChanged(f32),
-    FilterEnv2ReleaseChanged(f32),
-    FilterEnv2AmountChanged(f32),
-
-    // Filter Envelope 3
-    FilterEnv3AttackChanged(f32),
-    FilterEnv3DecayChanged(f32),
-    FilterEnv3SustainChanged(f32),
-    FilterEnv3ReleaseChanged(f32),
-    FilterEnv3AmountChanged(f32),
-
-    // LFO 1
-    LFO1WaveformChanged(LFOWaveform),
-    LFO1RateChanged(f32),
-    LFO1DepthChanged(f32),
-    LFO1FilterAmountChanged(f32),
-
-    // LFO 2
-    LFO2WaveformChanged(LFOWaveform),
-    LFO2RateChanged(f32),
-    LFO2DepthChanged(f32),
-    LFO2FilterAmountChanged(f32),
-
-    // LFO 3
-    LFO3WaveformChanged(LFOWaveform),
-    LFO3RateChanged(f32),
-    LFO3DepthChanged(f32),
-    LFO3FilterAmountChanged(f32),
+    // Indexed parameter groups
+    Oscillator(usize, OscillatorMessage),
+    Filter(usize, FilterMessage),
+    FilterEnvelope(usize, FilterEnvelopeMessage),
+    LFO(usize, LFOMessage),
 
     // Velocity Sensitivity
     VelocityAmpChanged(f32),
@@ -124,6 +78,7 @@ pub enum Message {
 
     // Master
     MasterGainChanged(f32),
+    MonophonicToggled(bool),
     PanicPressed,
 
     // Keyboard events
@@ -194,98 +149,65 @@ impl SynthGui {
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            // Oscillator 1
-            Message::Osc1WaveformChanged(w) => self.params.oscillators[0].waveform = w,
-            Message::Osc1PitchChanged(p) => self.params.oscillators[0].pitch = p,
-            Message::Osc1DetuneChanged(d) => self.params.oscillators[0].detune = d,
-            Message::Osc1GainChanged(g) => self.params.oscillators[0].gain = g,
-            Message::Osc1PanChanged(p) => self.params.oscillators[0].pan = p,
-            Message::Osc1UnisonChanged(u) => self.params.oscillators[0].unison = u,
-            Message::Osc1UnisonDetuneChanged(d) => self.params.oscillators[0].unison_detune = d,
-            Message::Osc1PhaseChanged(p) => self.params.oscillators[0].phase = p,
-            Message::Osc1ShapeChanged(s) => self.params.oscillators[0].shape = s,
+            // Oscillator parameters
+            Message::Oscillator(idx, msg) => {
+                if idx < 3 {
+                    let osc = &mut self.params.oscillators[idx];
+                    match msg {
+                        OscillatorMessage::WaveformChanged(w) => osc.waveform = w,
+                        OscillatorMessage::PitchChanged(p) => osc.pitch = p,
+                        OscillatorMessage::DetuneChanged(d) => osc.detune = d,
+                        OscillatorMessage::GainChanged(g) => osc.gain = g,
+                        OscillatorMessage::PanChanged(p) => osc.pan = p,
+                        OscillatorMessage::UnisonChanged(u) => osc.unison = u,
+                        OscillatorMessage::UnisonDetuneChanged(d) => osc.unison_detune = d,
+                        OscillatorMessage::PhaseChanged(p) => osc.phase = p,
+                        OscillatorMessage::ShapeChanged(s) => osc.shape = s,
+                        OscillatorMessage::SoloToggled(s) => osc.solo = s,
+                    }
+                }
+            }
 
-            // Oscillator 2
-            Message::Osc2WaveformChanged(w) => self.params.oscillators[1].waveform = w,
-            Message::Osc2PitchChanged(p) => self.params.oscillators[1].pitch = p,
-            Message::Osc2DetuneChanged(d) => self.params.oscillators[1].detune = d,
-            Message::Osc2GainChanged(g) => self.params.oscillators[1].gain = g,
-            Message::Osc2PanChanged(p) => self.params.oscillators[1].pan = p,
-            Message::Osc2UnisonChanged(u) => self.params.oscillators[1].unison = u,
-            Message::Osc2UnisonDetuneChanged(d) => self.params.oscillators[1].unison_detune = d,
-            Message::Osc2PhaseChanged(p) => self.params.oscillators[1].phase = p,
-            Message::Osc2ShapeChanged(s) => self.params.oscillators[1].shape = s,
+            // Filter parameters
+            Message::Filter(idx, msg) => {
+                if idx < 3 {
+                    let filter = &mut self.params.filters[idx];
+                    match msg {
+                        FilterMessage::TypeChanged(t) => filter.filter_type = t,
+                        FilterMessage::CutoffChanged(c) => filter.cutoff = c,
+                        FilterMessage::ResonanceChanged(r) => filter.resonance = r,
+                        FilterMessage::DriveChanged(d) => filter.drive = d,
+                        FilterMessage::KeyTrackingChanged(k) => filter.key_tracking = k,
+                    }
+                }
+            }
 
-            // Oscillator 3
-            Message::Osc3WaveformChanged(w) => self.params.oscillators[2].waveform = w,
-            Message::Osc3PitchChanged(p) => self.params.oscillators[2].pitch = p,
-            Message::Osc3DetuneChanged(d) => self.params.oscillators[2].detune = d,
-            Message::Osc3GainChanged(g) => self.params.oscillators[2].gain = g,
-            Message::Osc3PanChanged(p) => self.params.oscillators[2].pan = p,
-            Message::Osc3UnisonChanged(u) => self.params.oscillators[2].unison = u,
-            Message::Osc3UnisonDetuneChanged(d) => self.params.oscillators[2].unison_detune = d,
-            Message::Osc3PhaseChanged(p) => self.params.oscillators[2].phase = p,
-            Message::Osc3ShapeChanged(s) => self.params.oscillators[2].shape = s,
+            // Filter envelope parameters
+            Message::FilterEnvelope(idx, msg) => {
+                if idx < 3 {
+                    let env = &mut self.params.filter_envelopes[idx];
+                    match msg {
+                        FilterEnvelopeMessage::AttackChanged(a) => env.attack = a,
+                        FilterEnvelopeMessage::DecayChanged(d) => env.decay = d,
+                        FilterEnvelopeMessage::SustainChanged(s) => env.sustain = s,
+                        FilterEnvelopeMessage::ReleaseChanged(r) => env.release = r,
+                        FilterEnvelopeMessage::AmountChanged(a) => env.amount = a,
+                    }
+                }
+            }
 
-            // Filter 1
-            Message::Filter1TypeChanged(t) => self.params.filters[0].filter_type = t,
-            Message::Filter1CutoffChanged(c) => self.params.filters[0].cutoff = c,
-            Message::Filter1ResonanceChanged(r) => self.params.filters[0].resonance = r,
-            Message::Filter1DriveChanged(d) => self.params.filters[0].drive = d,
-            Message::Filter1KeyTrackingChanged(k) => self.params.filters[0].key_tracking = k,
-
-            // Filter 2
-            Message::Filter2TypeChanged(t) => self.params.filters[1].filter_type = t,
-            Message::Filter2CutoffChanged(c) => self.params.filters[1].cutoff = c,
-            Message::Filter2ResonanceChanged(r) => self.params.filters[1].resonance = r,
-            Message::Filter2DriveChanged(d) => self.params.filters[1].drive = d,
-            Message::Filter2KeyTrackingChanged(k) => self.params.filters[1].key_tracking = k,
-
-            // Filter 3
-            Message::Filter3TypeChanged(t) => self.params.filters[2].filter_type = t,
-            Message::Filter3CutoffChanged(c) => self.params.filters[2].cutoff = c,
-            Message::Filter3ResonanceChanged(r) => self.params.filters[2].resonance = r,
-            Message::Filter3DriveChanged(d) => self.params.filters[2].drive = d,
-            Message::Filter3KeyTrackingChanged(k) => self.params.filters[2].key_tracking = k,
-
-            // Filter Envelope 1
-            Message::FilterEnv1AttackChanged(a) => self.params.filter_envelopes[0].attack = a,
-            Message::FilterEnv1DecayChanged(d) => self.params.filter_envelopes[0].decay = d,
-            Message::FilterEnv1SustainChanged(s) => self.params.filter_envelopes[0].sustain = s,
-            Message::FilterEnv1ReleaseChanged(r) => self.params.filter_envelopes[0].release = r,
-            Message::FilterEnv1AmountChanged(a) => self.params.filter_envelopes[0].amount = a,
-
-            // Filter Envelope 2
-            Message::FilterEnv2AttackChanged(a) => self.params.filter_envelopes[1].attack = a,
-            Message::FilterEnv2DecayChanged(d) => self.params.filter_envelopes[1].decay = d,
-            Message::FilterEnv2SustainChanged(s) => self.params.filter_envelopes[1].sustain = s,
-            Message::FilterEnv2ReleaseChanged(r) => self.params.filter_envelopes[1].release = r,
-            Message::FilterEnv2AmountChanged(a) => self.params.filter_envelopes[1].amount = a,
-
-            // Filter Envelope 3
-            Message::FilterEnv3AttackChanged(a) => self.params.filter_envelopes[2].attack = a,
-            Message::FilterEnv3DecayChanged(d) => self.params.filter_envelopes[2].decay = d,
-            Message::FilterEnv3SustainChanged(s) => self.params.filter_envelopes[2].sustain = s,
-            Message::FilterEnv3ReleaseChanged(r) => self.params.filter_envelopes[2].release = r,
-            Message::FilterEnv3AmountChanged(a) => self.params.filter_envelopes[2].amount = a,
-
-            // LFO 1
-            Message::LFO1WaveformChanged(w) => self.params.lfos[0].waveform = w,
-            Message::LFO1RateChanged(r) => self.params.lfos[0].rate = r,
-            Message::LFO1DepthChanged(d) => self.params.lfos[0].depth = d,
-            Message::LFO1FilterAmountChanged(a) => self.params.lfos[0].filter_amount = a,
-
-            // LFO 2
-            Message::LFO2WaveformChanged(w) => self.params.lfos[1].waveform = w,
-            Message::LFO2RateChanged(r) => self.params.lfos[1].rate = r,
-            Message::LFO2DepthChanged(d) => self.params.lfos[1].depth = d,
-            Message::LFO2FilterAmountChanged(a) => self.params.lfos[1].filter_amount = a,
-
-            // LFO 3
-            Message::LFO3WaveformChanged(w) => self.params.lfos[2].waveform = w,
-            Message::LFO3RateChanged(r) => self.params.lfos[2].rate = r,
-            Message::LFO3DepthChanged(d) => self.params.lfos[2].depth = d,
-            Message::LFO3FilterAmountChanged(a) => self.params.lfos[2].filter_amount = a,
+            // LFO parameters
+            Message::LFO(idx, msg) => {
+                if idx < 3 {
+                    let lfo = &mut self.params.lfos[idx];
+                    match msg {
+                        LFOMessage::WaveformChanged(w) => lfo.waveform = w,
+                        LFOMessage::RateChanged(r) => lfo.rate = r,
+                        LFOMessage::DepthChanged(d) => lfo.depth = d,
+                        LFOMessage::FilterAmountChanged(a) => lfo.filter_amount = a,
+                    }
+                }
+            }
 
             // Velocity Sensitivity
             Message::VelocityAmpChanged(v) => self.params.velocity.amp_sensitivity = v,
@@ -294,8 +216,8 @@ impl SynthGui {
 
             // Master
             Message::MasterGainChanged(g) => self.params.master_gain = g,
+            Message::MonophonicToggled(mono) => self.params.monophonic = mono,
             Message::PanicPressed => {
-                // Send all notes off to engine
                 if let Some(engine) = &self.engine {
                     if let Ok(mut eng) = engine.lock() {
                         eng.all_notes_off();
@@ -310,7 +232,7 @@ impl SynthGui {
                     if let Some(note) = Self::key_to_midi_note(&key) {
                         if let Some(engine) = &self.engine {
                             if let Ok(mut eng) = engine.lock() {
-                                eng.note_on(note, 0.8); // Fixed velocity
+                                eng.note_on(note, 0.8);
                             }
                         }
                         self.pressed_keys.insert(key);
@@ -330,25 +252,19 @@ impl SynthGui {
             }
 
             // Preset management
-            Message::PresetNameChanged(name) => {
-                self.preset_name = name;
-            }
+            Message::PresetNameChanged(name) => self.preset_name = name,
             Message::SavePreset => {
                 return Task::perform(
                     Self::save_preset_dialog(self.preset_name.clone(), self.params),
-                    |_| Message::PanicPressed, // Dummy message after save
+                    |_| Message::PanicPressed,
                 );
             }
             Message::LoadPreset => {
                 return Task::perform(Self::load_preset_dialog(), Message::PresetLoaded);
             }
             Message::PresetLoaded(result) => match result {
-                Ok(params) => {
-                    self.params = params;
-                }
-                Err(e) => {
-                    eprintln!("Failed to load preset: {}", e);
-                }
+                Ok(params) => self.params = params,
+                Err(e) => eprintln!("Failed to load preset: {}", e),
             },
             Message::Randomize => {
                 self.params = Self::randomize_params();
@@ -504,6 +420,13 @@ impl SynthGui {
             .step(0.01)
             .width(200),
             text(format!("{:.2}", self.params.master_gain)).width(50),
+            button(if self.params.monophonic {
+                "MONO [ON]"
+            } else {
+                "MONO [OFF]"
+            })
+            .on_press(Message::MonophonicToggled(!self.params.monophonic))
+            .padding(10),
             button("PANIC").on_press(Message::PanicPressed).padding(10),
         ]
         .spacing(10)
@@ -550,183 +473,194 @@ impl SynthGui {
             LFOWaveform::Saw,
         ];
 
-        let (
-            wave_msg,
-            pitch_msg,
-            detune_msg,
-            gain_msg,
-            pan_msg,
-            unison_msg,
-            unison_detune_msg,
-            phase_msg,
-            shape_msg,
-            ftype_msg,
-            cutoff_msg,
-            res_msg,
-            drive_msg,
-            key_track_msg,
-            fenv_attack_msg,
-            fenv_decay_msg,
-            fenv_sustain_msg,
-            fenv_release_msg,
-            fenv_amount_msg,
-            lfo_wave_msg,
-            lfo_rate_msg,
-            lfo_depth_msg,
-            lfo_filter_msg,
-        ) = match index {
-            0 => (
-                Message::Osc1WaveformChanged as fn(Waveform) -> Message,
-                Message::Osc1PitchChanged as fn(f32) -> Message,
-                Message::Osc1DetuneChanged as fn(f32) -> Message,
-                Message::Osc1GainChanged as fn(f32) -> Message,
-                Message::Osc1PanChanged as fn(f32) -> Message,
-                Message::Osc1UnisonChanged as fn(usize) -> Message,
-                Message::Osc1UnisonDetuneChanged as fn(f32) -> Message,
-                Message::Osc1PhaseChanged as fn(f32) -> Message,
-                Message::Osc1ShapeChanged as fn(f32) -> Message,
-                Message::Filter1TypeChanged as fn(FilterType) -> Message,
-                Message::Filter1CutoffChanged as fn(f32) -> Message,
-                Message::Filter1ResonanceChanged as fn(f32) -> Message,
-                Message::Filter1DriveChanged as fn(f32) -> Message,
-                Message::Filter1KeyTrackingChanged as fn(f32) -> Message,
-                Message::FilterEnv1AttackChanged as fn(f32) -> Message,
-                Message::FilterEnv1DecayChanged as fn(f32) -> Message,
-                Message::FilterEnv1SustainChanged as fn(f32) -> Message,
-                Message::FilterEnv1ReleaseChanged as fn(f32) -> Message,
-                Message::FilterEnv1AmountChanged as fn(f32) -> Message,
-                Message::LFO1WaveformChanged as fn(LFOWaveform) -> Message,
-                Message::LFO1RateChanged as fn(f32) -> Message,
-                Message::LFO1DepthChanged as fn(f32) -> Message,
-                Message::LFO1FilterAmountChanged as fn(f32) -> Message,
-            ),
-            1 => (
-                Message::Osc2WaveformChanged as fn(Waveform) -> Message,
-                Message::Osc2PitchChanged as fn(f32) -> Message,
-                Message::Osc2DetuneChanged as fn(f32) -> Message,
-                Message::Osc2GainChanged as fn(f32) -> Message,
-                Message::Osc2PanChanged as fn(f32) -> Message,
-                Message::Osc2UnisonChanged as fn(usize) -> Message,
-                Message::Osc2UnisonDetuneChanged as fn(f32) -> Message,
-                Message::Osc2PhaseChanged as fn(f32) -> Message,
-                Message::Osc2ShapeChanged as fn(f32) -> Message,
-                Message::Filter2TypeChanged as fn(FilterType) -> Message,
-                Message::Filter2CutoffChanged as fn(f32) -> Message,
-                Message::Filter2ResonanceChanged as fn(f32) -> Message,
-                Message::Filter2DriveChanged as fn(f32) -> Message,
-                Message::Filter2KeyTrackingChanged as fn(f32) -> Message,
-                Message::FilterEnv2AttackChanged as fn(f32) -> Message,
-                Message::FilterEnv2DecayChanged as fn(f32) -> Message,
-                Message::FilterEnv2SustainChanged as fn(f32) -> Message,
-                Message::FilterEnv2ReleaseChanged as fn(f32) -> Message,
-                Message::FilterEnv2AmountChanged as fn(f32) -> Message,
-                Message::LFO2WaveformChanged as fn(LFOWaveform) -> Message,
-                Message::LFO2RateChanged as fn(f32) -> Message,
-                Message::LFO2DepthChanged as fn(f32) -> Message,
-                Message::LFO2FilterAmountChanged as fn(f32) -> Message,
-            ),
-            _ => (
-                Message::Osc3WaveformChanged as fn(Waveform) -> Message,
-                Message::Osc3PitchChanged as fn(f32) -> Message,
-                Message::Osc3DetuneChanged as fn(f32) -> Message,
-                Message::Osc3GainChanged as fn(f32) -> Message,
-                Message::Osc3PanChanged as fn(f32) -> Message,
-                Message::Osc3UnisonChanged as fn(usize) -> Message,
-                Message::Osc3UnisonDetuneChanged as fn(f32) -> Message,
-                Message::Osc3PhaseChanged as fn(f32) -> Message,
-                Message::Osc3ShapeChanged as fn(f32) -> Message,
-                Message::Filter3TypeChanged as fn(FilterType) -> Message,
-                Message::Filter3CutoffChanged as fn(f32) -> Message,
-                Message::Filter3ResonanceChanged as fn(f32) -> Message,
-                Message::Filter3DriveChanged as fn(f32) -> Message,
-                Message::Filter3KeyTrackingChanged as fn(f32) -> Message,
-                Message::FilterEnv3AttackChanged as fn(f32) -> Message,
-                Message::FilterEnv3DecayChanged as fn(f32) -> Message,
-                Message::FilterEnv3SustainChanged as fn(f32) -> Message,
-                Message::FilterEnv3ReleaseChanged as fn(f32) -> Message,
-                Message::FilterEnv3AmountChanged as fn(f32) -> Message,
-                Message::LFO3WaveformChanged as fn(LFOWaveform) -> Message,
-                Message::LFO3RateChanged as fn(f32) -> Message,
-                Message::LFO3DepthChanged as fn(f32) -> Message,
-                Message::LFO3FilterAmountChanged as fn(f32) -> Message,
-            ),
-        };
-
         Column::new()
             .push(text(label).size(20))
+            // Solo button
+            .push(
+                button(if osc.solo { "SOLO [ON]" } else { "SOLO [OFF]" }).on_press(
+                    Message::Oscillator(index, OscillatorMessage::SoloToggled(!osc.solo)),
+                ),
+            )
+            // Oscillator controls
             .push(text("Waveform:"))
-            .push(pick_list(waveforms, Some(osc.waveform), wave_msg))
+            .push(pick_list(waveforms, Some(osc.waveform), move |w| {
+                Message::Oscillator(index, OscillatorMessage::WaveformChanged(w))
+            }))
             .push(text("Pitch (semitones):"))
-            .push(slider(-24.0..=24.0, osc.pitch, pitch_msg).step(1.0))
+            .push(
+                slider(-24.0..=24.0, osc.pitch, move |p| {
+                    Message::Oscillator(index, OscillatorMessage::PitchChanged(p))
+                })
+                .step(1.0),
+            )
             .push(text(format!("{:.0}", osc.pitch)))
             .push(text("Detune (cents):"))
-            .push(slider(-50.0..=50.0, osc.detune, detune_msg).step(1.0))
+            .push(
+                slider(-50.0..=50.0, osc.detune, move |d| {
+                    Message::Oscillator(index, OscillatorMessage::DetuneChanged(d))
+                })
+                .step(1.0),
+            )
             .push(text(format!("{:.0}", osc.detune)))
             .push(text("Gain:"))
-            .push(slider(0.0..=1.0, osc.gain, gain_msg).step(0.01))
+            .push(
+                slider(0.0..=1.0, osc.gain, move |g| {
+                    Message::Oscillator(index, OscillatorMessage::GainChanged(g))
+                })
+                .step(0.01),
+            )
             .push(text(format!("{:.2}", osc.gain)))
             .push(text("Pan:"))
-            .push(slider(-1.0..=1.0, osc.pan, pan_msg).step(0.01))
+            .push(
+                slider(-1.0..=1.0, osc.pan, move |p| {
+                    Message::Oscillator(index, OscillatorMessage::PanChanged(p))
+                })
+                .step(0.01),
+            )
             .push(text(format!("{:.2}", osc.pan)))
             .push(text("Unison:"))
             .push(
                 slider(1.0..=7.0, osc.unison as f32, move |v| {
-                    unison_msg(v as usize)
+                    Message::Oscillator(index, OscillatorMessage::UnisonChanged(v as usize))
                 })
                 .step(1.0),
             )
             .push(text(format!("{}", osc.unison)))
             .push(text("Unison Detune (cents):"))
-            .push(slider(0.0..=50.0, osc.unison_detune, unison_detune_msg).step(1.0))
+            .push(
+                slider(0.0..=50.0, osc.unison_detune, move |d| {
+                    Message::Oscillator(index, OscillatorMessage::UnisonDetuneChanged(d))
+                })
+                .step(1.0),
+            )
             .push(text(format!("{:.0}", osc.unison_detune)))
             .push(text("Phase:"))
-            .push(slider(0.0..=1.0, osc.phase, phase_msg).step(0.01))
+            .push(
+                slider(0.0..=1.0, osc.phase, move |p| {
+                    Message::Oscillator(index, OscillatorMessage::PhaseChanged(p))
+                })
+                .step(0.01),
+            )
             .push(text(format!("{:.2}", osc.phase)))
             .push(text("Shape:"))
-            .push(slider(-1.0..=1.0, osc.shape, shape_msg).step(0.01))
+            .push(
+                slider(-1.0..=1.0, osc.shape, move |s| {
+                    Message::Oscillator(index, OscillatorMessage::ShapeChanged(s))
+                })
+                .step(0.01),
+            )
             .push(text(format!("{:.2}", osc.shape)))
+            // Filter controls
             .push(text("--- Filter ---").size(18))
             .push(text("Type:"))
-            .push(pick_list(filter_types, Some(filter.filter_type), ftype_msg))
+            .push(pick_list(
+                filter_types,
+                Some(filter.filter_type),
+                move |t| Message::Filter(index, FilterMessage::TypeChanged(t)),
+            ))
             .push(text("Cutoff (Hz):"))
-            .push(slider(20.0..=20000.0, filter.cutoff, cutoff_msg).step(10.0))
+            .push(
+                slider(20.0..=20000.0, filter.cutoff, move |c| {
+                    Message::Filter(index, FilterMessage::CutoffChanged(c))
+                })
+                .step(10.0),
+            )
             .push(text(format!("{:.0}", filter.cutoff)))
             .push(text("Resonance:"))
-            .push(slider(0.5..=10.0, filter.resonance, res_msg).step(0.1))
+            .push(
+                slider(0.5..=10.0, filter.resonance, move |r| {
+                    Message::Filter(index, FilterMessage::ResonanceChanged(r))
+                })
+                .step(0.1),
+            )
             .push(text(format!("{:.1}", filter.resonance)))
             .push(text("Drive:"))
-            .push(slider(1.0..=10.0, filter.drive, drive_msg).step(0.1))
+            .push(
+                slider(1.0..=10.0, filter.drive, move |d| {
+                    Message::Filter(index, FilterMessage::DriveChanged(d))
+                })
+                .step(0.1),
+            )
             .push(text(format!("{:.1}", filter.drive)))
             .push(text("Key Tracking:"))
-            .push(slider(0.0..=1.0, filter.key_tracking, key_track_msg).step(0.01))
+            .push(
+                slider(0.0..=1.0, filter.key_tracking, move |k| {
+                    Message::Filter(index, FilterMessage::KeyTrackingChanged(k))
+                })
+                .step(0.01),
+            )
             .push(text(format!("{:.2}", filter.key_tracking)))
+            // Filter envelope controls
             .push(text("--- Filter Envelope ---").size(18))
             .push(text("Attack (s):"))
-            .push(slider(0.001..=5.0, filter_env.attack, fenv_attack_msg).step(0.01))
+            .push(
+                slider(0.001..=5.0, filter_env.attack, move |a| {
+                    Message::FilterEnvelope(index, FilterEnvelopeMessage::AttackChanged(a))
+                })
+                .step(0.01),
+            )
             .push(text(format!("{:.3}", filter_env.attack)))
             .push(text("Decay (s):"))
-            .push(slider(0.001..=5.0, filter_env.decay, fenv_decay_msg).step(0.01))
+            .push(
+                slider(0.001..=5.0, filter_env.decay, move |d| {
+                    Message::FilterEnvelope(index, FilterEnvelopeMessage::DecayChanged(d))
+                })
+                .step(0.01),
+            )
             .push(text(format!("{:.3}", filter_env.decay)))
             .push(text("Sustain:"))
-            .push(slider(0.0..=1.0, filter_env.sustain, fenv_sustain_msg).step(0.01))
+            .push(
+                slider(0.0..=1.0, filter_env.sustain, move |s| {
+                    Message::FilterEnvelope(index, FilterEnvelopeMessage::SustainChanged(s))
+                })
+                .step(0.01),
+            )
             .push(text(format!("{:.2}", filter_env.sustain)))
             .push(text("Release (s):"))
-            .push(slider(0.001..=5.0, filter_env.release, fenv_release_msg).step(0.01))
+            .push(
+                slider(0.001..=5.0, filter_env.release, move |r| {
+                    Message::FilterEnvelope(index, FilterEnvelopeMessage::ReleaseChanged(r))
+                })
+                .step(0.01),
+            )
             .push(text(format!("{:.3}", filter_env.release)))
             .push(text("Amount (Hz):"))
-            .push(slider(-10000.0..=10000.0, filter_env.amount, fenv_amount_msg).step(100.0))
+            .push(
+                slider(-10000.0..=10000.0, filter_env.amount, move |a| {
+                    Message::FilterEnvelope(index, FilterEnvelopeMessage::AmountChanged(a))
+                })
+                .step(100.0),
+            )
             .push(text(format!("{:.0}", filter_env.amount)))
+            // LFO controls
             .push(text("--- LFO ---").size(18))
             .push(text("Waveform:"))
-            .push(pick_list(lfo_waveforms, Some(lfo.waveform), lfo_wave_msg))
+            .push(pick_list(lfo_waveforms, Some(lfo.waveform), move |w| {
+                Message::LFO(index, LFOMessage::WaveformChanged(w))
+            }))
             .push(text("Rate (Hz):"))
-            .push(slider(0.01..=20.0, lfo.rate, lfo_rate_msg).step(0.1))
+            .push(
+                slider(0.01..=20.0, lfo.rate, move |r| {
+                    Message::LFO(index, LFOMessage::RateChanged(r))
+                })
+                .step(0.1),
+            )
             .push(text(format!("{:.2}", lfo.rate)))
             .push(text("Depth:"))
-            .push(slider(0.0..=1.0, lfo.depth, lfo_depth_msg).step(0.01))
+            .push(
+                slider(0.0..=1.0, lfo.depth, move |d| {
+                    Message::LFO(index, LFOMessage::DepthChanged(d))
+                })
+                .step(0.01),
+            )
             .push(text(format!("{:.2}", lfo.depth)))
             .push(text("Filter Amount (Hz):"))
-            .push(slider(0.0..=5000.0, lfo.filter_amount, lfo_filter_msg).step(50.0))
+            .push(
+                slider(0.0..=5000.0, lfo.filter_amount, move |a| {
+                    Message::LFO(index, LFOMessage::FilterAmountChanged(a))
+                })
+                .step(50.0),
+            )
             .push(text(format!("{:.0}", lfo.filter_amount)))
             .spacing(5)
             .padding(10)

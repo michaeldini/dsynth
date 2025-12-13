@@ -1,13 +1,12 @@
 use crate::dsp::downsampler::Downsampler;
+use crate::dsp::waveform;
 use crate::params::Waveform;
-use std::f32::consts::PI;
 
 #[cfg(feature = "simd")]
 use std::simd::{StdFloat, cmp::SimdPartialOrd, f32x4};
 
 /// Sample-rate-agnostic oscillator with 4× oversampling for anti-aliasing
 pub struct Oscillator {
-    sample_rate: f32,
     oversample_rate: f32,
     phase: f32,
     phase_increment: f32,
@@ -24,7 +23,6 @@ impl Oscillator {
     /// * `sample_rate` - Target sample rate (e.g., 44100.0)
     pub fn new(sample_rate: f32) -> Self {
         Self {
-            sample_rate,
             oversample_rate: sample_rate * 4.0,
             phase: 0.0,
             phase_increment: 0.0,
@@ -128,28 +126,6 @@ impl Oscillator {
 
         // Generate samples based on waveform using SIMD
         let mut samples = match self.waveform {
-            Waveform::Sine => {
-                let two_pi = f32x4::splat(2.0 * PI);
-                (phases * two_pi).sin()
-            }
-            Waveform::Saw => f32x4::splat(2.0) * phases - f32x4::splat(1.0),
-            Waveform::Square => {
-                let half = f32x4::splat(0.5);
-                let one = f32x4::splat(1.0);
-                let neg_one = f32x4::splat(-1.0);
-                phases.simd_lt(half).select(one, neg_one)
-            }
-            Waveform::Triangle => {
-                let half = f32x4::splat(0.5);
-                let four = f32x4::splat(4.0);
-                let neg_four = f32x4::splat(-4.0);
-                let one = f32x4::splat(1.0);
-                let three = f32x4::splat(3.0);
-
-                let low_branch = four * phases - one;
-                let high_branch = neg_four * phases + three;
-                phases.simd_lt(half).select(low_branch, high_branch)
-            }
             Waveform::Pulse => {
                 // Pulse width is controlled by shape parameter
                 // shape: -1.0 = 10% duty, 0.0 = 50% duty (square), 1.0 = 90% duty
@@ -159,6 +135,7 @@ impl Oscillator {
                 let neg_one = f32x4::splat(-1.0);
                 phases.simd_lt(threshold).select(one, neg_one)
             }
+            _ => waveform::generate_simd(phases, self.waveform),
         };
 
         // Apply wave shaping if shape parameter is non-zero
@@ -183,11 +160,12 @@ impl Oscillator {
 
         for sample in &mut oversampled {
             *sample = match self.waveform {
-                Waveform::Sine => self.generate_sine(),
-                Waveform::Saw => self.generate_saw(),
-                Waveform::Square => self.generate_square(),
-                Waveform::Triangle => self.generate_triangle(),
-                Waveform::Pulse => self.generate_pulse(),
+                Waveform::Pulse => {
+                    // Pulse width controlled by shape: -1.0 = 10% duty, 0.0 = 50%, 1.0 = 90%
+                    let pulse_width = 0.5 + self.shape * 0.4;
+                    if self.phase < pulse_width { 1.0 } else { -1.0 }
+                }
+                _ => waveform::generate_scalar(self.phase, self.waveform),
             };
 
             // Apply wave shaping if not Pulse (Pulse uses shape for PWM)
@@ -204,37 +182,6 @@ impl Oscillator {
 
         // Downsample from 4× to 1×
         self.downsampler.process(oversampled)
-    }
-
-    /// Generate sine wave sample
-    fn generate_sine(&self) -> f32 {
-        (self.phase * 2.0 * PI).sin()
-    }
-
-    /// Generate sawtooth wave sample (naive)
-    fn generate_saw(&self) -> f32 {
-        2.0 * self.phase - 1.0
-    }
-
-    /// Generate square wave sample (naive)
-    fn generate_square(&self) -> f32 {
-        if self.phase < 0.5 { 1.0 } else { -1.0 }
-    }
-
-    /// Generate triangle wave sample
-    fn generate_triangle(&self) -> f32 {
-        if self.phase < 0.5 {
-            4.0 * self.phase - 1.0
-        } else {
-            -4.0 * self.phase + 3.0
-        }
-    }
-
-    /// Generate pulse wave sample
-    fn generate_pulse(&self) -> f32 {
-        // Pulse width controlled by shape: -1.0 = 10% duty, 0.0 = 50%, 1.0 = 90%
-        let pulse_width = 0.5 + self.shape * 0.4;
-        if self.phase < pulse_width { 1.0 } else { -1.0 }
     }
 
     /// Apply wave shaping to scalar sample (non-SIMD version)

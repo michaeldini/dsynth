@@ -62,6 +62,7 @@ pub struct OscillatorParams {
     pub unison_detune: f32, // Unison spread in cents (0-50)
     pub phase: f32,         // Initial phase offset (0.0 to 1.0)
     pub shape: f32,         // Wave shaping amount (-1.0 to 1.0)
+    pub solo: bool,         // Solo mode - when any osc is soloed, only soloed oscs are heard
 }
 
 impl Default for OscillatorParams {
@@ -76,6 +77,7 @@ impl Default for OscillatorParams {
             unison_detune: 10.0,
             phase: 0.0,
             shape: 0.0,
+            solo: false,
         }
     }
 }
@@ -168,9 +170,25 @@ impl Default for LFOParams {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct VelocityParams {
-    pub amp_sensitivity: f32,        // 0.0 to 1.0
-    pub filter_sensitivity: f32,     // 0.0 to 1.0 (affects cutoff)
-    pub filter_env_sensitivity: f32, // 0.0 to 1.0 (affects envelope amount)
+    /// Velocity sensitivity for amplitude (0.0 = no velocity sensitivity, 1.0 = full sensitivity)
+    ///
+    /// Formula: `output_amplitude = 1.0 + amp_sensitivity * (velocity - 0.5)`
+    /// - At velocity 0.0: amplitude is (1.0 - 0.5 * sensitivity)
+    /// - At velocity 0.5: amplitude is exactly 1.0 (no change)
+    /// - At velocity 1.0: amplitude is (1.0 + 0.5 * sensitivity)
+    pub amp_sensitivity: f32,
+
+    /// Velocity sensitivity for filter cutoff frequency (0.0 = no velocity sensitivity, 1.0 = full sensitivity)
+    ///
+    /// Formula: `cutoff_offset = filter_sensitivity * (velocity - 0.5)`
+    /// Higher velocity raises the filter cutoff, lower velocity lowers it.
+    pub filter_sensitivity: f32,
+
+    /// Velocity sensitivity for filter envelope amount (0.0 = no velocity sensitivity, 1.0 = full sensitivity)
+    ///
+    /// Formula: `env_amount = 1.0 + filter_env_sensitivity * (velocity - 0.5)`
+    /// Controls how much the filter envelope modulates the cutoff based on velocity.
+    pub filter_env_sensitivity: f32,
 }
 
 impl Default for VelocityParams {
@@ -191,6 +209,7 @@ pub struct SynthParams {
     pub lfos: [LFOParams; 3],
     pub velocity: VelocityParams,
     pub master_gain: f32, // 0.0 to 1.0
+    pub monophonic: bool, // Monophonic mode - only one note at a time
 }
 
 impl Default for SynthParams {
@@ -202,6 +221,7 @@ impl Default for SynthParams {
             lfos: [LFOParams::default(); 3],
             velocity: VelocityParams::default(),
             master_gain: 0.5,
+            monophonic: false,
         }
     }
 }

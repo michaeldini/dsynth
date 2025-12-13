@@ -1,5 +1,5 @@
 use crate::params::LFOWaveform;
-use std::f32::consts::PI;
+use crate::dsp::waveform;
 
 /// Low Frequency Oscillator for modulation
 pub struct LFO {
@@ -36,25 +36,13 @@ impl LFO {
     /// Generate next LFO sample
     /// Returns a value between -1.0 and 1.0
     pub fn process(&mut self) -> f32 {
+        use crate::params::Waveform;
+
         let output = match self.waveform {
-            LFOWaveform::Sine => {
-                (self.phase * 2.0 * PI).sin()
-            }
-            LFOWaveform::Triangle => {
-                // Triangle: rises 0→1 in first half, falls 1→0 in second half
-                if self.phase < 0.5 {
-                    4.0 * self.phase - 1.0
-                } else {
-                    -4.0 * self.phase + 3.0
-                }
-            }
-            LFOWaveform::Square => {
-                if self.phase < 0.5 { 1.0 } else { -1.0 }
-            }
-            LFOWaveform::Saw => {
-                // Saw: rises -1→1 linearly
-                2.0 * self.phase - 1.0
-            }
+            LFOWaveform::Sine => waveform::generate_scalar(self.phase, Waveform::Sine),
+            LFOWaveform::Triangle => waveform::generate_scalar(self.phase, Waveform::Triangle),
+            LFOWaveform::Square => waveform::generate_scalar(self.phase, Waveform::Square),
+            LFOWaveform::Saw => waveform::generate_scalar(self.phase, Waveform::Saw),
         };
 
         // Advance phase

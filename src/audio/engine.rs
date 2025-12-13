@@ -10,6 +10,7 @@ pub struct SynthEngine {
     voices: Vec<Voice>,
     params_consumer: Output<SynthParams>,
     current_params: SynthParams,
+    note_stack: Vec<u8>, // Stack of currently pressed notes for monophonic mode
 }
 
 impl SynthEngine {
@@ -29,6 +30,7 @@ impl SynthEngine {
             voices,
             params_consumer,
             current_params: SynthParams::default(),
+            note_stack: Vec::new(),
         }
     }
 
@@ -38,27 +40,45 @@ impl SynthEngine {
     /// * `note` - MIDI note number (0-127)
     /// * `velocity` - Note velocity (0.0-1.0)
     pub fn note_on(&mut self, note: u8, velocity: f32) {
-        // First, try to find an inactive voice
-        if let Some(voice) = self.voices.iter_mut().find(|v| !v.is_active()) {
-            voice.note_on(note, velocity);
-            voice.update_parameters(
+        if self.current_params.monophonic {
+            // Monophonic mode: use only the first voice
+            // Add note to stack if not already present
+            if !self.note_stack.contains(&note) {
+                self.note_stack.push(note);
+            }
+            
+            // Always trigger the first voice with the new note
+            self.voices[0].note_on(note, velocity);
+            self.voices[0].update_parameters(
                 &self.current_params.oscillators,
                 &self.current_params.filters,
                 &self.current_params.filter_envelopes,
                 &self.current_params.lfos,
             );
-            return;
-        }
+        } else {
+            // Polyphonic mode: original behavior
+            // First, try to find an inactive voice
+            if let Some(voice) = self.voices.iter_mut().find(|v| !v.is_active()) {
+                voice.note_on(note, velocity);
+                voice.update_parameters(
+                    &self.current_params.oscillators,
+                    &self.current_params.filters,
+                    &self.current_params.filter_envelopes,
+                    &self.current_params.lfos,
+                );
+                return;
+            }
 
-        // All voices active - use quietest-voice stealing
-        let quietest_idx = self.find_quietest_voice();
-        self.voices[quietest_idx].note_on(note, velocity);
-        self.voices[quietest_idx].update_parameters(
-            &self.current_params.oscillators,
-            &self.current_params.filters,
-            &self.current_params.filter_envelopes,
-            &self.current_params.lfos,
-        );
+            // All voices active - use quietest-voice stealing
+            let quietest_idx = self.find_quietest_voice();
+            self.voices[quietest_idx].note_on(note, velocity);
+            self.voices[quietest_idx].update_parameters(
+                &self.current_params.oscillators,
+                &self.current_params.filters,
+                &self.current_params.filter_envelopes,
+                &self.current_params.lfos,
+            );
+        }
     }
 
     /// Release a note
@@ -66,10 +86,32 @@ impl SynthEngine {
     /// # Arguments
     /// * `note` - MIDI note number to release
     pub fn note_off(&mut self, note: u8) {
-        // Release all voices playing this note
-        for voice in &mut self.voices {
-            if voice.is_active() && voice.note() == note {
-                voice.note_off();
+        if self.current_params.monophonic {
+            // Monophonic mode: remove note from stack
+            if let Some(pos) = self.note_stack.iter().position(|&n| n == note) {
+                self.note_stack.remove(pos);
+            }
+            
+            // If there are still notes in the stack, retrigger the most recent one
+            if let Some(&last_note) = self.note_stack.last() {
+                // Retrigger the last note in the stack (last-note priority)
+                self.voices[0].note_on(last_note, 0.8); // Use default velocity for retriggered notes
+                self.voices[0].update_parameters(
+                    &self.current_params.oscillators,
+                    &self.current_params.filters,
+                    &self.current_params.filter_envelopes,
+                    &self.current_params.lfos,
+                );
+            } else {
+                // No more notes in stack, release the voice
+                self.voices[0].note_off();
+            }
+        } else {
+            // Polyphonic mode: release all voices playing this note
+            for voice in &mut self.voices {
+                if voice.is_active() && voice.note() == note {
+                    voice.note_off();
+                }
             }
         }
     }
@@ -81,8 +123,8 @@ impl SynthEngine {
             .enumerate()
             .filter(|(_, v)| v.is_active())
             .min_by(|(_, a), (_, b)| {
-                a.rms()
-                    .partial_cmp(&b.rms())
+                a.get_rms()
+                    .partial_cmp(&b.get_rms())
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
             .map(|(idx, _)| idx)
@@ -91,6 +133,7 @@ impl SynthEngine {
 
     /// Panic - release all notes immediately
     pub fn all_notes_off(&mut self) {
+        self.note_stack.clear();
         for voice in &mut self.voices {
             voice.reset();
         }
