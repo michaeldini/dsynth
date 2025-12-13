@@ -1,43 +1,34 @@
 pub mod controls;
 
 #[cfg(feature = "vst")]
-pub mod plugin_gui;
+pub mod plugin_editor;
 
 use crate::audio::engine::SynthEngine;
 use crate::params::{FilterType, LFOWaveform, SynthParams, Waveform};
-use crate::preset::Preset;
 
 #[cfg(feature = "standalone")]
+use crate::preset::Preset;
 use iced::{
     Element, Length, Task, event, keyboard,
     widget::{
         Column, button, column, container, pick_list, row, scrollable, slider, text, text_input,
     },
 };
-
-#[cfg(feature = "standalone")]
 use rand::Rng;
-
-#[cfg(feature = "standalone")]
 use std::collections::HashSet;
-
-#[cfg(feature = "standalone")]
 use std::sync::{Arc, Mutex};
-
-#[cfg(feature = "standalone")]
 use triple_buffer::Input;
 
-#[cfg(feature = "standalone")]
 pub struct SynthGui {
     params: SynthParams,
     param_producer: Option<Input<SynthParams>>,
     engine: Option<Arc<Mutex<SynthEngine>>>,
     pressed_keys: HashSet<keyboard::Key>,
     preset_name: String,
+    plugin_mode: bool,
 }
 
 /// Hierarchical message types to reduce boilerplate
-#[cfg(feature = "standalone")]
 #[derive(Debug, Clone)]
 pub enum OscillatorMessage {
     WaveformChanged(Waveform),
@@ -52,7 +43,6 @@ pub enum OscillatorMessage {
     SoloToggled(bool),
 }
 
-#[cfg(feature = "standalone")]
 #[derive(Debug, Clone)]
 pub enum FilterMessage {
     TypeChanged(FilterType),
@@ -62,7 +52,6 @@ pub enum FilterMessage {
     KeyTrackingChanged(f32),
 }
 
-#[cfg(feature = "standalone")]
 #[derive(Debug, Clone)]
 pub enum FilterEnvelopeMessage {
     AttackChanged(f32),
@@ -72,7 +61,6 @@ pub enum FilterEnvelopeMessage {
     AmountChanged(f32),
 }
 
-#[cfg(feature = "standalone")]
 #[derive(Debug, Clone)]
 pub enum LFOMessage {
     WaveformChanged(LFOWaveform),
@@ -81,7 +69,6 @@ pub enum LFOMessage {
     FilterAmountChanged(f32),
 }
 
-#[cfg(feature = "standalone")]
 #[derive(Debug, Clone)]
 pub enum Message {
     // Indexed parameter groups
@@ -112,7 +99,6 @@ pub enum Message {
     Randomize,
 }
 
-#[cfg(feature = "standalone")]
 impl SynthGui {
     pub fn new(
         param_producer: Option<Input<SynthParams>>,
@@ -124,7 +110,27 @@ impl SynthGui {
             engine,
             pressed_keys: HashSet::new(),
             preset_name: String::from("My Preset"),
+            plugin_mode: false,
         }
+    }
+
+    pub fn new_plugin() -> Self {
+        Self {
+            params: SynthParams::default(),
+            param_producer: None,
+            engine: None,
+            pressed_keys: HashSet::new(),
+            preset_name: String::from("My Preset"),
+            plugin_mode: true,
+        }
+    }
+
+    pub fn set_params(&mut self, params: SynthParams) {
+        self.params = params;
+    }
+
+    pub fn params(&self) -> &SynthParams {
+        &self.params
     }
 
     /// Map keyboard key to MIDI note number
@@ -246,9 +252,9 @@ impl SynthGui {
                 self.pressed_keys.clear();
             }
 
-            // Keyboard events
+            // Keyboard events (standalone only)
             Message::KeyPressed(key) => {
-                if !self.pressed_keys.contains(&key) {
+                if !self.plugin_mode && !self.pressed_keys.contains(&key) {
                     if let Some(note) = Self::key_to_midi_note(&key) {
                         if let Some(engine) = &self.engine {
                             if let Ok(mut eng) = engine.lock() {
@@ -260,7 +266,7 @@ impl SynthGui {
                 }
             }
             Message::KeyReleased(key) => {
-                if self.pressed_keys.remove(&key) {
+                if !self.plugin_mode && self.pressed_keys.remove(&key) {
                     if let Some(note) = Self::key_to_midi_note(&key) {
                         if let Some(engine) = &self.engine {
                             if let Ok(mut eng) = engine.lock() {
@@ -271,21 +277,30 @@ impl SynthGui {
                 }
             }
 
-            // Preset management
+            // Preset management (standalone only)
             Message::PresetNameChanged(name) => self.preset_name = name,
             Message::SavePreset => {
-                return Task::perform(
-                    Self::save_preset_dialog(self.preset_name.clone(), self.params),
-                    |_| Message::PanicPressed,
-                );
+                #[cfg(feature = "standalone")]
+                if !self.plugin_mode {
+                    return Task::perform(
+                        Self::save_preset_dialog(self.preset_name.clone(), self.params),
+                        |_| Message::PanicPressed,
+                    );
+                }
             }
             Message::LoadPreset => {
-                return Task::perform(Self::load_preset_dialog(), Message::PresetLoaded);
+                #[cfg(feature = "standalone")]
+                if !self.plugin_mode {
+                    return Task::perform(Self::load_preset_dialog(), Message::PresetLoaded);
+                }
             }
-            Message::PresetLoaded(result) => match result {
-                Ok(params) => self.params = params,
-                Err(e) => eprintln!("Failed to load preset: {}", e),
-            },
+            Message::PresetLoaded(result) => {
+                #[cfg(feature = "standalone")]
+                match result {
+                    Ok(params) => self.params = params,
+                    Err(e) => eprintln!("Failed to load preset: {}", e),
+                }
+            }
             Message::Randomize => {
                 self.params = Self::randomize_params();
             }
@@ -377,21 +392,35 @@ impl SynthGui {
     pub fn view<'a>(&'a self) -> Element<'a, Message> {
         let title = text("DSynth - Digital Synthesizer").size(32);
 
-        let keyboard_help = text("Keyboard: AWSEDFTGYHUJKOLP (C4-D#5) | ZXCVBNM (C3-B3)").size(14);
+        let keyboard_help = if !self.plugin_mode {
+            text("Keyboard: AWSEDFTGYHUJKOLP (C4-D#5) | ZXCVBNM (C3-B3)").size(14)
+        } else {
+            text("Plugin Mode").size(14)
+        };
 
-        let preset_controls = row![
-            text("Preset:").width(60),
-            text_input("Preset name", &self.preset_name)
-                .on_input(Message::PresetNameChanged)
-                .width(200),
-            button("Save").on_press(Message::SavePreset).padding(10),
-            button("Load").on_press(Message::LoadPreset).padding(10),
-            button("🎲 Randomize")
-                .on_press(Message::Randomize)
-                .padding(10),
-        ]
-        .spacing(10)
-        .padding(10);
+        let preset_controls = if !self.plugin_mode {
+            row![
+                text("Preset:").width(60),
+                text_input("Preset name", &self.preset_name)
+                    .on_input(Message::PresetNameChanged)
+                    .width(200),
+                button("Save").on_press(Message::SavePreset).padding(10),
+                button("Load").on_press(Message::LoadPreset).padding(10),
+                button("🎲 Randomize")
+                    .on_press(Message::Randomize)
+                    .padding(10),
+            ]
+            .spacing(10)
+            .padding(10)
+        } else {
+            row![
+                button("🎲 Randomize")
+                    .on_press(Message::Randomize)
+                    .padding(10),
+            ]
+            .spacing(10)
+            .padding(10)
+        };
 
         let osc1_section = self.oscillator_controls(0, "Oscillator 1");
         let osc2_section = self.oscillator_controls(1, "Oscillator 2");
@@ -688,17 +717,22 @@ impl SynthGui {
     }
 
     pub fn subscription(&self) -> iced::Subscription<Message> {
-        event::listen_with(|event, _status, _id| match event {
-            event::Event::Keyboard(keyboard::Event::KeyPressed { key, .. }) => {
-                Some(Message::KeyPressed(key))
-            }
-            event::Event::Keyboard(keyboard::Event::KeyReleased { key, .. }) => {
-                Some(Message::KeyReleased(key))
-            }
-            _ => None,
-        })
+        if self.plugin_mode {
+            iced::Subscription::none()
+        } else {
+            event::listen_with(|event, _status, _id| match event {
+                event::Event::Keyboard(keyboard::Event::KeyPressed { key, .. }) => {
+                    Some(Message::KeyPressed(key))
+                }
+                event::Event::Keyboard(keyboard::Event::KeyReleased { key, .. }) => {
+                    Some(Message::KeyReleased(key))
+                }
+                _ => None,
+            })
+        }
     }
 
+    #[cfg(feature = "standalone")]
     async fn save_preset_dialog(name: String, params: SynthParams) -> Result<(), String> {
         use rfd::AsyncFileDialog;
 
@@ -719,6 +753,7 @@ impl SynthGui {
         Ok(())
     }
 
+    #[cfg(feature = "standalone")]
     async fn load_preset_dialog() -> Result<SynthParams, String> {
         use rfd::AsyncFileDialog;
 

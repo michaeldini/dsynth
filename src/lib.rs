@@ -2,7 +2,7 @@
 
 pub mod audio;
 pub mod dsp;
-#[cfg(feature = "standalone")]
+#[cfg(any(feature = "standalone", feature = "vst"))]
 pub mod gui;
 pub mod midi;
 pub mod params;

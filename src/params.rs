@@ -130,6 +130,7 @@ impl Default for FilterEnvelopeParams {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "vst", derive(Enum))]
 pub enum LFOWaveform {
     Sine,
     Triangle,

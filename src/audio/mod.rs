@@ -1,4 +1,5 @@
 pub mod engine;
+#[cfg(feature = "standalone")]
 pub mod output;
 pub mod voice;
 
