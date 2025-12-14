@@ -279,7 +279,8 @@ impl SynthGui {
 
             // Preset management (standalone only)
             Message::PresetNameChanged(name) => self.preset_name = name,
-            Message::SavePreset => {
+            Message::SavePreset =>
+            {
                 #[cfg(feature = "standalone")]
                 if !self.plugin_mode {
                     return Task::perform(
@@ -288,13 +289,15 @@ impl SynthGui {
                     );
                 }
             }
-            Message::LoadPreset => {
+            Message::LoadPreset =>
+            {
                 #[cfg(feature = "standalone")]
                 if !self.plugin_mode {
                     return Task::perform(Self::load_preset_dialog(), Message::PresetLoaded);
                 }
             }
-            Message::PresetLoaded(result) => {
+            Message::PresetLoaded(result) =>
+            {
                 #[cfg(feature = "standalone")]
                 match result {
                     Ok(params) => self.params = params,

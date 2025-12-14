@@ -1,8 +1,8 @@
 use nih_plug::prelude::*;
 use nih_plug_iced::widgets as nih_widgets;
 use nih_plug_iced::*;
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 pub(crate) fn default_state() -> Arc<IcedState> {
     IcedState::from_size(1400, 900)
@@ -76,48 +76,123 @@ impl IcedEditor for PluginGui {
 
         // Oscillators in a row
         let oscillators = Row::new()
-            .push(self.oscillator_section(1, &self.params.osc1_waveform, &self.params.osc1_pitch, 
-                &self.params.osc1_detune, &self.params.osc1_gain, &self.params.osc1_pan,
-                &self.params.osc1_unison, &self.params.osc1_unison_detune, &self.params.osc1_shape))
-            .push(self.oscillator_section(2, &self.params.osc2_waveform, &self.params.osc2_pitch,
-                &self.params.osc2_detune, &self.params.osc2_gain, &self.params.osc2_pan,
-                &self.params.osc2_unison, &self.params.osc2_unison_detune, &self.params.osc2_shape))
-            .push(self.oscillator_section(3, &self.params.osc3_waveform, &self.params.osc3_pitch,
-                &self.params.osc3_detune, &self.params.osc3_gain, &self.params.osc3_pan,
-                &self.params.osc3_unison, &self.params.osc3_unison_detune, &self.params.osc3_shape))
+            .push(self.oscillator_section(
+                1,
+                &self.params.osc1_waveform,
+                &self.params.osc1_pitch,
+                &self.params.osc1_detune,
+                &self.params.osc1_gain,
+                &self.params.osc1_pan,
+                &self.params.osc1_unison,
+                &self.params.osc1_unison_detune,
+                &self.params.osc1_shape,
+            ))
+            .push(self.oscillator_section(
+                2,
+                &self.params.osc2_waveform,
+                &self.params.osc2_pitch,
+                &self.params.osc2_detune,
+                &self.params.osc2_gain,
+                &self.params.osc2_pan,
+                &self.params.osc2_unison,
+                &self.params.osc2_unison_detune,
+                &self.params.osc2_shape,
+            ))
+            .push(self.oscillator_section(
+                3,
+                &self.params.osc3_waveform,
+                &self.params.osc3_pitch,
+                &self.params.osc3_detune,
+                &self.params.osc3_gain,
+                &self.params.osc3_pan,
+                &self.params.osc3_unison,
+                &self.params.osc3_unison_detune,
+                &self.params.osc3_shape,
+            ))
             .spacing(15)
             .padding(10);
 
         // Filters in a row
         let filters = Row::new()
-            .push(self.filter_section(1, &self.params.filter1_type, &self.params.filter1_cutoff,
-                &self.params.filter1_resonance, &self.params.filter1_drive, &self.params.filter1_amount))
-            .push(self.filter_section(2, &self.params.filter2_type, &self.params.filter2_cutoff,
-                &self.params.filter2_resonance, &self.params.filter2_drive, &self.params.filter1_amount))
-            .push(self.filter_section(3, &self.params.filter3_type, &self.params.filter3_cutoff,
-                &self.params.filter3_resonance, &self.params.filter3_drive, &self.params.filter1_amount))
+            .push(self.filter_section(
+                1,
+                &self.params.filter1_type,
+                &self.params.filter1_cutoff,
+                &self.params.filter1_resonance,
+                &self.params.filter1_drive,
+                &self.params.filter1_amount,
+            ))
+            .push(self.filter_section(
+                2,
+                &self.params.filter2_type,
+                &self.params.filter2_cutoff,
+                &self.params.filter2_resonance,
+                &self.params.filter2_drive,
+                &self.params.filter1_amount,
+            ))
+            .push(self.filter_section(
+                3,
+                &self.params.filter3_type,
+                &self.params.filter3_cutoff,
+                &self.params.filter3_resonance,
+                &self.params.filter3_drive,
+                &self.params.filter1_amount,
+            ))
             .spacing(15)
             .padding(10);
 
         // Filter envelopes in a row
         let filter_envs = Row::new()
-            .push(self.envelope_section("Filter Env 1", &self.params.fenv1_attack, &self.params.fenv1_decay,
-                &self.params.fenv1_sustain, &self.params.fenv1_release, &self.params.fenv1_amount))
-            .push(self.envelope_section("Filter Env 2", &self.params.fenv2_attack, &self.params.fenv2_decay,
-                &self.params.fenv2_sustain, &self.params.fenv2_release, &self.params.fenv2_amount))
-            .push(self.envelope_section("Filter Env 3", &self.params.fenv3_attack, &self.params.fenv3_decay,
-                &self.params.fenv3_sustain, &self.params.fenv3_release, &self.params.fenv3_amount))
+            .push(self.envelope_section(
+                "Filter Env 1",
+                &self.params.fenv1_attack,
+                &self.params.fenv1_decay,
+                &self.params.fenv1_sustain,
+                &self.params.fenv1_release,
+                &self.params.fenv1_amount,
+            ))
+            .push(self.envelope_section(
+                "Filter Env 2",
+                &self.params.fenv2_attack,
+                &self.params.fenv2_decay,
+                &self.params.fenv2_sustain,
+                &self.params.fenv2_release,
+                &self.params.fenv2_amount,
+            ))
+            .push(self.envelope_section(
+                "Filter Env 3",
+                &self.params.fenv3_attack,
+                &self.params.fenv3_decay,
+                &self.params.fenv3_sustain,
+                &self.params.fenv3_release,
+                &self.params.fenv3_amount,
+            ))
             .spacing(15)
             .padding(10);
 
         // LFOs in a row
         let lfos = Row::new()
-            .push(self.lfo_section(1, &self.params.lfo1_waveform, &self.params.lfo1_rate,
-                &self.params.lfo1_depth, &self.params.lfo1_filter_amount))
-            .push(self.lfo_section(2, &self.params.lfo2_waveform, &self.params.lfo2_rate,
-                &self.params.lfo2_depth, &self.params.lfo2_filter_amount))
-            .push(self.lfo_section(3, &self.params.lfo3_waveform, &self.params.lfo3_rate,
-                &self.params.lfo3_depth, &self.params.lfo3_filter_amount))
+            .push(self.lfo_section(
+                1,
+                &self.params.lfo1_waveform,
+                &self.params.lfo1_rate,
+                &self.params.lfo1_depth,
+                &self.params.lfo1_filter_amount,
+            ))
+            .push(self.lfo_section(
+                2,
+                &self.params.lfo2_waveform,
+                &self.params.lfo2_rate,
+                &self.params.lfo2_depth,
+                &self.params.lfo2_filter_amount,
+            ))
+            .push(self.lfo_section(
+                3,
+                &self.params.lfo3_waveform,
+                &self.params.lfo3_rate,
+                &self.params.lfo3_depth,
+                &self.params.lfo3_filter_amount,
+            ))
             .spacing(15)
             .padding(10);
 
@@ -165,7 +240,7 @@ impl PluginGui {
         shape: &'a impl Param,
     ) -> widget::Column<'a, Message> {
         use widget::*;
-        
+
         Column::new()
             .push(Text::new(format!("Oscillator {}", num)).size(18))
             .push(param_row("Waveform", waveform))
@@ -190,7 +265,7 @@ impl PluginGui {
         amount: &'a impl Param,
     ) -> widget::Column<'a, Message> {
         use widget::*;
-        
+
         Column::new()
             .push(Text::new(format!("Filter {}", num)).size(18))
             .push(param_row("Type", filter_type))
@@ -212,7 +287,7 @@ impl PluginGui {
         amount: &'a impl Param,
     ) -> widget::Column<'a, Message> {
         use widget::*;
-        
+
         Column::new()
             .push(Text::new(name).size(18))
             .push(param_row("Attack", attack))
@@ -233,7 +308,7 @@ impl PluginGui {
         filter_amount: &'a impl Param,
     ) -> widget::Column<'a, Message> {
         use widget::*;
-        
+
         Column::new()
             .push(Text::new(format!("LFO {}", num)).size(18))
             .push(param_row("Waveform", waveform))
@@ -246,29 +321,31 @@ impl PluginGui {
 }
 
 // Helper function to create a parameter row
-fn param_row<'a, P: Param>(label: &str, param: &'a P, state: &'a mut nih_widgets::param_slider::State) -> widget::Row<'a, Message> {
+fn param_row<'a, P: Param>(
+    label: &str,
+    param: &'a P,
+    state: &'a mut nih_widgets::param_slider::State,
+) -> widget::Row<'a, Message> {
     use widget::*;
-    
+
     Row::new()
         .push(Text::new(label).width(Length::Units(90)))
-        .push(
-            nih_widgets::ParamSlider::new(state, param)
-                .map(Message::ParamUpdate)
-        )
+        .push(nih_widgets::ParamSlider::new(state, param).map(Message::ParamUpdate))
         .spacing(10)
         .padding(3)
 }
 
 // Helper function for toggle parameters
-fn param_row_toggle<'a, P: Param>(label: &str, param: &'a P, state: &'a mut nih_widgets::param_slider::State) -> widget::Row<'a, Message> {
+fn param_row_toggle<'a, P: Param>(
+    label: &str,
+    param: &'a P,
+    state: &'a mut nih_widgets::param_slider::State,
+) -> widget::Row<'a, Message> {
     use widget::*;
-    
+
     Row::new()
         .push(Text::new(label).width(Length::Units(90)))
-        .push(
-            nih_widgets::ParamSlider::new(state, param)
-                .map(Message::ParamUpdate)
-        )
+        .push(nih_widgets::ParamSlider::new(state, param).map(Message::ParamUpdate))
         .spacing(10)
         .padding(3)
 }

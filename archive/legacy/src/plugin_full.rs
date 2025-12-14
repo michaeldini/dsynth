@@ -1,8 +1,8 @@
 // This file contains the expanded DSynthParams with ALL synth parameters
 // Use this as a reference to expand plugin.rs
 
+use crate::params::{FilterType, LFOWaveform, Waveform};
 use nih_plug::prelude::*;
-use crate::params::{Waveform, FilterType, LFOWaveform};
 
 /// Complete plugin parameters that map to ALL SynthParams
 #[derive(Params)]
@@ -10,7 +10,7 @@ pub struct DSynthParamsFull {
     // === MASTER ===
     #[id = "master_gain"]
     pub master_gain: FloatParam,
-    
+
     #[id = "monophonic"]
     pub monophonic: BoolParam,
 

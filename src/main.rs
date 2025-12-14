@@ -1,18 +1,13 @@
 #[cfg(feature = "standalone")]
+use crossbeam_channel::bounded;
+#[cfg(feature = "standalone")]
+use dsynth::audio::output::EngineEvent;
+#[cfg(feature = "standalone")]
 use dsynth::audio::{create_parameter_buffer, engine::SynthEngine, output::AudioOutput};
 #[cfg(feature = "standalone")]
 use dsynth::gui::run_gui;
 #[cfg(feature = "standalone")]
-use dsynth::midi::handler::{MidiEvent, MidiHandler};
-#[cfg(feature = "standalone")]
-use std::sync::{Arc, Mutex};
-#[cfg(feature = "standalone")]
-use std::thread;
-
-#[cfg(feature = "standalone")]
-fn velocity_to_float(v: u8) -> f32 {
-    v as f32 / 127.0
-}
+use dsynth::midi::handler::MidiHandler;
 
 #[cfg(feature = "standalone")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -24,13 +19,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create triple-buffer for parameters
     let (param_producer, param_consumer) = create_parameter_buffer();
 
+    // Events from MIDI/GUI -> audio thread
+    let (event_tx, event_rx) = bounded::<EngineEvent>(1024);
+
     // Create synth engine
     let engine = SynthEngine::new(SAMPLE_RATE, param_consumer);
-    let engine_arc = Arc::new(Mutex::new(engine));
 
     // Start audio output
     println!("Starting audio output...");
-    let _audio_output = match AudioOutput::new(engine_arc.clone()) {
+    let _audio_output = match AudioOutput::new(engine, event_rx) {
         Ok(output) => {
             println!("✓ Audio output started at {} Hz", output.sample_rate());
             Some(output)
@@ -43,30 +40,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Start MIDI input
     println!("\nStarting MIDI input...");
-    let _midi_handler = match MidiHandler::new() {
-        Ok((handler, receiver)) => {
+    let _midi_handler = match MidiHandler::new_with_engine_event_sender(event_tx.clone()) {
+        Ok(handler) => {
             println!("✓ MIDI handler started");
-
-            // Spawn MIDI event processing thread
-            let engine_clone = engine_arc.clone();
-            thread::spawn(move || {
-                println!("MIDI event processor running...");
-                while let Ok(event) = receiver.recv() {
-                    let mut engine = engine_clone.lock().unwrap();
-                    match event {
-                        MidiEvent::NoteOn { note, velocity } => {
-                            engine.note_on(note, velocity_to_float(velocity));
-                        }
-                        MidiEvent::NoteOff { note } => {
-                            engine.note_off(note);
-                        }
-                        MidiEvent::ControlChange { .. } => {
-                            // CC handling can be added here
-                        }
-                    }
-                }
-            });
-
             Some(handler)
         }
         Err(e) => {
@@ -82,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  ZXCVBNM - Lower octave (C3-B3)\n");
 
     // Run GUI on main thread
-    run_gui(param_producer, engine_arc)?;
+    run_gui(param_producer, event_tx)?;
 
     Ok(())
 }

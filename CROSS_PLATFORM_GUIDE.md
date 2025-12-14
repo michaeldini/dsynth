@@ -20,7 +20,7 @@ Your DSynth plugin code is **100% cross-platform compatible**! The same Rust cod
 ```bash
 ./bundle.sh
 # Creates: target/bundled/DSynth.vst3 and DSynth.clap
-# Install: cp -r target/bundled/DSynth.vst3 ~/Library/Audio/Plug-Ins/VST3/
+# Install: cp -r target/bundled/DSynth.vst3 ~/Library/Audio/Plug-Ins/VST3/ && cp -r target/bundled/DSynth.clap ~/Library/Audio/Plug-Ins/CLAP/
 ```
 
 ### Windows (On a Windows PC or VM)

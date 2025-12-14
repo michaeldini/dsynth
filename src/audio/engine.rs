@@ -333,8 +333,10 @@ mod tests {
         let mut engine = SynthEngine::new(44100.0, consumer);
 
         // Update parameters via triple buffer
-        let mut new_params = SynthParams::default();
-        new_params.master_gain = 0.5;
+        let new_params = SynthParams {
+            master_gain: 0.5,
+            ..Default::default()
+        };
         producer.write(new_params);
 
         // Process should pick up new parameters

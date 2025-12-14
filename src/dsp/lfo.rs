@@ -82,7 +82,11 @@ mod tests {
         // Check multiple samples
         for _ in 0..1000 {
             let sample = lfo.process();
-            assert!(sample >= -1.0 && sample <= 1.0, "LFO output out of range: {}", sample);
+            assert!(
+                (-1.0..=1.0).contains(&sample),
+                "LFO output out of range: {}",
+                sample
+            );
         }
     }
 
@@ -95,7 +99,7 @@ mod tests {
         // Check range
         for _ in 0..100 {
             let sample = lfo.process();
-            assert!(sample >= -1.0 && sample <= 1.0);
+            assert!((-1.0..=1.0).contains(&sample));
         }
     }
 
@@ -117,7 +121,7 @@ mod tests {
 
         for _ in 0..100 {
             let sample = lfo.process();
-            assert!(sample >= -1.0 && sample <= 1.0);
+            assert!((-1.0..=1.0).contains(&sample));
         }
     }
 

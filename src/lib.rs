@@ -9,4 +9,5 @@ pub mod params;
 pub mod preset;
 
 #[cfg(feature = "vst")]
+#[path = "plugin.rs"]
 mod plugin;

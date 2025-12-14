@@ -1,11 +1,17 @@
 pub mod controls;
 
 #[cfg(feature = "vst")]
+#[path = "plugin_gui.rs"]
 pub mod plugin_gui;
 
-use crate::audio::engine::SynthEngine;
+#[cfg(feature = "standalone")]
 use crate::params::{FilterType, LFOWaveform, SynthParams, Waveform};
+
+#[cfg(feature = "standalone")]
 use crate::preset::Preset;
+
+#[cfg(feature = "standalone")]
+use crate::audio::output::EngineEvent;
 
 #[cfg(feature = "standalone")]
 use iced::{
@@ -14,15 +20,11 @@ use iced::{
         Column, button, column, container, pick_list, row, scrollable, slider, text, text_input,
     },
 };
-
-#[cfg(feature = "standalone")]
-use rand::Rng;
-
 #[cfg(feature = "standalone")]
 use std::collections::HashSet;
 
 #[cfg(feature = "standalone")]
-use std::sync::{Arc, Mutex};
+use crossbeam_channel::Sender;
 
 #[cfg(feature = "standalone")]
 use triple_buffer::Input;
@@ -31,7 +33,7 @@ use triple_buffer::Input;
 pub struct SynthGui {
     params: SynthParams,
     param_producer: Option<Input<SynthParams>>,
-    engine: Option<Arc<Mutex<SynthEngine>>>,
+    event_sender: Option<Sender<EngineEvent>>,
     pressed_keys: HashSet<keyboard::Key>,
     preset_name: String,
 }
@@ -108,7 +110,7 @@ pub enum Message {
     PresetNameChanged(String),
     SavePreset,
     LoadPreset,
-    PresetLoaded(Result<SynthParams, String>),
+    PresetLoaded(Box<Result<SynthParams, String>>),
     Randomize,
 }
 
@@ -116,12 +118,12 @@ pub enum Message {
 impl SynthGui {
     pub fn new(
         param_producer: Option<Input<SynthParams>>,
-        engine: Option<Arc<Mutex<SynthEngine>>>,
+        event_sender: Option<Sender<EngineEvent>>,
     ) -> Self {
         Self {
             params: SynthParams::default(),
             param_producer,
-            engine,
+            event_sender,
             pressed_keys: HashSet::new(),
             preset_name: String::from("My Preset"),
         }
@@ -238,36 +240,31 @@ impl SynthGui {
             Message::MasterGainChanged(g) => self.params.master_gain = g,
             Message::MonophonicToggled(mono) => self.params.monophonic = mono,
             Message::PanicPressed => {
-                if let Some(engine) = &self.engine {
-                    if let Ok(mut eng) = engine.lock() {
-                        eng.all_notes_off();
-                    }
+                if let Some(sender) = &self.event_sender {
+                    let _ = sender.try_send(EngineEvent::AllNotesOff);
                 }
                 self.pressed_keys.clear();
             }
 
             // Keyboard events
             Message::KeyPressed(key) => {
-                if !self.pressed_keys.contains(&key) {
-                    if let Some(note) = Self::key_to_midi_note(&key) {
-                        if let Some(engine) = &self.engine {
-                            if let Ok(mut eng) = engine.lock() {
-                                eng.note_on(note, 0.8);
-                            }
-                        }
-                        self.pressed_keys.insert(key);
-                    }
+                if !self.pressed_keys.contains(&key)
+                    && let Some(note) = Self::key_to_midi_note(&key)
+                    && let Some(sender) = &self.event_sender
+                {
+                    let _ = sender.try_send(EngineEvent::NoteOn {
+                        note,
+                        velocity: 0.8,
+                    });
+                    self.pressed_keys.insert(key);
                 }
             }
             Message::KeyReleased(key) => {
-                if self.pressed_keys.remove(&key) {
-                    if let Some(note) = Self::key_to_midi_note(&key) {
-                        if let Some(engine) = &self.engine {
-                            if let Ok(mut eng) = engine.lock() {
-                                eng.note_off(note);
-                            }
-                        }
-                    }
+                if self.pressed_keys.remove(&key)
+                    && let Some(note) = Self::key_to_midi_note(&key)
+                    && let Some(sender) = &self.event_sender
+                {
+                    let _ = sender.try_send(EngineEvent::NoteOff { note });
                 }
             }
 
@@ -280,9 +277,11 @@ impl SynthGui {
                 );
             }
             Message::LoadPreset => {
-                return Task::perform(Self::load_preset_dialog(), Message::PresetLoaded);
+                return Task::perform(Self::load_preset_dialog(), |result| {
+                    Message::PresetLoaded(Box::new(result))
+                });
             }
-            Message::PresetLoaded(result) => match result {
+            Message::PresetLoaded(result) => match *result {
                 Ok(params) => self.params = params,
                 Err(e) => eprintln!("Failed to load preset: {}", e),
             },
@@ -301,77 +300,7 @@ impl SynthGui {
 
     /// Generate random parameters for sound design exploration
     fn randomize_params() -> SynthParams {
-        let mut rng = rand::thread_rng();
-
-        let waveforms = [
-            Waveform::Sine,
-            Waveform::Saw,
-            Waveform::Square,
-            Waveform::Triangle,
-            Waveform::Pulse,
-        ];
-        let filter_types = [
-            FilterType::Lowpass,
-            FilterType::Highpass,
-            FilterType::Bandpass,
-        ];
-        let lfo_waveforms = [
-            LFOWaveform::Sine,
-            LFOWaveform::Triangle,
-            LFOWaveform::Square,
-            LFOWaveform::Saw,
-        ];
-
-        let mut params = SynthParams::default();
-
-        // Randomize oscillators
-        for osc in &mut params.oscillators {
-            osc.waveform = waveforms[rng.gen_range(0..waveforms.len())];
-            osc.pitch = (rng.gen_range(-24.0..=24.0) as f32).round();
-            osc.detune = (rng.gen_range(-50.0..=50.0) as f32).round();
-            osc.gain = rng.gen_range(0.2..=0.8); // Keep reasonable gain range
-            osc.pan = rng.gen_range(-1.0..=1.0);
-            osc.unison = rng.gen_range(1..=7);
-            osc.unison_detune = rng.gen_range(0.0..=50.0);
-            osc.phase = rng.gen_range(0.0..=1.0);
-            osc.shape = rng.gen_range(-0.8..=0.8); // Avoid extreme shaping
-        }
-
-        // Randomize filters
-        for filter in &mut params.filters {
-            filter.filter_type = filter_types[rng.gen_range(0..filter_types.len())];
-            filter.cutoff = rng.gen_range(200.0..=10000.0); // Musical range
-            filter.resonance = rng.gen_range(0.5..=5.0); // Avoid extreme resonance
-            filter.drive = rng.gen_range(1.0..=5.0);
-            filter.key_tracking = rng.gen_range(0.0..=1.0);
-        }
-
-        // Randomize filter envelopes
-        for fenv in &mut params.filter_envelopes {
-            fenv.attack = rng.gen_range(0.001..=2.0);
-            fenv.decay = rng.gen_range(0.01..=2.0);
-            fenv.sustain = rng.gen_range(0.0..=1.0);
-            fenv.release = rng.gen_range(0.01..=2.0);
-            fenv.amount = rng.gen_range(-5000.0..=5000.0);
-        }
-
-        // Randomize LFOs
-        for lfo in &mut params.lfos {
-            lfo.waveform = lfo_waveforms[rng.gen_range(0..lfo_waveforms.len())];
-            lfo.rate = rng.gen_range(0.1..=10.0);
-            lfo.depth = rng.gen_range(0.0..=1.0);
-            lfo.filter_amount = rng.gen_range(0.0..=3000.0);
-        }
-
-        // Randomize velocity
-        params.velocity.amp_sensitivity = rng.gen_range(0.3..=1.0);
-        params.velocity.filter_sensitivity = rng.gen_range(0.0..=0.8);
-        params.velocity.filter_env_sensitivity = rng.gen_range(0.0..=0.8);
-
-        // Keep master gain reasonable
-        params.master_gain = rng.gen_range(0.4..=0.7);
-
-        params
+        crate::params::randomize_synth_params(&mut rand::thread_rng())
     }
 
     pub fn view<'a>(&'a self) -> Element<'a, Message> {
@@ -704,7 +633,7 @@ impl SynthGui {
 
         let file = AsyncFileDialog::new()
             .set_title("Save Preset")
-            .set_file_name(&format!("{}.json", name))
+            .set_file_name(format!("{}.json", name))
             .add_filter("JSON", &["json"])
             .save_file()
             .await;
@@ -741,12 +670,12 @@ impl SynthGui {
 #[cfg(feature = "standalone")]
 pub fn run_gui(
     param_producer: Input<SynthParams>,
-    engine: Arc<Mutex<SynthEngine>>,
+    event_sender: Sender<EngineEvent>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     iced::application("DSynth", SynthGui::update, SynthGui::view)
         .subscription(SynthGui::subscription)
         .run_with(move || {
-            let gui = SynthGui::new(Some(param_producer), Some(engine));
+            let gui = SynthGui::new(Some(param_producer), Some(event_sender));
             (gui, Task::none())
         })
         .map_err(|e| format!("GUI error: {:?}", e).into())

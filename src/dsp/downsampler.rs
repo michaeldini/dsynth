@@ -15,7 +15,10 @@ impl Downsampler {
     /// # Arguments
     /// * `taps` - Number of filter taps (should be multiple of 4, recommended ~20)
     pub fn new(taps: usize) -> Self {
-        assert!(taps >= 4 && taps % 4 == 0, "Taps must be >= 4 and multiple of 4");
+        assert!(
+            taps >= 4 && taps.is_multiple_of(4),
+            "Taps must be >= 4 and multiple of 4"
+        );
         
         let coefficients = Self::calculate_kaiser_sinc_coefficients(taps, 8.5);
         

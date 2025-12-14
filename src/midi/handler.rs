@@ -1,6 +1,8 @@
-use crossbeam_channel::{Receiver, unbounded};
+use crossbeam_channel::{Receiver, Sender, unbounded};
 use midir::{MidiInput, MidiInputConnection};
 use std::error::Error;
+
+use crate::audio::output::EngineEvent;
 
 /// MIDI message events
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -56,6 +58,58 @@ impl MidiHandler {
         };
         
         Ok((handler, receiver))
+    }
+
+    /// Create a MIDI handler that sends note events directly to the audio thread.
+    ///
+    /// This avoids the extra forwarding thread and avoids allocations in the MIDI callback by
+    /// using `try_send()` on the provided bounded channel.
+    pub fn new_with_engine_event_sender(
+        engine_event_sender: Sender<EngineEvent>,
+    ) -> Result<Self, Box<dyn Error>> {
+        let midi_in = MidiInput::new("DSynth MIDI Input")?;
+
+        // Keep the old receiver field around as a dummy to avoid changing the struct shape.
+        let (_dummy_tx, dummy_rx) = unbounded();
+
+        let ports = midi_in.ports();
+        let connection = if let Some(port) = ports.first() {
+            let port_name = midi_in.port_name(port)?;
+            println!("Connecting to MIDI port: {}", port_name);
+
+            let connection = midi_in.connect(
+                port,
+                "dsynth-input",
+                move |_timestamp, message, _| {
+                    if let Some(event) = Self::parse_midi_message(message) {
+                        match event {
+                            MidiEvent::NoteOn { note, velocity } => {
+                                let _ = engine_event_sender.try_send(EngineEvent::NoteOn {
+                                    note,
+                                    velocity: velocity_to_float(velocity),
+                                });
+                            }
+                            MidiEvent::NoteOff { note } => {
+                                let _ = engine_event_sender.try_send(EngineEvent::NoteOff { note });
+                            }
+                            MidiEvent::ControlChange { .. } => {
+                                // CC handling can be added here
+                            }
+                        }
+                    }
+                },
+                (),
+            )?;
+            Some(connection)
+        } else {
+            println!("No MIDI input ports available");
+            None
+        };
+
+        Ok(Self {
+            _connection: connection,
+            event_receiver: dummy_rx,
+        })
     }
 
     /// Parse MIDI message bytes into MidiEvent

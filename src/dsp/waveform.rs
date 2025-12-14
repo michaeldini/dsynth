@@ -87,7 +87,7 @@ mod tests {
             let phase = (i as f32) / 100.0;
             let sample = generate_scalar(phase, Waveform::Sine);
             assert!(
-                sample >= -1.0 && sample <= 1.0,
+                (-1.0..=1.0).contains(&sample),
                 "Sine out of range at phase {}: {}",
                 phase,
                 sample
@@ -101,7 +101,7 @@ mod tests {
             let phase = (i as f32) / 100.0;
             let sample = generate_scalar(phase, Waveform::Saw);
             assert!(
-                sample >= -1.0 && sample <= 1.0,
+                (-1.0..=1.0).contains(&sample),
                 "Saw out of range at phase {}: {}",
                 phase,
                 sample
@@ -124,7 +124,7 @@ mod tests {
             let phase = (i as f32) / 100.0;
             let sample = generate_scalar(phase, Waveform::Triangle);
             assert!(
-                sample >= -1.0 && sample <= 1.0,
+                (-1.0..=1.0).contains(&sample),
                 "Triangle out of range at phase {}: {}",
                 phase,
                 sample
