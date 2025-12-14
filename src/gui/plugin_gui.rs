@@ -1,6 +1,7 @@
 use nih_plug::prelude::*;
 use nih_plug_iced::widgets as nih_widgets;
 use nih_plug_iced::*;
+use rand::Rng;
 use std::sync::Arc;
 
 pub(crate) fn default_state() -> Arc<IcedState> {
@@ -17,6 +18,7 @@ pub(crate) fn create(
 #[derive(Default)]
 struct OscStates {
     waveform: nih_widgets::param_slider::State,
+    solo: nih_widgets::param_slider::State,
     pitch: nih_widgets::param_slider::State,
     detune: nih_widgets::param_slider::State,
     gain: nih_widgets::param_slider::State,
@@ -92,6 +94,7 @@ struct PluginGui {
     params: Arc<crate::plugin::DSynthParams>,
     context: Arc<dyn GuiContext>,
     scrollable_state: scrollable::State,
+    randomize_button_state: button::State,
 
     param_states: ParamStates,
 }
@@ -99,6 +102,7 @@ struct PluginGui {
 #[derive(Debug, Clone)]
 enum Message {
     ParamUpdate(nih_widgets::ParamMessage),
+    Randomize,
 }
 
 impl IcedEditor for PluginGui {
@@ -114,6 +118,7 @@ impl IcedEditor for PluginGui {
             params,
             context,
             scrollable_state: Default::default(),
+            randomize_button_state: Default::default(),
 
             param_states: Default::default(),
         };
@@ -133,6 +138,9 @@ impl IcedEditor for PluginGui {
             Message::ParamUpdate(param_message) => {
                 self.handle_param_message(param_message);
             }
+            Message::Randomize => {
+                self.randomize_params();
+            }
         }
         Command::none()
     }
@@ -143,6 +151,16 @@ impl IcedEditor for PluginGui {
         let params = self.params.as_ref();
 
         let title = Text::new("DSynth").size(26);
+        let header = Row::new()
+            .push(title)
+            .push(Space::with_width(Length::Fill))
+            .push(
+                Button::new(&mut self.randomize_button_state, Text::new("Randomize"))
+                    .on_press(Message::Randomize)
+                    .padding(8),
+            )
+            .spacing(10)
+            .padding(5);
 
         // Master controls
         let master = Column::new()
@@ -210,7 +228,7 @@ impl IcedEditor for PluginGui {
             .padding(10);
 
         let content = Column::new()
-            .push(title)
+            .push(header)
             .push(master)
             .push(oscillators)
             .push(filters)
@@ -223,6 +241,161 @@ impl IcedEditor for PluginGui {
         Scrollable::new(&mut self.scrollable_state)
             .push(content)
             .into()
+    }
+}
+
+impl PluginGui {
+    fn randomize_params(&self) {
+        let mut rng = rand::thread_rng();
+        let setter = ParamSetter::new(self.context());
+
+        let waveforms = [
+            crate::params::Waveform::Sine,
+            crate::params::Waveform::Saw,
+            crate::params::Waveform::Square,
+            crate::params::Waveform::Triangle,
+            crate::params::Waveform::Pulse,
+        ];
+        let filter_types = [
+            crate::params::FilterType::Lowpass,
+            crate::params::FilterType::Highpass,
+            crate::params::FilterType::Bandpass,
+        ];
+        let lfo_waveforms = [
+            crate::params::LFOWaveform::Sine,
+            crate::params::LFOWaveform::Triangle,
+            crate::params::LFOWaveform::Square,
+            crate::params::LFOWaveform::Saw,
+        ];
+
+        let p = self.params.as_ref();
+
+        macro_rules! set_param {
+            ($param:expr, $value:expr) => {{
+                setter.begin_set_parameter($param);
+                setter.set_parameter($param, $value);
+                setter.end_set_parameter($param);
+            }};
+        }
+
+        // Master
+        set_param!(&p.master_gain, rng.gen_range(0.4f32..=0.7f32));
+        set_param!(&p.monophonic, false);
+
+        // Oscillators
+        set_param!(
+            &p.osc1_waveform,
+            waveforms[rng.gen_range(0..waveforms.len())]
+        );
+        set_param!(&p.osc1_solo, false);
+        set_param!(&p.osc1_pitch, rng.gen_range(-24.0f32..=24.0f32).round());
+        set_param!(&p.osc1_detune, rng.gen_range(-50.0f32..=50.0f32).round());
+        set_param!(&p.osc1_gain, rng.gen_range(0.2f32..=0.8f32));
+        set_param!(&p.osc1_pan, rng.gen_range(-1.0f32..=1.0f32));
+        set_param!(&p.osc1_unison, rng.gen_range(1..=7));
+        set_param!(&p.osc1_unison_detune, rng.gen_range(0.0f32..=50.0f32));
+        set_param!(&p.osc1_shape, rng.gen_range(-0.8f32..=0.8f32));
+
+        set_param!(
+            &p.osc2_waveform,
+            waveforms[rng.gen_range(0..waveforms.len())]
+        );
+        set_param!(&p.osc2_solo, false);
+        set_param!(&p.osc2_pitch, rng.gen_range(-24.0f32..=24.0f32).round());
+        set_param!(&p.osc2_detune, rng.gen_range(-50.0f32..=50.0f32).round());
+        set_param!(&p.osc2_gain, rng.gen_range(0.2f32..=0.8f32));
+        set_param!(&p.osc2_pan, rng.gen_range(-1.0f32..=1.0f32));
+        set_param!(&p.osc2_unison, rng.gen_range(1..=7));
+        set_param!(&p.osc2_unison_detune, rng.gen_range(0.0f32..=50.0f32));
+        set_param!(&p.osc2_shape, rng.gen_range(-0.8f32..=0.8f32));
+
+        set_param!(
+            &p.osc3_waveform,
+            waveforms[rng.gen_range(0..waveforms.len())]
+        );
+        set_param!(&p.osc3_solo, false);
+        set_param!(&p.osc3_pitch, rng.gen_range(-24.0f32..=24.0f32).round());
+        set_param!(&p.osc3_detune, rng.gen_range(-50.0f32..=50.0f32).round());
+        set_param!(&p.osc3_gain, rng.gen_range(0.2f32..=0.8f32));
+        set_param!(&p.osc3_pan, rng.gen_range(-1.0f32..=1.0f32));
+        set_param!(&p.osc3_unison, rng.gen_range(1..=7));
+        set_param!(&p.osc3_unison_detune, rng.gen_range(0.0f32..=50.0f32));
+        set_param!(&p.osc3_shape, rng.gen_range(-0.8f32..=0.8f32));
+
+        // Filters
+        set_param!(
+            &p.filter1_type,
+            filter_types[rng.gen_range(0..filter_types.len())]
+        );
+        set_param!(&p.filter1_cutoff, rng.gen_range(200.0f32..=10000.0f32));
+        set_param!(&p.filter1_resonance, rng.gen_range(0.5f32..=5.0f32));
+        set_param!(&p.filter1_drive, rng.gen_range(1.0f32..=5.0f32));
+        set_param!(&p.filter1_amount, rng.gen_range(0.0f32..=1.0f32));
+
+        set_param!(
+            &p.filter2_type,
+            filter_types[rng.gen_range(0..filter_types.len())]
+        );
+        set_param!(&p.filter2_cutoff, rng.gen_range(200.0f32..=10000.0f32));
+        set_param!(&p.filter2_resonance, rng.gen_range(0.5f32..=5.0f32));
+        set_param!(&p.filter2_drive, rng.gen_range(1.0f32..=5.0f32));
+
+        set_param!(
+            &p.filter3_type,
+            filter_types[rng.gen_range(0..filter_types.len())]
+        );
+        set_param!(&p.filter3_cutoff, rng.gen_range(200.0f32..=10000.0f32));
+        set_param!(&p.filter3_resonance, rng.gen_range(0.5f32..=5.0f32));
+        set_param!(&p.filter3_drive, rng.gen_range(1.0f32..=5.0f32));
+
+        // Filter envelopes
+        set_param!(&p.fenv1_attack, rng.gen_range(0.001f32..=2.0f32));
+        set_param!(&p.fenv1_decay, rng.gen_range(0.01f32..=2.0f32));
+        set_param!(&p.fenv1_sustain, rng.gen_range(0.0f32..=1.0f32));
+        set_param!(&p.fenv1_release, rng.gen_range(0.01f32..=2.0f32));
+        set_param!(&p.fenv1_amount, rng.gen_range(-5000.0f32..=5000.0f32));
+
+        set_param!(&p.fenv2_attack, rng.gen_range(0.001f32..=2.0f32));
+        set_param!(&p.fenv2_decay, rng.gen_range(0.01f32..=2.0f32));
+        set_param!(&p.fenv2_sustain, rng.gen_range(0.0f32..=1.0f32));
+        set_param!(&p.fenv2_release, rng.gen_range(0.01f32..=2.0f32));
+        set_param!(&p.fenv2_amount, rng.gen_range(-5000.0f32..=5000.0f32));
+
+        set_param!(&p.fenv3_attack, rng.gen_range(0.001f32..=2.0f32));
+        set_param!(&p.fenv3_decay, rng.gen_range(0.01f32..=2.0f32));
+        set_param!(&p.fenv3_sustain, rng.gen_range(0.0f32..=1.0f32));
+        set_param!(&p.fenv3_release, rng.gen_range(0.01f32..=2.0f32));
+        set_param!(&p.fenv3_amount, rng.gen_range(-5000.0f32..=5000.0f32));
+
+        // LFOs
+        set_param!(
+            &p.lfo1_waveform,
+            lfo_waveforms[rng.gen_range(0..lfo_waveforms.len())]
+        );
+        set_param!(&p.lfo1_rate, rng.gen_range(0.1f32..=10.0f32));
+        set_param!(&p.lfo1_depth, rng.gen_range(0.0f32..=1.0f32));
+        set_param!(&p.lfo1_filter_amount, rng.gen_range(-0.8f32..=0.8f32));
+
+        set_param!(
+            &p.lfo2_waveform,
+            lfo_waveforms[rng.gen_range(0..lfo_waveforms.len())]
+        );
+        set_param!(&p.lfo2_rate, rng.gen_range(0.1f32..=10.0f32));
+        set_param!(&p.lfo2_depth, rng.gen_range(0.0f32..=1.0f32));
+        set_param!(&p.lfo2_filter_amount, rng.gen_range(-0.8f32..=0.8f32));
+
+        set_param!(
+            &p.lfo3_waveform,
+            lfo_waveforms[rng.gen_range(0..lfo_waveforms.len())]
+        );
+        set_param!(&p.lfo3_rate, rng.gen_range(0.1f32..=10.0f32));
+        set_param!(&p.lfo3_depth, rng.gen_range(0.0f32..=1.0f32));
+        set_param!(&p.lfo3_filter_amount, rng.gen_range(-0.8f32..=0.8f32));
+
+        // Velocity
+        set_param!(&p.velocity_amp, rng.gen_range(0.3f32..=1.0f32));
+        set_param!(&p.velocity_filter, rng.gen_range(0.0f32..=0.8f32));
+        set_param!(&p.velocity_filter_env, rng.gen_range(0.0f32..=0.8f32));
     }
 }
 
@@ -240,6 +413,7 @@ impl PluginGui {
                 &params.osc1_waveform,
                 &mut states.waveform,
             ))
+            .push(param_row("Solo", &params.osc1_solo, &mut states.solo))
             .push(param_row("Pitch", &params.osc1_pitch, &mut states.pitch))
             .push(param_row("Detune", &params.osc1_detune, &mut states.detune))
             .push(param_row("Gain", &params.osc1_gain, &mut states.gain))
@@ -268,6 +442,7 @@ impl PluginGui {
                 &params.osc2_waveform,
                 &mut states.waveform,
             ))
+            .push(param_row("Solo", &params.osc2_solo, &mut states.solo))
             .push(param_row("Pitch", &params.osc2_pitch, &mut states.pitch))
             .push(param_row("Detune", &params.osc2_detune, &mut states.detune))
             .push(param_row("Gain", &params.osc2_gain, &mut states.gain))
@@ -296,6 +471,7 @@ impl PluginGui {
                 &params.osc3_waveform,
                 &mut states.waveform,
             ))
+            .push(param_row("Solo", &params.osc3_solo, &mut states.solo))
             .push(param_row("Pitch", &params.osc3_pitch, &mut states.pitch))
             .push(param_row("Detune", &params.osc3_detune, &mut states.detune))
             .push(param_row("Gain", &params.osc3_gain, &mut states.gain))

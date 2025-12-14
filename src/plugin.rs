@@ -35,6 +35,9 @@ pub struct DSynthParams {
     #[id = "osc1_waveform"]
     pub osc1_waveform: EnumParam<Waveform>,
 
+    #[id = "osc1_solo"]
+    pub osc1_solo: BoolParam,
+
     #[id = "osc1_pitch"]
     pub osc1_pitch: FloatParam,
 
@@ -60,6 +63,9 @@ pub struct DSynthParams {
     #[id = "osc2_waveform"]
     pub osc2_waveform: EnumParam<Waveform>,
 
+    #[id = "osc2_solo"]
+    pub osc2_solo: BoolParam,
+
     #[id = "osc2_pitch"]
     pub osc2_pitch: FloatParam,
 
@@ -84,6 +90,9 @@ pub struct DSynthParams {
     // Oscillator 3 parameters
     #[id = "osc3_waveform"]
     pub osc3_waveform: EnumParam<Waveform>,
+
+    #[id = "osc3_solo"]
+    pub osc3_solo: BoolParam,
 
     #[id = "osc3_pitch"]
     pub osc3_pitch: FloatParam,
@@ -271,6 +280,7 @@ impl Default for DSynthParams {
 
             // Oscillator 1
             osc1_waveform: EnumParam::new("Osc 1 Wave", Waveform::Sine),
+            osc1_solo: BoolParam::new("Osc 1 Solo", false),
             osc1_pitch: FloatParam::new(
                 "Osc 1 Pitch",
                 0.0,
@@ -323,6 +333,7 @@ impl Default for DSynthParams {
 
             // Oscillator 2
             osc2_waveform: EnumParam::new("Osc 2 Wave", Waveform::Saw),
+            osc2_solo: BoolParam::new("Osc 2 Solo", false),
             osc2_pitch: FloatParam::new(
                 "Osc 2 Pitch",
                 0.0,
@@ -375,6 +386,7 @@ impl Default for DSynthParams {
 
             // Oscillator 3
             osc3_waveform: EnumParam::new("Osc 3 Wave", Waveform::Square),
+            osc3_solo: BoolParam::new("Osc 3 Solo", false),
             osc3_pitch: FloatParam::new(
                 "Osc 3 Pitch",
                 0.0,
@@ -773,7 +785,7 @@ impl DSynthPlugin {
                     unison_detune: p.osc1_unison_detune.value(),
                     phase: 0.0,
                     shape: p.osc1_shape.value(),
-                    solo: false,
+                    solo: p.osc1_solo.value(),
                 },
                 OscillatorParams {
                     waveform: p.osc2_waveform.value(),
@@ -785,7 +797,7 @@ impl DSynthPlugin {
                     unison_detune: p.osc2_unison_detune.value(),
                     phase: 0.0,
                     shape: p.osc2_shape.value(),
-                    solo: false,
+                    solo: p.osc2_solo.value(),
                 },
                 OscillatorParams {
                     waveform: p.osc3_waveform.value(),
@@ -797,7 +809,7 @@ impl DSynthPlugin {
                     unison_detune: p.osc3_unison_detune.value(),
                     phase: 0.0,
                     shape: p.osc3_shape.value(),
-                    solo: false,
+                    solo: p.osc3_solo.value(),
                 },
             ],
 
