@@ -3,11 +3,14 @@ use std::f32::consts::PI;
 
 /// Biquad filter with coefficient clamping for stability
 /// Implements lowpass, highpass, and bandpass filters using Audio EQ Cookbook formulas
+/// Optimization: Coefficient updates are quantized to reduce expensive sin/cos calculations
 pub struct BiquadFilter {
     sample_rate: f32,
     filter_type: FilterType,
     cutoff: f32,
+    cutoff_next: f32, // Pending cutoff value
     resonance: f32,
+    resonance_next: f32, // Pending resonance value
 
     // Biquad coefficients
     b0: f32,
@@ -21,6 +24,10 @@ pub struct BiquadFilter {
     x2: f32,
     y1: f32,
     y2: f32,
+
+    // Coefficient update quantization
+    sample_counter: u32,
+    update_interval: u32, // Update coefficients every N samples (8 = imperceptible)
 }
 
 impl BiquadFilter {
@@ -33,7 +40,9 @@ impl BiquadFilter {
             sample_rate,
             filter_type: FilterType::Lowpass,
             cutoff: 1000.0,
+            cutoff_next: 1000.0,
             resonance: 0.707,
+            resonance_next: 0.707,
             b0: 1.0,
             b1: 0.0,
             b2: 0.0,
@@ -43,6 +52,8 @@ impl BiquadFilter {
             x2: 0.0,
             y1: 0.0,
             y2: 0.0,
+            sample_counter: 0,
+            update_interval: 8, // Update every 8 samples (~181 µs at 44.1kHz)
         };
         filter.update_coefficients();
         filter
@@ -57,20 +68,32 @@ impl BiquadFilter {
     }
 
     /// Set cutoff frequency in Hz (20 - 20000)
+    /// Changes are queued and applied at the next coefficient update interval
     pub fn set_cutoff(&mut self, cutoff: f32) {
         let clamped = cutoff.clamp(20.0, self.sample_rate * 0.49);
+        // Update both current and next values (next is used for coeff updates)
         if self.cutoff != clamped {
             self.cutoff = clamped;
-            self.update_coefficients();
+            self.cutoff_next = clamped;
+            // Force immediate update if this is the first update or type changed
+            if (self.cutoff - clamped).abs() > 1.0 {
+                self.sample_counter = self.update_interval;
+            }
         }
     }
 
     /// Set resonance (Q factor, 0.5 - 10.0)
+    /// Changes are queued and applied at the next coefficient update interval
     pub fn set_resonance(&mut self, resonance: f32) {
         let clamped = resonance.clamp(0.5, 10.0);
+        // Update both current and next values (next is used for coeff updates)
         if self.resonance != clamped {
             self.resonance = clamped;
-            self.update_coefficients();
+            self.resonance_next = clamped;
+            // Force immediate update if large change
+            if (self.resonance - clamped).abs() > 0.5 {
+                self.sample_counter = self.update_interval;
+            }
         }
     }
 
@@ -141,6 +164,18 @@ impl BiquadFilter {
 
     /// Process one sample through the filter with optional drive
     pub fn process(&mut self, input: f32) -> f32 {
+        // Check if it's time to update coefficients (quantized update)
+        self.sample_counter += 1;
+        if self.sample_counter >= self.update_interval {
+            self.sample_counter = 0;
+            // Apply pending parameter changes
+            if self.cutoff != self.cutoff_next || self.resonance != self.resonance_next {
+                self.cutoff = self.cutoff_next;
+                self.resonance = self.resonance_next;
+                self.update_coefficients();
+            }
+        }
+
         // Direct Form I implementation
         let output = self.b0 * input + self.b1 * self.x1 + self.b2 * self.x2
             - self.a1 * self.y1
@@ -157,6 +192,18 @@ impl BiquadFilter {
 
     /// Process with drive/saturation for warmth and harmonics
     pub fn process_with_drive(&mut self, input: f32, drive: f32) -> f32 {
+        // Check if it's time to update coefficients (quantized update)
+        self.sample_counter += 1;
+        if self.sample_counter >= self.update_interval {
+            self.sample_counter = 0;
+            // Apply pending parameter changes
+            if self.cutoff != self.cutoff_next || self.resonance != self.resonance_next {
+                self.cutoff = self.cutoff_next;
+                self.resonance = self.resonance_next;
+                self.update_coefficients();
+            }
+        }
+
         // Apply pre-filter drive
         let driven = input * drive;
 

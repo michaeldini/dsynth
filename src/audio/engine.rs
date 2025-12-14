@@ -11,6 +11,10 @@ pub struct SynthEngine {
     params_consumer: Output<SynthParams>,
     current_params: SynthParams,
     note_stack: Vec<u8>, // Stack of currently pressed notes for monophonic mode
+
+    // Parameter update throttling
+    sample_counter: u32,
+    param_update_interval: u32, // Update parameters every N samples (32 = ~0.7ms at 44.1kHz)
 }
 
 impl SynthEngine {
@@ -31,6 +35,8 @@ impl SynthEngine {
             params_consumer,
             current_params: SynthParams::default(),
             note_stack: Vec::new(),
+            sample_counter: 0,
+            param_update_interval: 32, // Update every 32 samples (~0.7ms at 44.1kHz)
         }
     }
 
@@ -141,22 +147,29 @@ impl SynthEngine {
 
     /// Process one sample and return mixed output
     pub fn process(&mut self) -> f32 {
-        // Check for parameter updates from triple buffer
-        let new_params = self.params_consumer.read();
+        // Check for parameter updates every N samples (throttled to control-rate)
+        self.sample_counter += 1;
+        if self.sample_counter >= self.param_update_interval {
+            self.sample_counter = 0;
 
-        // Store the new parameters
-        self.current_params = *new_params;
+            // Check for parameter updates from triple buffer
+            let new_params = self.params_consumer.read();
 
-        // Update all active voices with current parameters
-        // This ensures filters respond immediately to GUI changes
-        for voice in &mut self.voices {
-            if voice.is_active() {
-                voice.update_parameters(
-                    &self.current_params.oscillators,
-                    &self.current_params.filters,
-                    &self.current_params.filter_envelopes,
-                    &self.current_params.lfos,
-                );
+            // Only update if parameters actually changed
+            if *new_params != self.current_params {
+                self.current_params = *new_params;
+
+                // Update all active voices with current parameters
+                for voice in &mut self.voices {
+                    if voice.is_active() {
+                        voice.update_parameters(
+                            &self.current_params.oscillators,
+                            &self.current_params.filters,
+                            &self.current_params.filter_envelopes,
+                            &self.current_params.lfos,
+                        );
+                    }
+                }
             }
         }
 

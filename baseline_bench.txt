@@ -1,0 +1,116 @@
+   Compiling dsynth v0.1.1 (/Users/michaeldini/Dev/dsynth)
+    Finished `bench` profile [optimized] target(s) in 6.49s
+     Running benches/dsp_bench.rs (target/release/deps/dsp_bench-00765a922103805a)
+Gnuplot not found, using plotters backend
+Benchmarking oscillator/Sine
+Benchmarking oscillator/Sine: Warming up for 3.0000 s
+Benchmarking oscillator/Sine: Collecting 100 samples in estimated 5.0001 s (133M iterations)
+Benchmarking oscillator/Sine: Analyzing
+oscillator/Sine         time:   [37.719 ns 37.731 ns 37.742 ns]
+Found 8 outliers among 100 measurements (8.00%)
+  2 (2.00%) low severe
+  2 (2.00%) low mild
+  3 (3.00%) high mild
+  1 (1.00%) high severe
+Benchmarking oscillator/Saw
+Benchmarking oscillator/Saw: Warming up for 3.0000 s
+Benchmarking oscillator/Saw: Collecting 100 samples in estimated 5.0001 s (213M iterations)
+Benchmarking oscillator/Saw: Analyzing
+oscillator/Saw          time:   [23.522 ns 23.531 ns 23.540 ns]
+Found 7 outliers among 100 measurements (7.00%)
+  2 (2.00%) low severe
+  2 (2.00%) low mild
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+Benchmarking oscillator/Square
+Benchmarking oscillator/Square: Warming up for 3.0000 s
+Benchmarking oscillator/Square: Collecting 100 samples in estimated 5.0000 s (212M iterations)
+Benchmarking oscillator/Square: Analyzing
+oscillator/Square       time:   [23.573 ns 23.581 ns 23.589 ns]
+Found 7 outliers among 100 measurements (7.00%)
+  1 (1.00%) low severe
+  4 (4.00%) low mild
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+Benchmarking oscillator/Triangle
+Benchmarking oscillator/Triangle: Warming up for 3.0000 s
+Benchmarking oscillator/Triangle: Collecting 100 samples in estimated 5.0000 s (210M iterations)
+Benchmarking oscillator/Triangle: Analyzing
+oscillator/Triangle     time:   [23.844 ns 23.890 ns 23.952 ns]
+Found 9 outliers among 100 measurements (9.00%)
+  3 (3.00%) low mild
+  2 (2.00%) high mild
+  4 (4.00%) high severe
+
+Benchmarking filter/Lowpass
+Benchmarking filter/Lowpass: Warming up for 3.0000 s
+Benchmarking filter/Lowpass: Collecting 100 samples in estimated 5.0000 s (1.0B iterations)
+Benchmarking filter/Lowpass: Analyzing
+filter/Lowpass          time:   [4.9589 ns 4.9609 ns 4.9630 ns]
+Found 8 outliers among 100 measurements (8.00%)
+  2 (2.00%) low severe
+  1 (1.00%) low mild
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+Benchmarking filter/Highpass
+Benchmarking filter/Highpass: Warming up for 3.0000 s
+Benchmarking filter/Highpass: Collecting 100 samples in estimated 5.0000 s (1.0B iterations)
+Benchmarking filter/Highpass: Analyzing
+filter/Highpass         time:   [4.9631 ns 4.9652 ns 4.9672 ns]
+Found 6 outliers among 100 measurements (6.00%)
+  1 (1.00%) low mild
+  4 (4.00%) high mild
+  1 (1.00%) high severe
+Benchmarking filter/Bandpass
+Benchmarking filter/Bandpass: Warming up for 3.0000 s
+Benchmarking filter/Bandpass: Collecting 100 samples in estimated 5.0000 s (1.0B iterations)
+Benchmarking filter/Bandpass: Analyzing
+filter/Bandpass         time:   [4.9624 ns 4.9655 ns 4.9698 ns]
+Found 5 outliers among 100 measurements (5.00%)
+  1 (1.00%) low severe
+  3 (3.00%) high mild
+  1 (1.00%) high severe
+
+Benchmarking envelope_process
+Benchmarking envelope_process: Warming up for 3.0000 s
+Benchmarking envelope_process: Collecting 100 samples in estimated 5.0000 s (6.1B iterations)
+Benchmarking envelope_process: Analyzing
+envelope_process        time:   [826.35 ps 826.68 ps 827.02 ps]
+Found 11 outliers among 100 measurements (11.00%)
+  2 (2.00%) low severe
+  5 (5.00%) low mild
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+
+Benchmarking voice_process
+Benchmarking voice_process: Warming up for 3.0000 s
+Benchmarking voice_process: Collecting 100 samples in estimated 5.0002 s (22M iterations)
+Benchmarking voice_process: Analyzing
+voice_process           time:   [230.46 ns 230.59 ns 230.72 ns]
+Found 10 outliers among 100 measurements (10.00%)
+  1 (1.00%) low severe
+  4 (4.00%) low mild
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+
+Benchmarking engine_8_voices
+Benchmarking engine_8_voices: Warming up for 3.0000 s
+Benchmarking engine_8_voices: Collecting 100 samples in estimated 5.0046 s (2.0M iterations)
+Benchmarking engine_8_voices: Analyzing
+engine_8_voices         time:   [2.5198 µs 2.5211 µs 2.5224 µs]
+Found 6 outliers among 100 measurements (6.00%)
+  1 (1.00%) low severe
+  2 (2.00%) low mild
+  1 (1.00%) high mild
+  2 (2.00%) high severe
+
+Benchmarking engine_16_voices
+Benchmarking engine_16_voices: Warming up for 3.0000 s
+Benchmarking engine_16_voices: Collecting 100 samples in estimated 5.0138 s (1.0M iterations)
+Benchmarking engine_16_voices: Analyzing
+engine_16_voices        time:   [4.9883 µs 4.9920 µs 4.9957 µs]
+Found 6 outliers among 100 measurements (6.00%)
+  1 (1.00%) low severe
+  4 (4.00%) low mild
+  1 (1.00%) high severe
+

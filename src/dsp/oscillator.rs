@@ -115,6 +115,28 @@ impl Oscillator {
     /// Generate one output sample (processes 4× oversampled internally)
     #[cfg(feature = "simd")]
     pub fn process(&mut self) -> f32 {
+        // OPTIMIZATION: Early return if shape is effectively zero (skip expensive shaping)
+        if self.shape.abs() < 0.001 && self.waveform != Waveform::Pulse {
+            // Fast path: no wave shaping needed
+            let phases = f32x4::from_array([
+                self.phase,
+                self.phase + self.phase_increment,
+                self.phase + 2.0 * self.phase_increment,
+                self.phase + 3.0 * self.phase_increment,
+            ]);
+            let samples = waveform::generate_simd(phases, self.waveform);
+            self.phase += 4.0 * self.phase_increment;
+            while self.phase >= 1.0 {
+                self.phase -= 1.0;
+            }
+            return self.downsampler.process([
+                samples.as_array()[0],
+                samples.as_array()[1],
+                samples.as_array()[2],
+                samples.as_array()[3],
+            ]);
+        }
+
         // SIMD-optimized version
         // Generate 4 phase values at once
         let phases = f32x4::from_array([
@@ -156,6 +178,20 @@ impl Oscillator {
     /// Generate one output sample (processes 4× oversampled internally)
     #[cfg(not(feature = "simd"))]
     pub fn process(&mut self) -> f32 {
+        // OPTIMIZATION: Early return if shape is effectively zero (skip expensive shaping)
+        if self.shape.abs() < 0.001 && self.waveform != Waveform::Pulse {
+            // Fast path: no wave shaping needed, just generate base waveform
+            let mut oversampled = [0.0; 4];
+            for sample in &mut oversampled {
+                *sample = waveform::generate_scalar(self.phase, self.waveform);
+                self.phase += self.phase_increment;
+                if self.phase >= 1.0 {
+                    self.phase -= 1.0;
+                }
+            }
+            return self.downsampler.process(oversampled);
+        }
+
         let mut oversampled = [0.0; 4];
 
         for sample in &mut oversampled {
