@@ -13,6 +13,7 @@ pub struct Voice {
     note: u8,
     velocity: f32,
     is_active: bool,
+    #[allow(dead_code)]
     sample_rate: f32,
 
     // DSP components - each oscillator slot has max 7 pre-allocated unison voices
@@ -199,7 +200,7 @@ impl Voice {
     /// * `velocity_params` - Velocity sensitivity parameters
     ///
     /// # Returns
-    /// Mixed output sample
+    /// Stereo output samples (left, right)
     pub fn process(
         &mut self,
         osc_params: &[OscillatorParams; 3],
@@ -207,9 +208,9 @@ impl Voice {
         filter_env_params: &[FilterEnvelopeParams; 3],
         lfo_params: &[LFOParams; 3],
         velocity_params: &VelocityParams,
-    ) -> f32 {
+    ) -> (f32, f32) {
         if !self.is_active {
-            return 0.0;
+            return (0.0, 0.0);
         }
 
         let env_value = self.envelope.process();
@@ -217,7 +218,7 @@ impl Voice {
         // Check if envelope has finished
         if !self.envelope.is_active() {
             self.is_active = false;
-            return 0.0;
+            return (0.0, 0.0);
         }
 
         // Calculate velocity-sensitive amplitude using standardized formula:
@@ -228,7 +229,8 @@ impl Voice {
         let velocity_factor = 1.0 + velocity_params.amp_sensitivity * (self.velocity - 0.5);
 
         // Process each oscillator group through its filter
-        let mut output = 0.0;
+        let mut output_left = 0.0;
+        let mut output_right = 0.0;
 
         // Check if any oscillator is soloed
         let any_soloed = osc_params.iter().any(|o| o.solo);
@@ -300,25 +302,30 @@ impl Voice {
             // Apply filter with drive
             let filtered = self.filters[i].process_with_drive(osc_out, filter_params[i].drive);
 
-            // Apply stereo panning
+            // Apply stereo panning using equal-power panning law
+            // pan: -1.0 (full left) to 1.0 (full right), 0.0 = center
             let pan = osc_params[i].pan;
-            let left_gain = ((1.0 - pan) / 2.0).sqrt();
-            let right_gain = ((1.0 + pan) / 2.0).sqrt();
-            let panned = filtered * (left_gain + right_gain) * osc_params[i].gain;
-
-            output += panned;
+            let pan_radians = (pan + 1.0) * std::f32::consts::PI / 4.0; // Map to 0 to pi/2
+            let left_gain = pan_radians.cos();
+            let right_gain = pan_radians.sin();
+            
+            let scaled = filtered * osc_params[i].gain;
+            output_left += scaled * left_gain;
+            output_right += scaled * right_gain;
         }
 
         // Apply envelope and velocity-sensitive amplitude
-        output = output * env_value * velocity_factor;
+        output_left = output_left * env_value * velocity_factor;
+        output_right = output_right * env_value * velocity_factor;
 
         // OPTIMIZATION: RMS tracking removed from per-sample processing
         // Voice stealing only happens on note_on, so we don't need constant updates
         // Instead, use peak tracking which is much cheaper
-        self.peak_amplitude = self.peak_amplitude.max(output.abs());
-        self.last_output = output;
+        let output_peak = output_left.abs().max(output_right.abs());
+        self.peak_amplitude = self.peak_amplitude.max(output_peak);
+        self.last_output = (output_left + output_right) / 2.0;
 
-        output
+        (output_left, output_right)
     }
 
     /// Get current amplitude level for voice stealing
@@ -454,14 +461,14 @@ mod tests {
         // Process some samples
         let mut found_nonzero = false;
         for _ in 0..1000 {
-            let sample = voice.process(
+            let (left, right) = voice.process(
                 &osc_params,
                 &filter_params,
                 &filter_env_params,
                 &lfo_params,
                 &velocity_params,
             );
-            if sample.abs() > 0.001 {
+            if (left.abs() + right.abs()) / 2.0 > 0.001 {
                 found_nonzero = true;
                 break;
             }
@@ -484,7 +491,7 @@ mod tests {
 
         // Process to sustain
         for _ in 0..5000 {
-            voice.process(
+            let _ = voice.process(
                 &osc_params,
                 &filter_params,
                 &filter_env_params,
@@ -501,7 +508,7 @@ mod tests {
         // Process through release (should eventually become inactive)
         let mut became_inactive = false;
         for _ in 0..20000 {
-            voice.process(
+            let _ = voice.process(
                 &osc_params,
                 &filter_params,
                 &filter_env_params,
@@ -531,14 +538,14 @@ mod tests {
 
         // Inactive voice should produce zero
         let mut voice_mut = voice;
-        let output = voice_mut.process(
+        let (left, right) = voice_mut.process(
             &osc_params,
             &filter_params,
             &filter_env_params,
             &lfo_params,
             &velocity_params,
         );
-        assert_eq!(output, 0.0);
+        assert_eq!((left, right), (0.0, 0.0));
     }
 
     #[test]
@@ -555,7 +562,7 @@ mod tests {
 
         // Process enough samples for RMS to update
         for _ in 0..256 {
-            voice.process(
+            let _ = voice.process(
                 &osc_params,
                 &filter_params,
                 &filter_env_params,
@@ -581,7 +588,7 @@ mod tests {
         voice.update_parameters(&osc_params, &filter_params, &filter_env_params, &lfo_params);
 
         for _ in 0..100 {
-            voice.process(
+            let _ = voice.process(
                 &osc_params,
                 &filter_params,
                 &filter_env_params,

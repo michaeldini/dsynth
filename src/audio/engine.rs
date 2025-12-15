@@ -173,20 +173,24 @@ impl SynthEngine {
             }
         }
 
-        // Mix all voices
-        let mut output = 0.0;
+        // Mix all voices - now stereo
+        let mut output_left = 0.0;
+        let mut output_right = 0.0;
         for voice in &mut self.voices {
-            output += voice.process(
+            let (left, right) = voice.process(
                 &self.current_params.oscillators,
                 &self.current_params.filters,
                 &self.current_params.filter_envelopes,
                 &self.current_params.lfos,
                 &self.current_params.velocity,
             );
+            output_left += left;
+            output_right += right;
         }
 
-        // Apply master gain
-        output * self.current_params.master_gain
+        // Apply master gain and return mono average
+        // (This method is kept for compatibility, but now averages stereo)
+        (output_left + output_right) / 2.0 * self.current_params.master_gain
     }
 
     /// Get the number of active voices
@@ -197,6 +201,55 @@ impl SynthEngine {
     /// Get sample rate
     pub fn sample_rate(&self) -> f32 {
         self.sample_rate
+    }
+
+    /// Process one stereo sample
+    /// Returns (left, right) channels
+    pub fn process_stereo(&mut self) -> (f32, f32) {
+        // Check for parameter updates every N samples (throttled to control-rate)
+        self.sample_counter += 1;
+        if self.sample_counter >= self.param_update_interval {
+            self.sample_counter = 0;
+
+            // Check for parameter updates from triple buffer
+            let new_params = self.params_consumer.read();
+
+            // Only update if parameters actually changed
+            if *new_params != self.current_params {
+                self.current_params = *new_params;
+
+                // Update all active voices with current parameters
+                for voice in &mut self.voices {
+                    if voice.is_active() {
+                        voice.update_parameters(
+                            &self.current_params.oscillators,
+                            &self.current_params.filters,
+                            &self.current_params.filter_envelopes,
+                            &self.current_params.lfos,
+                        );
+                    }
+                }
+            }
+        }
+
+        // Mix all voices - stereo
+        let mut output_left = 0.0;
+        let mut output_right = 0.0;
+        for voice in &mut self.voices {
+            let (left, right) = voice.process(
+                &self.current_params.oscillators,
+                &self.current_params.filters,
+                &self.current_params.filter_envelopes,
+                &self.current_params.lfos,
+                &self.current_params.velocity,
+            );
+            output_left += left;
+            output_right += right;
+        }
+
+        // Apply master gain
+        let master = self.current_params.master_gain;
+        (output_left * master, output_right * master)
     }
 
     /// Process a block of samples for VST plugin usage

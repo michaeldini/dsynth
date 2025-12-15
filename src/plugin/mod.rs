@@ -130,12 +130,12 @@ impl Plugin for DSynthPlugin {
         let left = &mut left_channel[0];
         let right = &mut rest[0];
 
-        // Process audio block
+        // Process audio block with stereo separation
         for (left, right) in left.iter_mut().zip(right.iter_mut()) {
-            let sample = self.engine.process();
+            let (sample_left, sample_right) = self.engine.process_stereo();
 
-            *left = sample;
-            *right = sample;
+            *left = sample_left;
+            *right = sample_right;
         }
 
         ProcessStatus::Normal

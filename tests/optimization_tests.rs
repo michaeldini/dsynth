@@ -197,9 +197,10 @@ mod optimization_tests {
         // Process multiple samples with all 7 unison voices active
         let mut max_output: f32 = 0.0;
         for _ in 0..100 {
-            let output = voice.process(&osc_params, &filter_params, &filter_env_params, &lfo_params, &velocity_params);
-            max_output = max_output.max(output.abs());
-            assert!(output.is_finite(), "Output should be finite with 7 unison voices");
+            let (left, right) = voice.process(&osc_params, &filter_params, &filter_env_params, &lfo_params, &velocity_params);
+            let output = (left.abs() + right.abs()) / 2.0;
+            max_output = max_output.max(output);
+            assert!((left.is_finite() && right.is_finite()), "Output should be finite with 7 unison voices");
         }
 
         // With 7 unison voices, output should be noticeably larger
@@ -224,8 +225,8 @@ mod optimization_tests {
         // Process with spread unison voices
         let mut outputs = Vec::new();
         for _ in 0..50 {
-            let out = voice.process(&osc_params, &filter_params, &filter_env_params, &lfo_params, &Default::default());
-            outputs.push(out);
+            let (left, right) = voice.process(&osc_params, &filter_params, &filter_env_params, &lfo_params, &Default::default());
+            outputs.push((left.abs() + right.abs()) / 2.0);
         }
 
         // Should have variation from unison detuning
@@ -299,9 +300,9 @@ mod optimization_tests {
             // Process samples and verify output
             let mut output_sum = 0.0;
             for _ in 0..100 {
-                let out = voice.process(&osc_params, &filter_params, &filter_env_params, &lfo_params, &velocity_params);
-                output_sum += out.abs();
-                assert!(out.is_finite(), "Note {} should produce finite output", midi_note);
+                let (left, right) = voice.process(&osc_params, &filter_params, &filter_env_params, &lfo_params, &velocity_params);
+                output_sum += (left.abs() + right.abs()) / 2.0;
+                assert!((left.is_finite() && right.is_finite()), "Note {} should produce finite output", midi_note);
             }
 
             assert!(output_sum > 1.0, "Note {} should produce measurable output", midi_note);
