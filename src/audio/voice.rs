@@ -1,7 +1,5 @@
 use crate::dsp::{envelope::Envelope, filter::BiquadFilter, lfo::LFO, oscillator::Oscillator};
-use crate::params::{
-    FilterEnvelopeParams, FilterParams, LFOParams, OscillatorParams, VelocityParams,
-};
+use crate::params::{FilterParams, LFOParams, OscillatorParams, VelocityParams};
 
 const MAX_UNISON_VOICES: usize = 7;
 
@@ -23,7 +21,6 @@ pub struct Voice {
 
     filters: [BiquadFilter; 3],
     envelope: Envelope,
-    filter_envelopes: [Envelope; 3],
     lfos: [LFO; 3],
 
     // RMS tracking for voice stealing using exponential moving average
@@ -63,11 +60,6 @@ impl Voice {
                 BiquadFilter::new(sample_rate),
             ],
             envelope: Envelope::new(sample_rate),
-            filter_envelopes: [
-                Envelope::new(sample_rate),
-                Envelope::new(sample_rate),
-                Envelope::new(sample_rate),
-            ],
             lfos: [
                 LFO::new(sample_rate),
                 LFO::new(sample_rate),
@@ -95,9 +87,6 @@ impl Voice {
 
         // Trigger envelopes
         self.envelope.note_on();
-        for filter_env in &mut self.filter_envelopes {
-            filter_env.note_on();
-        }
 
         // Reset LFOs
         for lfo in &mut self.lfos {
@@ -111,9 +100,6 @@ impl Voice {
     /// Release this voice
     pub fn note_off(&mut self) {
         self.envelope.note_off();
-        for filter_env in &mut self.filter_envelopes {
-            filter_env.note_off();
-        }
     }
 
     /// Update oscillator and filter parameters
@@ -121,7 +107,6 @@ impl Voice {
         &mut self,
         osc_params: &[OscillatorParams; 3],
         filter_params: &[FilterParams; 3],
-        filter_env_params: &[FilterEnvelopeParams; 3],
         lfo_params: &[LFOParams; 3],
     ) {
         // Convert MIDI note to frequency
@@ -166,17 +151,11 @@ impl Voice {
                 }
             }
 
-            // Update filter parameters (base cutoff, will be modulated during process())
+            // Update filter parameters
+            // Note: We set the base cutoff here, but it will be modulated in process()
             self.filters[i].set_filter_type(filter_params[i].filter_type);
             self.filters[i].set_cutoff(filter_params[i].cutoff);
             self.filters[i].set_resonance(filter_params[i].resonance);
-
-            // Update filter envelope parameters
-            let fenv = &filter_env_params[i];
-            self.filter_envelopes[i].set_attack(fenv.attack);
-            self.filter_envelopes[i].set_decay(fenv.decay);
-            self.filter_envelopes[i].set_sustain(fenv.sustain);
-            self.filter_envelopes[i].set_release(fenv.release);
 
             // Update LFO parameters
             let lfo = &lfo_params[i];
@@ -195,7 +174,6 @@ impl Voice {
     /// # Arguments
     /// * `osc_params` - Oscillator parameters for gain control
     /// * `filter_params` - Filter parameters for cutoff
-    /// * `filter_env_params` - Filter envelope parameters
     /// * `lfo_params` - LFO parameters
     /// * `velocity_params` - Velocity sensitivity parameters
     ///
@@ -205,7 +183,6 @@ impl Voice {
         &mut self,
         osc_params: &[OscillatorParams; 3],
         filter_params: &[FilterParams; 3],
-        filter_env_params: &[FilterEnvelopeParams; 3],
         lfo_params: &[LFOParams; 3],
         velocity_params: &VelocityParams,
     ) -> (f32, f32) {
@@ -259,7 +236,7 @@ impl Voice {
             let osc_out = osc_sum / unison_count_f32.sqrt();
 
             // Get filter envelope and LFO values
-            let filter_env_value = self.filter_envelopes[i].process();
+            // Process LFO
             let lfo_value = self.lfos[i].process();
 
             // Calculate modulated filter cutoff
@@ -277,30 +254,27 @@ impl Voice {
                 0.0
             };
 
-            // Apply velocity to filter envelope amount using standardized formula:
-            // output = 1.0 + sensitivity * (velocity - 0.5)
-            let env_amount = filter_env_params[i].amount
-                * (1.0 + velocity_params.filter_env_sensitivity * (self.velocity - 0.5));
-
             // Apply velocity to filter cutoff using standardized formula
             // Velocity offset is proportional to base cutoff frequency
             // At velocity 0.0: cutoff is reduced, at velocity 1.0: cutoff is raised
             let velocity_cutoff_offset =
                 base_cutoff * velocity_params.filter_sensitivity * (self.velocity - 0.5);
 
-            // Combine all modulations
+            // Combine all modulations (no envelope)
             let modulated_cutoff = (base_cutoff
                 + key_tracking_offset
                 + velocity_cutoff_offset
-                + filter_env_value * env_amount
                 + lfo_value * lfo_params[i].filter_amount * lfo_params[i].depth)
                 .clamp(20.0, 20000.0);
 
             // Update filter cutoff with modulation
             self.filters[i].set_cutoff(modulated_cutoff);
 
-            // Apply filter with drive
-            let filtered = self.filters[i].process_with_drive(osc_out, filter_params[i].drive);
+            // Update filter bandwidth (for bandpass)
+            self.filters[i].set_bandwidth(filter_params[i].bandwidth);
+
+            // Apply filter
+            let filtered = self.filters[i].process(osc_out);
 
             // Apply stereo panning using equal-power panning law
             // pan: -1.0 (full left) to 1.0 (full right), 0.0 = center
@@ -354,10 +328,6 @@ impl Voice {
         self.velocity = 0.0;
         self.envelope.reset();
 
-        for filter_env in &mut self.filter_envelopes {
-            filter_env.reset();
-        }
-
         for lfo in &mut self.lfos {
             lfo.reset();
         }
@@ -392,10 +362,6 @@ mod tests {
 
     fn default_filter_params() -> [FilterParams; 3] {
         [FilterParams::default(); 3]
-    }
-
-    fn default_filter_env_params() -> [FilterEnvelopeParams; 3] {
-        [FilterEnvelopeParams::default(); 3]
     }
 
     fn default_lfo_params() -> [LFOParams; 3] {
@@ -451,23 +417,17 @@ mod tests {
         let mut voice = Voice::new(44100.0);
         let osc_params = default_osc_params();
         let filter_params = default_filter_params();
-        let filter_env_params = default_filter_env_params();
         let lfo_params = default_lfo_params();
         let velocity_params = default_velocity_params();
 
         voice.note_on(60, 0.8);
-        voice.update_parameters(&osc_params, &filter_params, &filter_env_params, &lfo_params);
+        voice.update_parameters(&osc_params, &filter_params, &lfo_params);
 
         // Process some samples
         let mut found_nonzero = false;
         for _ in 0..1000 {
-            let (left, right) = voice.process(
-                &osc_params,
-                &filter_params,
-                &filter_env_params,
-                &lfo_params,
-                &velocity_params,
-            );
+            let (left, right) =
+                voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
             if (left.abs() + right.abs()) / 2.0 > 0.001 {
                 found_nonzero = true;
                 break;
@@ -482,22 +442,15 @@ mod tests {
         let mut voice = Voice::new(44100.0);
         let osc_params = default_osc_params();
         let filter_params = default_filter_params();
-        let filter_env_params = default_filter_env_params();
         let lfo_params = default_lfo_params();
         let velocity_params = default_velocity_params();
 
         voice.note_on(60, 0.8);
-        voice.update_parameters(&osc_params, &filter_params, &filter_env_params, &lfo_params);
+        voice.update_parameters(&osc_params, &filter_params, &lfo_params);
 
         // Process to sustain
         for _ in 0..5000 {
-            let _ = voice.process(
-                &osc_params,
-                &filter_params,
-                &filter_env_params,
-                &lfo_params,
-                &velocity_params,
-            );
+            let _ = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
         }
 
         assert!(voice.is_active());
@@ -508,13 +461,7 @@ mod tests {
         // Process through release (should eventually become inactive)
         let mut became_inactive = false;
         for _ in 0..20000 {
-            let _ = voice.process(
-                &osc_params,
-                &filter_params,
-                &filter_env_params,
-                &lfo_params,
-                &velocity_params,
-            );
+            let _ = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
             if !voice.is_active() {
                 became_inactive = true;
                 break;
@@ -532,19 +479,13 @@ mod tests {
         let voice = Voice::new(44100.0);
         let osc_params = default_osc_params();
         let filter_params = default_filter_params();
-        let filter_env_params = default_filter_env_params();
         let lfo_params = default_lfo_params();
         let velocity_params = default_velocity_params();
 
         // Inactive voice should produce zero
         let mut voice_mut = voice;
-        let (left, right) = voice_mut.process(
-            &osc_params,
-            &filter_params,
-            &filter_env_params,
-            &lfo_params,
-            &velocity_params,
-        );
+        let (left, right) =
+            voice_mut.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
         assert_eq!((left, right), (0.0, 0.0));
     }
 
@@ -553,22 +494,15 @@ mod tests {
         let mut voice = Voice::new(44100.0);
         let osc_params = default_osc_params();
         let filter_params = default_filter_params();
-        let filter_env_params = default_filter_env_params();
         let lfo_params = default_lfo_params();
         let velocity_params = default_velocity_params();
 
         voice.note_on(60, 0.8);
-        voice.update_parameters(&osc_params, &filter_params, &filter_env_params, &lfo_params);
+        voice.update_parameters(&osc_params, &filter_params, &lfo_params);
 
         // Process enough samples for RMS to update
         for _ in 0..256 {
-            let _ = voice.process(
-                &osc_params,
-                &filter_params,
-                &filter_env_params,
-                &lfo_params,
-                &velocity_params,
-            );
+            let _ = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
         }
 
         // RMS should be non-zero for active voice
@@ -580,21 +514,14 @@ mod tests {
         let mut voice = Voice::new(44100.0);
         let osc_params = default_osc_params();
         let filter_params = default_filter_params();
-        let filter_env_params = default_filter_env_params();
         let lfo_params = default_lfo_params();
         let velocity_params = default_velocity_params();
 
         voice.note_on(60, 0.8);
-        voice.update_parameters(&osc_params, &filter_params, &filter_env_params, &lfo_params);
+        voice.update_parameters(&osc_params, &filter_params, &lfo_params);
 
         for _ in 0..100 {
-            let _ = voice.process(
-                &osc_params,
-                &filter_params,
-                &filter_env_params,
-                &lfo_params,
-                &velocity_params,
-            );
+            let _ = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
         }
 
         voice.reset();

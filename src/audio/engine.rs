@@ -166,7 +166,6 @@ impl SynthEngine {
             self.voices[0].update_parameters(
                 &self.current_params.oscillators,
                 &self.current_params.filters,
-                &self.current_params.filter_envelopes,
                 &self.current_params.lfos,
             );
         } else {
@@ -177,7 +176,6 @@ impl SynthEngine {
                 voice.update_parameters(
                     &self.current_params.oscillators,
                     &self.current_params.filters,
-                    &self.current_params.filter_envelopes,
                     &self.current_params.lfos,
                 );
                 return;
@@ -189,7 +187,6 @@ impl SynthEngine {
             self.voices[quietest_idx].update_parameters(
                 &self.current_params.oscillators,
                 &self.current_params.filters,
-                &self.current_params.filter_envelopes,
                 &self.current_params.lfos,
             );
         }
@@ -236,7 +233,6 @@ impl SynthEngine {
                 self.voices[0].update_parameters(
                     &self.current_params.oscillators,
                     &self.current_params.filters,
-                    &self.current_params.filter_envelopes,
                     &self.current_params.lfos,
                 );
             } else {
@@ -353,7 +349,7 @@ impl SynthEngine {
                         voice.update_parameters(
                             &self.current_params.oscillators,
                             &self.current_params.filters,
-                            &self.current_params.filter_envelopes,
+                            
                             &self.current_params.lfos,
                         );
                     }
@@ -368,7 +364,7 @@ impl SynthEngine {
             let (left, right) = voice.process(
                 &self.current_params.oscillators,
                 &self.current_params.filters,
-                &self.current_params.filter_envelopes,
+                
                 &self.current_params.lfos,
                 &self.current_params.velocity,
             );
@@ -464,7 +460,7 @@ impl SynthEngine {
                         voice.update_parameters(
                             &self.current_params.oscillators,
                             &self.current_params.filters,
-                            &self.current_params.filter_envelopes,
+                            
                             &self.current_params.lfos,
                         );
                     }
@@ -479,7 +475,7 @@ impl SynthEngine {
             let (left, right) = voice.process(
                 &self.current_params.oscillators,
                 &self.current_params.filters,
-                &self.current_params.filter_envelopes,
+                
                 &self.current_params.lfos,
                 &self.current_params.velocity,
             );

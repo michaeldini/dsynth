@@ -116,8 +116,8 @@ pub struct DSynthParams {
     #[id = "filter1_resonance"]
     pub filter1_resonance: FloatParam,
 
-    #[id = "filter1_drive"]
-    pub filter1_drive: FloatParam,
+    #[id = "filter1_bandwidth"]
+    pub filter1_bandwidth: FloatParam,
 
     #[id = "filter1_key_tracking"]
     pub filter1_key_tracking: FloatParam,
@@ -132,8 +132,8 @@ pub struct DSynthParams {
     #[id = "filter2_resonance"]
     pub filter2_resonance: FloatParam,
 
-    #[id = "filter2_drive"]
-    pub filter2_drive: FloatParam,
+    #[id = "filter2_bandwidth"]
+    pub filter2_bandwidth: FloatParam,
 
     #[id = "filter2_key_tracking"]
     pub filter2_key_tracking: FloatParam,
@@ -148,8 +148,8 @@ pub struct DSynthParams {
     #[id = "filter3_resonance"]
     pub filter3_resonance: FloatParam,
 
-    #[id = "filter3_drive"]
-    pub filter3_drive: FloatParam,
+    #[id = "filter3_bandwidth"]
+    pub filter3_bandwidth: FloatParam,
 
     #[id = "filter3_key_tracking"]
     pub filter3_key_tracking: FloatParam,
@@ -457,12 +457,12 @@ impl Default for DSynthParams {
                     max: 10.0,
                 },
             ),
-            filter1_drive: FloatParam::new(
-                "Filter 1 Drive",
+            filter1_bandwidth: FloatParam::new(
+                "Filter 1 Bandwidth",
                 1.0,
                 FloatRange::Linear {
-                    min: 1.0,
-                    max: 10.0,
+                    min: 0.1,
+                    max: 4.0,
                 },
             ),
             filter1_key_tracking: FloatParam::new(
@@ -491,12 +491,12 @@ impl Default for DSynthParams {
                     max: 10.0,
                 },
             ),
-            filter2_drive: FloatParam::new(
-                "Filter 2 Drive",
+            filter2_bandwidth: FloatParam::new(
+                "Filter 2 Bandwidth",
                 1.0,
                 FloatRange::Linear {
-                    min: 1.0,
-                    max: 10.0,
+                    min: 0.1,
+                    max: 4.0,
                 },
             ),
             filter2_key_tracking: FloatParam::new(
@@ -525,12 +525,12 @@ impl Default for DSynthParams {
                     max: 10.0,
                 },
             ),
-            filter3_drive: FloatParam::new(
-                "Filter 3 Drive",
+            filter3_bandwidth: FloatParam::new(
+                "Filter 3 Bandwidth",
                 1.0,
                 FloatRange::Linear {
-                    min: 1.0,
-                    max: 10.0,
+                    min: 0.1,
+                    max: 4.0,
                 },
             ),
             filter3_key_tracking: FloatParam::new(

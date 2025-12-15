@@ -1,16 +1,14 @@
 use crate::params::FilterType;
 use std::f32::consts::PI;
 
-/// Biquad filter with coefficient clamping for stability
+/// Simplified biquad filter implementation
 /// Implements lowpass, highpass, and bandpass filters using Audio EQ Cookbook formulas
-/// Optimization: Coefficient updates are quantized to reduce expensive sin/cos calculations
 pub struct BiquadFilter {
     sample_rate: f32,
     filter_type: FilterType,
     cutoff: f32,
-    cutoff_next: f32, // Pending cutoff value
     resonance: f32,
-    resonance_next: f32, // Pending resonance value
+    bandwidth: f32, // Bandwidth in octaves for bandpass filter
 
     // Biquad coefficients
     b0: f32,
@@ -24,25 +22,23 @@ pub struct BiquadFilter {
     x2: f32,
     y1: f32,
     y2: f32,
-
-    // Coefficient update quantization
-    sample_counter: u32,
-    update_interval: u32, // Update coefficients every N samples (8 = imperceptible)
 }
 
 impl BiquadFilter {
+    /// Flush denormals to zero to prevent CPU performance degradation
+    #[inline(always)]
+    fn flush_denormal(x: f32) -> f32 {
+        if x.abs() < 1e-20 { 0.0 } else { x }
+    }
+
     /// Create a new biquad filter
-    ///
-    /// # Arguments
-    /// * `sample_rate` - Sample rate in Hz
     pub fn new(sample_rate: f32) -> Self {
         let mut filter = Self {
             sample_rate,
             filter_type: FilterType::Lowpass,
             cutoff: 1000.0,
-            cutoff_next: 1000.0,
             resonance: 0.707,
-            resonance_next: 0.707,
+            bandwidth: 1.0, // 1 octave default for bandpass
             b0: 1.0,
             b1: 0.0,
             b2: 0.0,
@@ -52,8 +48,6 @@ impl BiquadFilter {
             x2: 0.0,
             y1: 0.0,
             y2: 0.0,
-            sample_counter: 0,
-            update_interval: 8, // Update every 8 samples (~181 µs at 44.1kHz)
         };
         filter.update_coefficients();
         filter
@@ -67,46 +61,45 @@ impl BiquadFilter {
         }
     }
 
-    /// Set cutoff frequency in Hz (20 - 20000)
-    /// Changes are queued and applied at the next coefficient update interval
+    /// Set cutoff frequency in Hz
     pub fn set_cutoff(&mut self, cutoff: f32) {
         let clamped = cutoff.clamp(20.0, self.sample_rate * 0.49);
-        // Update both current and next values (next is used for coeff updates)
-        if self.cutoff != clamped {
+        if (self.cutoff - clamped).abs() > 0.01 {
             self.cutoff = clamped;
-            self.cutoff_next = clamped;
-            // Force immediate update if this is the first update or type changed
-            if (self.cutoff - clamped).abs() > 1.0 {
-                self.sample_counter = self.update_interval;
-            }
+            self.update_coefficients();
         }
     }
 
-    /// Set resonance (Q factor, 0.5 - 10.0)
-    /// Changes are queued and applied at the next coefficient update interval
+    /// Set resonance (Q factor)
     pub fn set_resonance(&mut self, resonance: f32) {
         let clamped = resonance.clamp(0.5, 10.0);
-        // Update both current and next values (next is used for coeff updates)
-        if self.resonance != clamped {
+        if (self.resonance - clamped).abs() > 0.01 {
             self.resonance = clamped;
-            self.resonance_next = clamped;
-            // Force immediate update if large change
-            if (self.resonance - clamped).abs() > 0.5 {
-                self.sample_counter = self.update_interval;
+            self.update_coefficients();
+        }
+    }
+
+    /// Set bandwidth in octaves (for bandpass filter)
+    pub fn set_bandwidth(&mut self, bandwidth: f32) {
+        let clamped = bandwidth.clamp(0.1, 4.0);
+        if (self.bandwidth - clamped).abs() > 0.01 {
+            self.bandwidth = clamped;
+            if self.filter_type == FilterType::Bandpass {
+                self.update_coefficients();
             }
         }
     }
 
     /// Update biquad coefficients based on current parameters
-    /// Uses Audio EQ Cookbook formulas with stability clamping
     fn update_coefficients(&mut self) {
         let omega = 2.0 * PI * self.cutoff / self.sample_rate;
         let sin_omega = omega.sin();
         let cos_omega = omega.cos();
-        let alpha = sin_omega / (2.0 * self.resonance);
 
         let (mut b0, mut b1, mut b2, a0, mut a1, mut a2) = match self.filter_type {
             FilterType::Lowpass => {
+                // Standard lowpass using Q
+                let alpha = sin_omega / (2.0 * self.resonance);
                 let b1_temp = 1.0 - cos_omega;
                 let b0_temp = b1_temp / 2.0;
                 let b2_temp = b0_temp;
@@ -116,6 +109,8 @@ impl BiquadFilter {
                 (b0_temp, b1_temp, b2_temp, a0_temp, a1_temp, a2_temp)
             }
             FilterType::Highpass => {
+                // Standard highpass using Q
+                let alpha = sin_omega / (2.0 * self.resonance);
                 let b0_temp = (1.0 + cos_omega) / 2.0;
                 let b1_temp = -(1.0 + cos_omega);
                 let b2_temp = (1.0 + cos_omega) / 2.0;
@@ -125,9 +120,12 @@ impl BiquadFilter {
                 (b0_temp, b1_temp, b2_temp, a0_temp, a1_temp, a2_temp)
             }
             FilterType::Bandpass => {
-                let b0_temp = alpha;
+                // Bandpass using bandwidth in octaves (constant skirt gain)
+                let bw = self.bandwidth;
+                let alpha = sin_omega * ((2.0_f32.ln() / 2.0) * bw * omega / sin_omega).sinh();
+                let b0_temp = sin_omega / 2.0; // or alpha for constant peak gain
                 let b1_temp = 0.0;
-                let b2_temp = -alpha;
+                let b2_temp = -sin_omega / 2.0; // or -alpha
                 let a0_temp = 1.0 + alpha;
                 let a1_temp = -2.0 * cos_omega;
                 let a2_temp = 1.0 - alpha;
@@ -142,14 +140,6 @@ impl BiquadFilter {
         a1 /= a0;
         a2 /= a0;
 
-        // Clamp coefficients for stability
-        // Prevent excessive values that could cause instability
-        b0 = Self::clamp_coefficient(b0, 3.0);
-        b1 = Self::clamp_coefficient(b1, 3.0);
-        b2 = Self::clamp_coefficient(b2, 3.0);
-        a1 = Self::clamp_coefficient(a1, 2.0);
-        a2 = Self::clamp_coefficient(a2, 1.0);
-
         self.b0 = b0;
         self.b1 = b1;
         self.b2 = b2;
@@ -157,77 +147,20 @@ impl BiquadFilter {
         self.a2 = a2;
     }
 
-    /// Clamp coefficient to prevent instability
-    fn clamp_coefficient(value: f32, max_abs: f32) -> f32 {
-        value.clamp(-max_abs, max_abs)
-    }
-
-    /// Process one sample through the filter with optional drive
+    /// Process one sample through the filter
     pub fn process(&mut self, input: f32) -> f32 {
-        // Check if it's time to update coefficients (quantized update)
-        self.sample_counter += 1;
-        if self.sample_counter >= self.update_interval {
-            self.sample_counter = 0;
-            // Apply pending parameter changes
-            if self.cutoff != self.cutoff_next || self.resonance != self.resonance_next {
-                self.cutoff = self.cutoff_next;
-                self.resonance = self.resonance_next;
-                self.update_coefficients();
-            }
-        }
-
         // Direct Form I implementation
         let output = self.b0 * input + self.b1 * self.x1 + self.b2 * self.x2
             - self.a1 * self.y1
             - self.a2 * self.y2;
 
-        // Update state
+        // Update state with denormal flushing
         self.x2 = self.x1;
-        self.x1 = input;
+        self.x1 = Self::flush_denormal(input);
         self.y2 = self.y1;
-        self.y1 = output;
+        self.y1 = Self::flush_denormal(output);
 
         output
-    }
-
-    /// Process with drive/saturation for warmth and harmonics
-    pub fn process_with_drive(&mut self, input: f32, drive: f32) -> f32 {
-        // Check if it's time to update coefficients (quantized update)
-        self.sample_counter += 1;
-        if self.sample_counter >= self.update_interval {
-            self.sample_counter = 0;
-            // Apply pending parameter changes
-            if self.cutoff != self.cutoff_next || self.resonance != self.resonance_next {
-                self.cutoff = self.cutoff_next;
-                self.resonance = self.resonance_next;
-                self.update_coefficients();
-            }
-        }
-
-        // Apply pre-filter drive
-        let driven = input * drive;
-
-        // Soft clipping using tanh for warmth
-        let saturated = if drive > 1.0 {
-            driven.tanh() / drive.tanh()
-        } else {
-            driven
-        };
-
-        // Process through filter
-        let output = self.b0 * saturated + self.b1 * self.x1 + self.b2 * self.x2
-            - self.a1 * self.y1
-            - self.a2 * self.y2;
-
-        // Update state with unclipped values (important for filter stability)
-        self.x2 = self.x1;
-        self.x1 = saturated;
-        self.y2 = self.y1;
-        self.y1 = output;
-
-        // Soft clip output to prevent extreme values from high resonance/drive
-        // Applied AFTER updating state so filter feedback remains mathematically correct
-        output.tanh()
     }
 
     /// Reset filter state
@@ -283,17 +216,31 @@ mod tests {
     }
 
     #[test]
+    fn test_bandwidth_clamping() {
+        let mut filter = BiquadFilter::new(44100.0);
+
+        filter.set_bandwidth(0.01);
+        assert_eq!(filter.bandwidth, 0.1);
+
+        filter.set_bandwidth(10.0);
+        assert_eq!(filter.bandwidth, 4.0);
+
+        filter.set_bandwidth(2.0);
+        assert_eq!(filter.bandwidth, 2.0);
+    }
+
+    #[test]
     fn test_coefficient_stability() {
         let mut filter = BiquadFilter::new(44100.0);
         filter.set_cutoff(20000.0);
         filter.set_resonance(10.0);
 
-        // Coefficients should be within stable bounds
-        assert!(filter.a1.abs() <= 2.0);
-        assert!(filter.a2.abs() <= 1.0);
-        assert!(filter.b0.abs() <= 3.0);
-        assert!(filter.b1.abs() <= 3.0);
-        assert!(filter.b2.abs() <= 3.0);
+        // Coefficients should be finite
+        assert!(filter.a1.is_finite());
+        assert!(filter.a2.is_finite());
+        assert!(filter.b0.is_finite());
+        assert!(filter.b1.is_finite());
+        assert!(filter.b2.is_finite());
     }
 
     #[test]

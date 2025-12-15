@@ -1,6 +1,6 @@
 // Test with extreme parameter settings to reproduce the issue
 use dsynth::audio::engine::SynthEngine;
-use dsynth::params::{SynthParams, FilterParams, OscillatorParams};
+use dsynth::params::SynthParams;
 use triple_buffer::TripleBuffer;
 
 fn main() {
@@ -16,13 +16,13 @@ fn main() {
     }
     test_config("High Resonance", params);
     
-    // Test 2: High drive
-    println!("\n=== TEST 2: High Drive ===");
+    // Test 2: Narrow bandwidth (for bandpass)
+    println!("\n=== TEST 2: Narrow Bandwidth ===");
     let mut params = SynthParams::default();
     for filter in &mut params.filters {
-        filter.drive = 8.0;
+        filter.bandwidth = 0.2; // Very narrow
     }
-    test_config("High Drive", params);
+    test_config("Narrow Bandwidth", params);
     
     // Test 3: High oscillator gains
     println!("\n=== TEST 3: High Oscillator Gains ===");
@@ -37,7 +37,7 @@ fn main() {
     let mut params = SynthParams::default();
     for filter in &mut params.filters {
         filter.resonance = 9.0;
-        filter.drive = 8.0;
+        filter.bandwidth = 0.2;
     }
     for osc in &mut params.oscillators {
         osc.gain = 0.7;

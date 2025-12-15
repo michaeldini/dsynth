@@ -71,49 +71,22 @@ impl PluginGui {
                     set_param!(&p.filter1_type, filter.filter_type);
                     set_param!(&p.filter1_cutoff, filter.cutoff);
                     set_param!(&p.filter1_resonance, filter.resonance);
-                    set_param!(&p.filter1_drive, filter.drive);
+                    set_param!(&p.filter1_bandwidth, filter.bandwidth);
                     set_param!(&p.filter1_key_tracking, filter.key_tracking);
                 }
                 1 => {
                     set_param!(&p.filter2_type, filter.filter_type);
                     set_param!(&p.filter2_cutoff, filter.cutoff);
                     set_param!(&p.filter2_resonance, filter.resonance);
-                    set_param!(&p.filter2_drive, filter.drive);
+                    set_param!(&p.filter2_bandwidth, filter.bandwidth);
                     set_param!(&p.filter2_key_tracking, filter.key_tracking);
                 }
                 2 => {
                     set_param!(&p.filter3_type, filter.filter_type);
                     set_param!(&p.filter3_cutoff, filter.cutoff);
                     set_param!(&p.filter3_resonance, filter.resonance);
-                    set_param!(&p.filter3_drive, filter.drive);
+                    set_param!(&p.filter3_bandwidth, filter.bandwidth);
                     set_param!(&p.filter3_key_tracking, filter.key_tracking);
-                }
-                _ => {}
-            }
-        }
-
-        for (i, fenv) in params.filter_envelopes.iter().enumerate() {
-            match i {
-                0 => {
-                    set_param!(&p.fenv1_attack, fenv.attack);
-                    set_param!(&p.fenv1_decay, fenv.decay);
-                    set_param!(&p.fenv1_sustain, fenv.sustain);
-                    set_param!(&p.fenv1_release, fenv.release);
-                    set_param!(&p.fenv1_amount, fenv.amount);
-                }
-                1 => {
-                    set_param!(&p.fenv2_attack, fenv.attack);
-                    set_param!(&p.fenv2_decay, fenv.decay);
-                    set_param!(&p.fenv2_sustain, fenv.sustain);
-                    set_param!(&p.fenv2_release, fenv.release);
-                    set_param!(&p.fenv2_amount, fenv.amount);
-                }
-                2 => {
-                    set_param!(&p.fenv3_attack, fenv.attack);
-                    set_param!(&p.fenv3_decay, fenv.decay);
-                    set_param!(&p.fenv3_sustain, fenv.sustain);
-                    set_param!(&p.fenv3_release, fenv.release);
-                    set_param!(&p.fenv3_amount, fenv.amount);
                 }
                 _ => {}
             }
@@ -145,6 +118,5 @@ impl PluginGui {
 
         set_param!(&p.velocity_amp, params.velocity.amp_sensitivity);
         set_param!(&p.velocity_filter, params.velocity.filter_sensitivity);
-        set_param!(&p.velocity_filter_env, params.velocity.filter_env_sensitivity);
     }
 }

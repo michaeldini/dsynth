@@ -68,7 +68,7 @@ impl Default for OscillatorParams {
             waveform: Waveform::Sine,
             pitch: 0.0,
             detune: 0.0,
-            gain: 0.25,  // Reduced from 0.33 to prevent clipping with multiple oscillators
+            gain: 0.25, // Reduced from 0.33 to prevent clipping with multiple oscillators
             pan: 0.0,
             unison: 1,
             unison_detune: 10.0,
@@ -84,7 +84,7 @@ pub struct FilterParams {
     pub filter_type: FilterType,
     pub cutoff: f32,       // Hz, 20.0 to 20000.0
     pub resonance: f32,    // Q factor, 0.5 to 10.0
-    pub drive: f32,        // Pre-filter drive/saturation (1.0 to 10.0)
+    pub bandwidth: f32,    // Bandwidth in octaves for bandpass (0.1 to 4.0)
     pub key_tracking: f32, // Key tracking amount (0.0 to 1.0)
 }
 
@@ -94,7 +94,7 @@ impl Default for FilterParams {
             filter_type: FilterType::Lowpass,
             cutoff: 1000.0,
             resonance: 0.707,
-            drive: 1.0,
+            bandwidth: 1.0, // 1 octave for bandpass
             key_tracking: 0.0,
         }
     }
@@ -116,7 +116,7 @@ impl Default for FilterEnvelopeParams {
             decay: 0.1,
             sustain: 0.5,
             release: 0.2,
-            amount: 2000.0, // 2kHz modulation range
+            amount: 0.0, // Disabled by default so cutoff slider is more immediately audible
         }
     }
 }
@@ -155,8 +155,8 @@ impl Default for LFOParams {
         Self {
             waveform: LFOWaveform::Sine,
             rate: 2.0,
-            depth: 0.5,
-            filter_amount: 500.0,
+            depth: 0.0,         // Disabled by default
+            filter_amount: 0.0, // Disabled by default
         }
     }
 }
@@ -176,12 +176,6 @@ pub struct VelocityParams {
     /// Formula: `cutoff_offset = filter_sensitivity * (velocity - 0.5)`
     /// Higher velocity raises the filter cutoff, lower velocity lowers it.
     pub filter_sensitivity: f32,
-
-    /// Velocity sensitivity for filter envelope amount (0.0 = no velocity sensitivity, 1.0 = full sensitivity)
-    ///
-    /// Formula: `env_amount = 1.0 + filter_env_sensitivity * (velocity - 0.5)`
-    /// Controls how much the filter envelope modulates the cutoff based on velocity.
-    pub filter_env_sensitivity: f32,
 }
 
 impl Default for VelocityParams {
@@ -189,7 +183,6 @@ impl Default for VelocityParams {
         Self {
             amp_sensitivity: 0.7,
             filter_sensitivity: 0.5,
-            filter_env_sensitivity: 0.3,
         }
     }
 }
@@ -198,7 +191,6 @@ impl Default for VelocityParams {
 pub struct SynthParams {
     pub oscillators: [OscillatorParams; 3],
     pub filters: [FilterParams; 3],
-    pub filter_envelopes: [FilterEnvelopeParams; 3],
     pub lfos: [LFOParams; 3],
     pub velocity: VelocityParams,
     pub master_gain: f32, // 0.0 to 1.0
@@ -210,7 +202,6 @@ impl Default for SynthParams {
         Self {
             oscillators: [OscillatorParams::default(); 3],
             filters: [FilterParams::default(); 3],
-            filter_envelopes: [FilterEnvelopeParams::default(); 3],
             lfos: [LFOParams::default(); 3],
             velocity: VelocityParams::default(),
             master_gain: 0.5,
@@ -263,17 +254,8 @@ pub fn randomize_synth_params<R: Rng + ?Sized>(rng: &mut R) -> SynthParams {
         filter.filter_type = filter_types[rng.gen_range(0..filter_types.len())];
         filter.cutoff = rng.gen_range(200.0..=10000.0);
         filter.resonance = rng.gen_range(0.5..=5.0);
-        filter.drive = rng.gen_range(1.0..=5.0);
+        filter.bandwidth = rng.gen_range(0.5..=3.0);
         filter.key_tracking = rng.gen_range(0.0..=1.0);
-    }
-
-    // Filter envelopes
-    for fenv in &mut params.filter_envelopes {
-        fenv.attack = rng.gen_range(0.001..=2.0);
-        fenv.decay = rng.gen_range(0.01..=2.0);
-        fenv.sustain = rng.gen_range(0.0..=1.0);
-        fenv.release = rng.gen_range(0.01..=2.0);
-        fenv.amount = rng.gen_range(-5000.0..=5000.0);
     }
 
     // LFOs
@@ -287,7 +269,6 @@ pub fn randomize_synth_params<R: Rng + ?Sized>(rng: &mut R) -> SynthParams {
     // Velocity
     params.velocity.amp_sensitivity = rng.gen_range(0.3..=1.0);
     params.velocity.filter_sensitivity = rng.gen_range(0.0..=0.8);
-    params.velocity.filter_env_sensitivity = rng.gen_range(0.0..=0.8);
 
     // Master
     params.master_gain = rng.gen_range(0.4..=0.7);

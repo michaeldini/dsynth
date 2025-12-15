@@ -60,18 +60,8 @@ pub enum FilterMessage {
     TypeChanged(FilterType),
     CutoffChanged(f32),
     ResonanceChanged(f32),
-    DriveChanged(f32),
+    BandwidthChanged(f32),
     KeyTrackingChanged(f32),
-}
-
-#[cfg(feature = "standalone")]
-#[derive(Debug, Clone)]
-pub enum FilterEnvelopeMessage {
-    AttackChanged(f32),
-    DecayChanged(f32),
-    SustainChanged(f32),
-    ReleaseChanged(f32),
-    AmountChanged(f32),
 }
 
 #[cfg(feature = "standalone")]
@@ -89,13 +79,11 @@ pub enum Message {
     // Indexed parameter groups
     Oscillator(usize, OscillatorMessage),
     Filter(usize, FilterMessage),
-    FilterEnvelope(usize, FilterEnvelopeMessage),
     LFO(usize, LFOMessage),
 
     // Velocity Sensitivity
     VelocityAmpChanged(f32),
     VelocityFilterChanged(f32),
-    VelocityFilterEnvChanged(f32),
 
     // Master
     MasterGainChanged(f32),
@@ -198,22 +186,8 @@ impl SynthGui {
                         FilterMessage::TypeChanged(t) => filter.filter_type = t,
                         FilterMessage::CutoffChanged(c) => filter.cutoff = c,
                         FilterMessage::ResonanceChanged(r) => filter.resonance = r,
-                        FilterMessage::DriveChanged(d) => filter.drive = d,
+                        FilterMessage::BandwidthChanged(b) => filter.bandwidth = b,
                         FilterMessage::KeyTrackingChanged(k) => filter.key_tracking = k,
-                    }
-                }
-            }
-
-            // Filter envelope parameters
-            Message::FilterEnvelope(idx, msg) => {
-                if idx < 3 {
-                    let env = &mut self.params.filter_envelopes[idx];
-                    match msg {
-                        FilterEnvelopeMessage::AttackChanged(a) => env.attack = a,
-                        FilterEnvelopeMessage::DecayChanged(d) => env.decay = d,
-                        FilterEnvelopeMessage::SustainChanged(s) => env.sustain = s,
-                        FilterEnvelopeMessage::ReleaseChanged(r) => env.release = r,
-                        FilterEnvelopeMessage::AmountChanged(a) => env.amount = a,
                     }
                 }
             }
@@ -234,7 +208,6 @@ impl SynthGui {
             // Velocity Sensitivity
             Message::VelocityAmpChanged(v) => self.params.velocity.amp_sensitivity = v,
             Message::VelocityFilterChanged(v) => self.params.velocity.filter_sensitivity = v,
-            Message::VelocityFilterEnvChanged(v) => self.params.velocity.filter_env_sensitivity = v,
 
             // Master
             Message::MasterGainChanged(g) => self.params.master_gain = g,
@@ -344,17 +317,6 @@ impl SynthGui {
             )
             .step(0.01),
             text(format!("{:.2}", self.params.velocity.filter_sensitivity)),
-            text("Filter Envelope:"),
-            slider(
-                0.0..=1.0,
-                self.params.velocity.filter_env_sensitivity,
-                Message::VelocityFilterEnvChanged
-            )
-            .step(0.01),
-            text(format!(
-                "{:.2}",
-                self.params.velocity.filter_env_sensitivity
-            )),
         ]
         .spacing(5)
         .padding(10);
@@ -398,7 +360,6 @@ impl SynthGui {
     fn oscillator_controls<'a>(&'a self, index: usize, label: &'a str) -> Element<'a, Message> {
         let osc = &self.params.oscillators[index];
         let filter = &self.params.filters[index];
-        let filter_env = &self.params.filter_envelopes[index];
         let lfo = &self.params.lfos[index];
 
         let waveforms = vec![
@@ -523,14 +484,14 @@ impl SynthGui {
                 .step(0.1),
             )
             .push(text(format!("{:.1}", filter.resonance)))
-            .push(text("Drive:"))
+            .push(text("Bandwidth (octaves):"))
             .push(
-                slider(1.0..=10.0, filter.drive, move |d| {
-                    Message::Filter(index, FilterMessage::DriveChanged(d))
+                slider(0.1..=4.0, filter.bandwidth, move |b| {
+                    Message::Filter(index, FilterMessage::BandwidthChanged(b))
                 })
                 .step(0.1),
             )
-            .push(text(format!("{:.1}", filter.drive)))
+            .push(text(format!("{:.1}", filter.bandwidth)))
             .push(text("Key Tracking:"))
             .push(
                 slider(0.0..=1.0, filter.key_tracking, move |k| {
@@ -539,48 +500,6 @@ impl SynthGui {
                 .step(0.01),
             )
             .push(text(format!("{:.2}", filter.key_tracking)))
-            // Filter envelope controls
-            .push(text("--- Filter Envelope ---").size(18))
-            .push(text("Attack (s):"))
-            .push(
-                slider(0.001..=5.0, filter_env.attack, move |a| {
-                    Message::FilterEnvelope(index, FilterEnvelopeMessage::AttackChanged(a))
-                })
-                .step(0.01),
-            )
-            .push(text(format!("{:.3}", filter_env.attack)))
-            .push(text("Decay (s):"))
-            .push(
-                slider(0.001..=5.0, filter_env.decay, move |d| {
-                    Message::FilterEnvelope(index, FilterEnvelopeMessage::DecayChanged(d))
-                })
-                .step(0.01),
-            )
-            .push(text(format!("{:.3}", filter_env.decay)))
-            .push(text("Sustain:"))
-            .push(
-                slider(0.0..=1.0, filter_env.sustain, move |s| {
-                    Message::FilterEnvelope(index, FilterEnvelopeMessage::SustainChanged(s))
-                })
-                .step(0.01),
-            )
-            .push(text(format!("{:.2}", filter_env.sustain)))
-            .push(text("Release (s):"))
-            .push(
-                slider(0.001..=5.0, filter_env.release, move |r| {
-                    Message::FilterEnvelope(index, FilterEnvelopeMessage::ReleaseChanged(r))
-                })
-                .step(0.01),
-            )
-            .push(text(format!("{:.3}", filter_env.release)))
-            .push(text("Amount (Hz):"))
-            .push(
-                slider(-10000.0..=10000.0, filter_env.amount, move |a| {
-                    Message::FilterEnvelope(index, FilterEnvelopeMessage::AmountChanged(a))
-                })
-                .step(100.0),
-            )
-            .push(text(format!("{:.0}", filter_env.amount)))
             // LFO controls
             .push(text("--- LFO ---").size(18))
             .push(text("Waveform:"))

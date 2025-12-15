@@ -1,6 +1,4 @@
-use crate::params::{
-    FilterEnvelopeParams, FilterParams, LFOParams, OscillatorParams, SynthParams, VelocityParams,
-};
+use crate::params::{FilterParams, LFOParams, OscillatorParams, SynthParams, VelocityParams};
 
 use super::DSynthPlugin;
 
@@ -57,46 +55,22 @@ impl DSynthPlugin {
                     filter_type: p.filter1_type.value(),
                     cutoff: p.filter1_cutoff.value(),
                     resonance: p.filter1_resonance.value(),
-                    drive: p.filter1_drive.value(),
+                    bandwidth: p.filter1_bandwidth.value(),
                     key_tracking: p.filter1_key_tracking.value(),
                 },
                 FilterParams {
                     filter_type: p.filter2_type.value(),
                     cutoff: p.filter2_cutoff.value(),
                     resonance: p.filter2_resonance.value(),
-                    drive: p.filter2_drive.value(),
+                    bandwidth: p.filter2_bandwidth.value(),
                     key_tracking: p.filter2_key_tracking.value(),
                 },
                 FilterParams {
                     filter_type: p.filter3_type.value(),
                     cutoff: p.filter3_cutoff.value(),
                     resonance: p.filter3_resonance.value(),
-                    drive: p.filter3_drive.value(),
+                    bandwidth: p.filter3_bandwidth.value(),
                     key_tracking: p.filter3_key_tracking.value(),
-                },
-            ],
-
-            filter_envelopes: [
-                FilterEnvelopeParams {
-                    attack: p.fenv1_attack.value(),
-                    decay: p.fenv1_decay.value(),
-                    sustain: p.fenv1_sustain.value(),
-                    release: p.fenv1_release.value(),
-                    amount: p.fenv1_amount.value(),
-                },
-                FilterEnvelopeParams {
-                    attack: p.fenv2_attack.value(),
-                    decay: p.fenv2_decay.value(),
-                    sustain: p.fenv2_sustain.value(),
-                    release: p.fenv2_release.value(),
-                    amount: p.fenv2_amount.value(),
-                },
-                FilterEnvelopeParams {
-                    attack: p.fenv3_attack.value(),
-                    decay: p.fenv3_decay.value(),
-                    sustain: p.fenv3_sustain.value(),
-                    release: p.fenv3_release.value(),
-                    amount: p.fenv3_amount.value(),
                 },
             ],
 
@@ -124,7 +98,6 @@ impl DSynthPlugin {
             velocity: VelocityParams {
                 amp_sensitivity: p.velocity_amp.value(),
                 filter_sensitivity: p.velocity_filter.value(),
-                filter_env_sensitivity: p.velocity_filter_env.value(),
             },
         }
     }

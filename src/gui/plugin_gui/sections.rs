@@ -1,4 +1,4 @@
-use super::{PluginGui, Message, OscStates, FilterStates, EnvStates, LfoStates};
+use super::{PluginGui, Message, OscStates, FilterStates, LfoStates};
 use nih_plug_iced::widget;
 use crate::plugin::DSynthParams;
 
@@ -124,7 +124,7 @@ impl PluginGui {
                 &params.filter1_resonance,
                 &mut states.resonance,
             ))
-            .push(param_row("Drive", &params.filter1_drive, &mut states.drive))
+            .push(param_row("Width", &params.filter1_bandwidth, &mut states.bandwidth))
             .push(param_row(
                 "KeyTrk",
                 &params.filter1_key_tracking,
@@ -159,7 +159,7 @@ impl PluginGui {
                 &params.filter2_resonance,
                 &mut states.resonance,
             ))
-            .push(param_row("Drive", &params.filter2_drive, &mut states.drive))
+            .push(param_row("Width", &params.filter2_bandwidth, &mut states.bandwidth))
             .push(param_row(
                 "KeyTrk",
                 &params.filter2_key_tracking,
@@ -194,116 +194,11 @@ impl PluginGui {
                 &params.filter3_resonance,
                 &mut states.resonance,
             ))
-            .push(param_row("Drive", &params.filter3_drive, &mut states.drive))
+            .push(param_row("Width", &params.filter3_bandwidth, &mut states.bandwidth))
             .push(param_row(
                 "KeyTrk",
                 &params.filter3_key_tracking,
                 &mut states.key_tracking,
-            ))
-            .spacing(3)
-            .padding(8)
-    }
-
-    pub(super) fn fenv1_section<'a>(
-        title: &str,
-        params: &'a DSynthParams,
-        states: &'a mut EnvStates,
-    ) -> widget::Column<'a, Message> {
-        use widget::*;
-        use super::helpers::param_row;
-
-        Column::new()
-            .push(Text::new(title).size(16))
-            .push(param_row(
-                "Attack",
-                &params.fenv1_attack,
-                &mut states.attack,
-            ))
-            .push(param_row("Decay", &params.fenv1_decay, &mut states.decay))
-            .push(param_row(
-                "Sustain",
-                &params.fenv1_sustain,
-                &mut states.sustain,
-            ))
-            .push(param_row(
-                "Release",
-                &params.fenv1_release,
-                &mut states.release,
-            ))
-            .push(param_row(
-                "Amount",
-                &params.fenv1_amount,
-                &mut states.amount,
-            ))
-            .spacing(3)
-            .padding(8)
-    }
-
-    pub(super) fn fenv2_section<'a>(
-        title: &str,
-        params: &'a DSynthParams,
-        states: &'a mut EnvStates,
-    ) -> widget::Column<'a, Message> {
-        use widget::*;
-        use super::helpers::param_row;
-
-        Column::new()
-            .push(Text::new(title).size(16))
-            .push(param_row(
-                "Attack",
-                &params.fenv2_attack,
-                &mut states.attack,
-            ))
-            .push(param_row("Decay", &params.fenv2_decay, &mut states.decay))
-            .push(param_row(
-                "Sustain",
-                &params.fenv2_sustain,
-                &mut states.sustain,
-            ))
-            .push(param_row(
-                "Release",
-                &params.fenv2_release,
-                &mut states.release,
-            ))
-            .push(param_row(
-                "Amount",
-                &params.fenv2_amount,
-                &mut states.amount,
-            ))
-            .spacing(3)
-            .padding(8)
-    }
-
-    pub(super) fn fenv3_section<'a>(
-        title: &str,
-        params: &'a DSynthParams,
-        states: &'a mut EnvStates,
-    ) -> widget::Column<'a, Message> {
-        use widget::*;
-        use super::helpers::param_row;
-
-        Column::new()
-            .push(Text::new(title).size(16))
-            .push(param_row(
-                "Attack",
-                &params.fenv3_attack,
-                &mut states.attack,
-            ))
-            .push(param_row("Decay", &params.fenv3_decay, &mut states.decay))
-            .push(param_row(
-                "Sustain",
-                &params.fenv3_sustain,
-                &mut states.sustain,
-            ))
-            .push(param_row(
-                "Release",
-                &params.fenv3_release,
-                &mut states.release,
-            ))
-            .push(param_row(
-                "Amount",
-                &params.fenv3_amount,
-                &mut states.amount,
             ))
             .spacing(3)
             .padding(8)

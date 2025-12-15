@@ -37,17 +37,8 @@ struct FilterStates {
     filter_type: nih_widgets::param_slider::State,
     cutoff: nih_widgets::param_slider::State,
     resonance: nih_widgets::param_slider::State,
-    drive: nih_widgets::param_slider::State,
+    bandwidth: nih_widgets::param_slider::State,
     key_tracking: nih_widgets::param_slider::State,
-}
-
-#[derive(Default)]
-struct EnvStates {
-    attack: nih_widgets::param_slider::State,
-    decay: nih_widgets::param_slider::State,
-    sustain: nih_widgets::param_slider::State,
-    release: nih_widgets::param_slider::State,
-    amount: nih_widgets::param_slider::State,
 }
 
 #[derive(Default)]
@@ -62,7 +53,6 @@ struct LfoStates {
 struct VelocityStates {
     amp: nih_widgets::param_slider::State,
     filter: nih_widgets::param_slider::State,
-    filter_env: nih_widgets::param_slider::State,
 }
 
 #[derive(Default)]
@@ -77,10 +67,6 @@ struct ParamStates {
     filter1: FilterStates,
     filter2: FilterStates,
     filter3: FilterStates,
-
-    fenv1: EnvStates,
-    fenv2: EnvStates,
-    fenv3: EnvStates,
 
     lfo1: LfoStates,
     lfo2: LfoStates,
@@ -191,13 +177,6 @@ impl IcedEditor for PluginGui {
 
         let filters = Row::new().push(filt1).push(filt2).push(filt3).spacing(10);
 
-        // Filter Envelopes
-        let fenv1 = Self::fenv1_section("F-Env 1", params, &mut self.param_states.fenv1);
-        let fenv2 = Self::fenv2_section("F-Env 2", params, &mut self.param_states.fenv2);
-        let fenv3 = Self::fenv3_section("F-Env 3", params, &mut self.param_states.fenv3);
-
-        let filter_envs = Row::new().push(fenv1).push(fenv2).push(fenv3).spacing(10);
-
         // LFOs
         let lfo1 = Self::lfo1_section("LFO 1", params, &mut self.param_states.lfo1);
         let lfo2 = Self::lfo2_section("LFO 2", params, &mut self.param_states.lfo2);
@@ -218,11 +197,6 @@ impl IcedEditor for PluginGui {
                 &params.velocity_filter,
                 &mut self.param_states.velocity.filter,
             ))
-            .push(helpers::param_row(
-                "F-Env",
-                &params.velocity_filter_env,
-                &mut self.param_states.velocity.filter_env,
-            ))
             .spacing(5)
             .padding(10);
 
@@ -232,7 +206,6 @@ impl IcedEditor for PluginGui {
             .push(master)
             .push(oscillators)
             .push(filters)
-            .push(filter_envs)
             .push(lfos)
             .push(velocity)
             .spacing(5);
