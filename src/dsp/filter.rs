@@ -219,13 +219,15 @@ impl BiquadFilter {
             - self.a1 * self.y1
             - self.a2 * self.y2;
 
-        // Update state
+        // Update state with unclipped values (important for filter stability)
         self.x2 = self.x1;
         self.x1 = saturated;
         self.y2 = self.y1;
         self.y1 = output;
 
-        output
+        // Soft clip output to prevent extreme values from high resonance/drive
+        // Applied AFTER updating state so filter feedback remains mathematically correct
+        output.tanh()
     }
 
     /// Reset filter state

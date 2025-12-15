@@ -68,7 +68,7 @@ impl Default for OscillatorParams {
             waveform: Waveform::Sine,
             pitch: 0.0,
             detune: 0.0,
-            gain: 0.33,
+            gain: 0.25,  // Reduced from 0.33 to prevent clipping with multiple oscillators
             pan: 0.0,
             unison: 1,
             unison_detune: 10.0,

@@ -1,0 +1,116 @@
+{
+  "name": "My Preset",
+  "params": {
+    "oscillators": [
+      {
+        "waveform": "Saw",
+        "pitch": -12.0,
+        "detune": 48.0,
+        "gain": 0.56,
+        "pan": -0.35115093,
+        "unison": 2,
+        "unison_detune": 12.0,
+        "phase": 0.63930553,
+        "shape": 0.16999997,
+        "solo": true
+      },
+      {
+        "waveform": "Triangle",
+        "pitch": 12.0,
+        "detune": 12.0,
+        "gain": 0.44,
+        "pan": -0.03431332,
+        "unison": 6,
+        "unison_detune": 36.0,
+        "phase": 0.017905595,
+        "shape": -0.6493675,
+        "solo": false
+      },
+      {
+        "waveform": "Square",
+        "pitch": 12.0,
+        "detune": 24.0,
+        "gain": 0.32436162,
+        "pan": -0.77224636,
+        "unison": 7,
+        "unison_detune": 24.0,
+        "phase": 0.4344495,
+        "shape": -0.053548694,
+        "solo": false
+      }
+    ],
+    "filters": [
+      {
+        "filter_type": "Lowpass",
+        "cutoff": 2333.472,
+        "resonance": 3.8,
+        "drive": 2.3818355,
+        "key_tracking": 0.8229406
+      },
+      {
+        "filter_type": "Bandpass",
+        "cutoff": 9640.0,
+        "resonance": 2.9741192,
+        "drive": 1.2784648,
+        "key_tracking": 0.50887746
+      },
+      {
+        "filter_type": "Bandpass",
+        "cutoff": 11130.0,
+        "resonance": 4.250308,
+        "drive": 4.8180037,
+        "key_tracking": 0.037491087
+      }
+    ],
+    "filter_envelopes": [
+      {
+        "attack": 2.291,
+        "decay": 2.151,
+        "sustain": 0.39,
+        "release": 2.041,
+        "amount": 4822.087
+      },
+      {
+        "attack": 1.1166193,
+        "decay": 1.3300974,
+        "sustain": 0.714703,
+        "release": 0.7073933,
+        "amount": 2287.001
+      },
+      {
+        "attack": 1.026384,
+        "decay": 1.9719093,
+        "sustain": 0.25222805,
+        "release": 1.5586373,
+        "amount": -131.04248
+      }
+    ],
+    "lfos": [
+      {
+        "waveform": "Triangle",
+        "rate": 5.129919,
+        "depth": 0.7866106,
+        "filter_amount": 1293.3213
+      },
+      {
+        "waveform": "Saw",
+        "rate": 5.655039,
+        "depth": 0.8285347,
+        "filter_amount": 2284.1235
+      },
+      {
+        "waveform": "Square",
+        "rate": 0.90870583,
+        "depth": 0.46023673,
+        "filter_amount": 1667.5238
+      }
+    ],
+    "velocity": {
+      "amp_sensitivity": 0.6693705,
+      "filter_sensitivity": 0.314442,
+      "filter_env_sensitivity": 0.39941517
+    },
+    "master_gain": 0.5326617,
+    "monophonic": true
+  }
+}
