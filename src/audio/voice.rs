@@ -19,8 +19,8 @@ pub struct Voice {
     // DSP components - each oscillator slot has max 7 pre-allocated unison voices
     // Optimization: Fixed-size arrays instead of Vec to avoid audio-thread allocations
     oscillators: [[Option<Oscillator>; MAX_UNISON_VOICES]; 3],
-    active_unison: [usize; 3],  // How many oscillators are actually active in each slot
-    
+    active_unison: [usize; 3], // How many oscillators are actually active in each slot
+
     filters: [BiquadFilter; 3],
     envelope: Envelope,
     filter_envelopes: [Envelope; 3],
@@ -30,8 +30,8 @@ pub struct Voice {
     // Stores squared samples (before sqrt) for efficiency
     // OPTIMIZATION: Only updated when needed (on note_off or lazy on voice stealing check)
     rms_squared_ema: f32,
-    peak_amplitude: f32,  // Peak amplitude since last voice on, used for quick voice stealing
-    last_output: f32,     // Last output for decay calculation
+    peak_amplitude: f32, // Peak amplitude since last voice on, used for quick voice stealing
+    last_output: f32,    // Last output for decay calculation
 }
 
 impl Voice {
@@ -42,7 +42,7 @@ impl Voice {
     pub fn new(sample_rate: f32) -> Self {
         // Pre-allocate all oscillators (no allocations during audio processing)
         let mut oscillators: [[Option<Oscillator>; MAX_UNISON_VOICES]; 3] = Default::default();
-        
+
         // Initialize all slots with Some(Oscillator)
         for osc_slot in &mut oscillators {
             for osc_ref in osc_slot.iter_mut() {
@@ -56,7 +56,7 @@ impl Voice {
             is_active: false,
             sample_rate,
             oscillators,
-            active_unison: [1, 1, 1],  // Initially all slots have 1 active oscillator
+            active_unison: [1, 1, 1], // Initially all slots have 1 active oscillator
             filters: [
                 BiquadFilter::new(sample_rate),
                 BiquadFilter::new(sample_rate),
@@ -308,7 +308,7 @@ impl Voice {
             let pan_radians = (pan + 1.0) * std::f32::consts::PI / 4.0; // Map to 0 to pi/2
             let left_gain = pan_radians.cos();
             let right_gain = pan_radians.sin();
-            
+
             let scaled = filtered * osc_params[i].gain;
             output_left += scaled * left_gain;
             output_right += scaled * right_gain;
