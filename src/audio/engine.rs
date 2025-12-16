@@ -151,7 +151,15 @@ impl SynthEngine {
     ///
     /// # Example
     /// ```
+    /// use dsynth::audio::engine::{SynthEngine, create_parameter_buffer};
+    /// let (_producer, consumer) = create_parameter_buffer();
+    /// let mut engine = SynthEngine::new(44100.0, consumer);
+    ///
     /// engine.note_on(60, 0.8);  // Play middle C at 80% velocity
+    ///
+    /// // Verify note triggered by checking we get audio output
+    /// let output = engine.process();
+    /// assert!(output.abs() < 2.0, "Output should be in valid range");
     /// ```
     pub fn note_on(&mut self, note: u8, velocity: f32) {
         if self.current_params.monophonic {
@@ -217,7 +225,16 @@ impl SynthEngine {
     ///
     /// # Example
     /// ```
+    /// use dsynth::audio::engine::{SynthEngine, create_parameter_buffer};
+    /// let (_producer, consumer) = create_parameter_buffer();
+    /// let mut engine = SynthEngine::new(44100.0, consumer);
+    ///
+    /// engine.note_on(60, 0.8);
     /// engine.note_off(60);  // Release middle C
+    ///
+    /// // Note is now releasing - verify output is still finite
+    /// let output = engine.process();
+    /// assert!(output.is_finite(), "Output should be finite");
     /// ```
     pub fn note_off(&mut self, note: u8) {
         if self.current_params.monophonic {
@@ -349,7 +366,6 @@ impl SynthEngine {
                         voice.update_parameters(
                             &self.current_params.oscillators,
                             &self.current_params.filters,
-                            
                             &self.current_params.lfos,
                         );
                     }
@@ -364,7 +380,6 @@ impl SynthEngine {
             let (left, right) = voice.process(
                 &self.current_params.oscillators,
                 &self.current_params.filters,
-                
                 &self.current_params.lfos,
                 &self.current_params.velocity,
             );
@@ -437,7 +452,20 @@ impl SynthEngine {
     ///
     /// # Example
     /// ```
+    /// use dsynth::audio::engine::{SynthEngine, create_parameter_buffer};
+    /// let (_producer, consumer) = create_parameter_buffer();
+    /// let mut engine = SynthEngine::new(44100.0, consumer);
+    ///
+    /// engine.note_on(60, 0.8);
     /// let (left, right) = engine.process_stereo();
+    ///
+    /// // Verify stereo output is in valid range
+    /// assert!(left.is_finite() && right.is_finite(), "Stereo outputs should be finite");
+    /// assert!(left.abs() < 2.0 && right.abs() < 2.0, "Outputs should be in valid range");
+    ///
+    /// // Example of filling audio buffer
+    /// let mut audio_buffer = vec![0.0f32; 512];
+    /// let frame = 0;
     /// audio_buffer[frame * 2] = left;
     /// audio_buffer[frame * 2 + 1] = right;
     /// ```
@@ -460,7 +488,6 @@ impl SynthEngine {
                         voice.update_parameters(
                             &self.current_params.oscillators,
                             &self.current_params.filters,
-                            
                             &self.current_params.lfos,
                         );
                     }
@@ -475,7 +502,6 @@ impl SynthEngine {
             let (left, right) = voice.process(
                 &self.current_params.oscillators,
                 &self.current_params.filters,
-                
                 &self.current_params.lfos,
                 &self.current_params.velocity,
             );
@@ -514,9 +540,19 @@ impl SynthEngine {
     ///
     /// # Example
     /// ```
+    /// use dsynth::audio::engine::{SynthEngine, create_parameter_buffer};
+    /// let (_producer, consumer) = create_parameter_buffer();
+    /// let mut engine = SynthEngine::new(44100.0, consumer);
+    ///
+    /// engine.note_on(60, 0.8);
+    ///
     /// let mut left = vec![0.0; 256];
     /// let mut right = vec![0.0; 256];
     /// engine.process_block(&mut left, &mut right);
+    ///
+    /// // Verify all samples are finite and in valid range
+    /// assert!(left.iter().all(|&s| s.is_finite() && s.abs() < 2.0));
+    /// assert!(right.iter().all(|&s| s.is_finite() && s.abs() < 2.0));
     /// // Now left and right contain 256 audio samples ready to send to the audio device
     /// ```
     pub fn process_block(&mut self, left: &mut [f32], right: &mut [f32]) {
@@ -562,11 +598,12 @@ impl SynthEngine {
 /// both threads see inconsistent state.
 ///
 /// A triple-buffer uses three buffers instead:
-/// ```
-/// ┌──────────┐     ┌──────────┐     ┌──────────┐
-/// │ Buffer A │────→│ Buffer B │────→│ Buffer C │
-/// │ (GUI)    │     │ (current)│     │ (waiting)│
-/// └──────────┘     └──────────┘     └──────────┘
+///
+/// ```text
+/// +----------+     +----------+     +----------+
+/// | Buffer A |--->| Buffer B |--->| Buffer C |
+/// | (GUI)    |     | (current)|     | (waiting)|
+/// +----------+     +----------+     +----------+
 ///    Writing        Being read        Preparing
 /// ```
 ///

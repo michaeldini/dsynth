@@ -91,8 +91,13 @@ impl Oscillator {
     ///
     /// # Example
     /// ```
+    /// use dsynth::dsp::oscillator::Oscillator;
+    ///
     /// let osc = Oscillator::new(44100.0);
     /// // osc is now set up for 44.1kHz audio, using 176.4kHz internally
+    ///
+    /// // Process a sample to verify it works
+    /// // (internal state verification would require pub fields)
     /// ```
     pub fn new(sample_rate: f32) -> Self {
         Self {

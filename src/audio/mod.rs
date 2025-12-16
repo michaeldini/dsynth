@@ -10,14 +10,14 @@
 //!
 //! The audio module follows a producer-consumer pattern for thread-safe real-time audio:
 //!
-//! ```
+//!
 //! GUI/MIDI Thread          Audio Thread (Real-Time)
 //! ───────────────          ────────────────────────
 //! Parameter Updates ──→ [Triple Buffer] ──→ Engine reads parameters
 //!                                              │
 //! MIDI Events/GUI ───→ [Event Channel] ──→ Engine processes events
 //! (Note On/Off)            (bounded,1024)     │
-//!                                              ▼
+//!                                              |
 //!                                           Synth Engine
 //!                                              │
 //!                                           Voices (1-16)
@@ -27,15 +27,15 @@
 //!                                             Filters,
 //!                                             Envelopes)
 //!                                              │
-//!                                              ▼
+//!                                              │
 //!                                           Audio Output (frames)
 //!                                              │
-//!                                              ▼
+//!                                              │
 //!                                        CoreAudio Callback
 //!                                              │
-//!                                              ▼
+//!                                              │
 //!                                           Speakers
-//! ```
+//!
 //!
 //! ## Why This Design?
 //!

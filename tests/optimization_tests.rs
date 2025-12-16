@@ -23,13 +23,20 @@ mod optimization_tests {
             filter.set_cutoff(modulated_cutoff);
             let out = filter.process(0.5);
             output_sum += out;
-            
+
             // Should never produce NaN or infinite values
-            assert!(out.is_finite(), "Filter output should be finite at sample {}", i);
+            assert!(
+                out.is_finite(),
+                "Filter output should be finite at sample {}",
+                i
+            );
         }
-        
+
         // Should produce non-zero output
-        assert!(output_sum.abs() > 0.1, "Filter should produce measurable output");
+        assert!(
+            output_sum.abs() > 0.1,
+            "Filter should produce measurable output"
+        );
     }
 
     #[test]
@@ -97,12 +104,16 @@ mod optimization_tests {
         }
 
         // All outputs should be finite
-        assert!(outputs.iter().all(|o| o.is_finite()), 
-                "All outputs should be finite");
+        assert!(
+            outputs.iter().all(|o| o.is_finite()),
+            "All outputs should be finite"
+        );
 
         // Should produce some audio output
-        assert!(outputs.iter().any(|o| o.abs() > 0.001), 
-                "Engine should produce measurable output");
+        assert!(
+            outputs.iter().any(|o| o.abs() > 0.001),
+            "Engine should produce measurable output"
+        );
     }
 
     #[test]
@@ -132,8 +143,12 @@ mod optimization_tests {
         }
 
         // Should have significant output range without extreme values
-        assert!(min_output > -2.0 && max_output < 2.0, 
-                "Output should be reasonable: range [{}, {}]", min_output, max_output);
+        assert!(
+            min_output > -2.0 && max_output < 2.0,
+            "Output should be reasonable: range [{}, {}]",
+            min_output,
+            max_output
+        );
     }
 
     #[test]
@@ -159,21 +174,30 @@ mod optimization_tests {
 
         let mut osc_params = [OscillatorParams::default(); 3];
         let filter_params = Default::default();
-        let filter_env_params = Default::default();
         let lfo_params = Default::default();
 
         // Change unison count from 1 to 7
         for unison_count in 1..=7 {
             osc_params[0].unison = unison_count;
-            voice.update_parameters(&osc_params, &filter_params, &filter_env_params, &lfo_params);
-            
-            let _output = voice.process(&osc_params, &filter_params, &filter_env_params, &lfo_params, &Default::default());
+            voice.update_parameters(&osc_params, &filter_params, &lfo_params);
+
+            let _output = voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &Default::default(),
+            );
         }
 
         // Then change back to 1
         osc_params[0].unison = 1;
-        voice.update_parameters(&osc_params, &filter_params, &filter_env_params, &lfo_params);
-        let _output = voice.process(&osc_params, &filter_params, &filter_env_params, &lfo_params, &Default::default());
+        voice.update_parameters(&osc_params, &filter_params, &lfo_params);
+        let _output = voice.process(
+            &osc_params,
+            &filter_params,
+            &lfo_params,
+            &Default::default(),
+        );
 
         assert!(true, "Unison count changes should work without panicking");
     }
@@ -184,27 +208,33 @@ mod optimization_tests {
         voice.note_on(60, 0.8);
 
         let mut osc_params = [OscillatorParams::default(); 3];
-        osc_params[0].unison = 7;  // Max unison
+        osc_params[0].unison = 7; // Max unison
         osc_params[0].unison_detune = 50.0;
 
         let filter_params = Default::default();
-        let filter_env_params = Default::default();
         let lfo_params = Default::default();
         let velocity_params = Default::default();
 
-        voice.update_parameters(&osc_params, &filter_params, &filter_env_params, &lfo_params);
+        voice.update_parameters(&osc_params, &filter_params, &lfo_params);
 
         // Process multiple samples with all 7 unison voices active
         let mut max_output: f32 = 0.0;
         for _ in 0..100 {
-            let (left, right) = voice.process(&osc_params, &filter_params, &filter_env_params, &lfo_params, &velocity_params);
+            let (left, right) =
+                voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
             let output = (left.abs() + right.abs()) / 2.0;
             max_output = max_output.max(output);
-            assert!((left.is_finite() && right.is_finite()), "Output should be finite with 7 unison voices");
+            assert!(
+                (left.is_finite() && right.is_finite()),
+                "Output should be finite with 7 unison voices"
+            );
         }
 
         // With 7 unison voices, output should be noticeably larger
-        assert!(max_output > 0.1, "7 unison voices should produce significant output");
+        assert!(
+            max_output > 0.1,
+            "7 unison voices should produce significant output"
+        );
     }
 
     #[test]
@@ -214,28 +244,36 @@ mod optimization_tests {
 
         let mut osc_params = [OscillatorParams::default(); 3];
         osc_params[0].unison = 3;
-        osc_params[0].unison_detune = 50.0;  // 50 cents spread
+        osc_params[0].unison_detune = 50.0; // 50 cents spread
 
         let filter_params = Default::default();
-        let filter_env_params = Default::default();
         let lfo_params = Default::default();
 
-        voice.update_parameters(&osc_params, &filter_params, &filter_env_params, &lfo_params);
+        voice.update_parameters(&osc_params, &filter_params, &lfo_params);
 
         // Process with spread unison voices
         let mut outputs = Vec::new();
         for _ in 0..50 {
-            let (left, right) = voice.process(&osc_params, &filter_params, &filter_env_params, &lfo_params, &Default::default());
+            let (left, right) = voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &Default::default(),
+            );
             outputs.push((left.abs() + right.abs()) / 2.0);
         }
 
         // Should have variation from unison detuning
-        let variance = outputs.iter()
+        let variance = outputs
+            .iter()
             .zip(outputs.iter().skip(1))
             .map(|(a, b)| (a - b).abs())
             .fold(0.0, f32::max);
 
-        assert!(variance > 0.001, "Unison spread should cause output variation");
+        assert!(
+            variance > 0.001,
+            "Unison spread should cause output variation"
+        );
     }
 
     // ========== INTEGRATION TESTS ==========
@@ -265,11 +303,11 @@ mod optimization_tests {
             }
 
             let output = engine.process();
-            
+
             // Check output quality
             assert!(output.is_finite(), "Output should be finite");
             max_output = max_output.max(output.abs());
-            
+
             if (output - last_output).abs() > 0.001 {
                 has_variation = true;
             }
@@ -287,7 +325,6 @@ mod optimization_tests {
 
         let osc_params = [OscillatorParams::default(); 3];
         let filter_params = Default::default();
-        let filter_env_params = Default::default();
         let lfo_params = Default::default();
         let velocity_params = Default::default();
 
@@ -295,17 +332,26 @@ mod optimization_tests {
         for midi_note in [60, 72, 48] {
             voice.reset();
             voice.note_on(midi_note, 0.8);
-            voice.update_parameters(&osc_params, &filter_params, &filter_env_params, &lfo_params);
+            voice.update_parameters(&osc_params, &filter_params, &lfo_params);
 
             // Process samples and verify output
             let mut output_sum = 0.0;
             for _ in 0..100 {
-                let (left, right) = voice.process(&osc_params, &filter_params, &filter_env_params, &lfo_params, &velocity_params);
+                let (left, right) =
+                    voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
                 output_sum += (left.abs() + right.abs()) / 2.0;
-                assert!((left.is_finite() && right.is_finite()), "Note {} should produce finite output", midi_note);
+                assert!(
+                    (left.is_finite() && right.is_finite()),
+                    "Note {} should produce finite output",
+                    midi_note
+                );
             }
 
-            assert!(output_sum > 1.0, "Note {} should produce measurable output", midi_note);
+            assert!(
+                output_sum > 1.0,
+                "Note {} should produce measurable output",
+                midi_note
+            );
         }
     }
 
@@ -322,15 +368,21 @@ mod optimization_tests {
             let mut has_output = false;
             for _ in 0..100 {
                 let output = filter.process(0.5);
-                assert!(output.is_finite(), 
-                       "Filter with resonance {} should produce finite output", resonance);
+                assert!(
+                    output.is_finite(),
+                    "Filter with resonance {} should produce finite output",
+                    resonance
+                );
                 if output.abs() > 0.001 {
                     has_output = true;
                 }
             }
 
-            assert!(has_output, 
-                   "Filter with resonance {} should produce output", resonance);
+            assert!(
+                has_output,
+                "Filter with resonance {} should produce output",
+                resonance
+            );
         }
     }
 }
