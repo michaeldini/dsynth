@@ -1,4 +1,5 @@
 use crate::audio::voice::Voice;
+use crate::dsp::effects::{Reverb, StereoDelay, Chorus, Distortion};
 use crate::params::SynthParams;
 use triple_buffer::{Input, Output, TripleBuffer};
 
@@ -91,6 +92,12 @@ pub struct SynthEngine {
     /// One-pole smoothing coefficient for limiter release.
     /// Recovery is smoothed to avoid pumping; gain reduction is applied instantly.
     limiter_release_coeff: f32,
+
+    /// Effects chain - processed after voice mixing
+    reverb: Reverb,
+    delay: StereoDelay,
+    chorus: Chorus,
+    distortion: Distortion,
 }
 
 impl SynthEngine {
@@ -135,6 +142,10 @@ impl SynthEngine {
             param_update_interval: 32, // Update every 32 samples (~0.7ms at 44.1kHz)
             limiter_gain: 1.0,
             limiter_release_coeff,
+            reverb: Reverb::new(sample_rate),
+            delay: StereoDelay::new(sample_rate),
+            chorus: Chorus::new(sample_rate),
+            distortion: Distortion::new(sample_rate),
         }
     }
 
@@ -156,6 +167,9 @@ impl SynthEngine {
 
         self.current_params = *new_params;
 
+        // Update effects parameters
+        self.update_effects_params();
+
         // Update all active voices with current parameters
         for voice in &mut self.voices {
             if voice.is_active() {
@@ -167,6 +181,34 @@ impl SynthEngine {
                 );
             }
         }
+    }
+
+    /// Update effects processors with current parameters
+    fn update_effects_params(&mut self) {
+        let effects = &self.current_params.effects;
+
+        // Update reverb
+        self.reverb.set_room_size(effects.reverb.room_size);
+        self.reverb.set_damping(effects.reverb.damping);
+        self.reverb.set_wet(effects.reverb.wet);
+        self.reverb.set_dry(effects.reverb.dry);
+        self.reverb.set_width(effects.reverb.width);
+
+        // Update delay
+        self.delay.set_time(effects.delay.time_ms);
+        self.delay.set_feedback(effects.delay.feedback);
+        self.delay.set_wet(effects.delay.wet);
+        self.delay.set_dry(effects.delay.dry);
+
+        // Update chorus
+        self.chorus.set_rate(effects.chorus.rate);
+        self.chorus.set_depth(effects.chorus.depth);
+        self.chorus.set_mix(effects.chorus.mix);
+
+        // Update distortion
+        self.distortion.set_drive(effects.distortion.drive);
+        self.distortion.set_mix(effects.distortion.mix);
+        self.distortion.set_type(effects.distortion.dist_type.into());
     }
 
     #[inline]
@@ -226,8 +268,19 @@ impl SynthEngine {
         output_left *= master;
         output_right *= master;
 
+        // Effects chain (processed in series: distortion → chorus → delay → reverb)
+        // This order is intentional:
+        // 1. Distortion first (adds harmonics to dry signal)
+        // 2. Chorus (adds width before spatial effects)
+        // 3. Delay (rhythmic repeats before reverb)
+        // 4. Reverb last (natural space/ambience)
+        let (mut out_l, mut out_r) = self.distortion.process_stereo(output_left, output_right);
+        (out_l, out_r) = self.chorus.process(out_l, out_r);
+        (out_l, out_r) = self.delay.process(out_l, out_r);
+        (out_l, out_r) = self.reverb.process(out_l, out_r);
+
         // Transparent limiter to prevent clipping without harmonic distortion.
-        self.apply_output_limiter(output_left, output_right)
+        self.apply_output_limiter(out_l, out_r)
     }
 
     /// Trigger a note on (MIDI note event).

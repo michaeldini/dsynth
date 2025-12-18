@@ -1,4 +1,4 @@
-use super::{PluginGui, Message, OscStates, FilterStates, LfoStates};
+use super::{PluginGui, Message, OscStates, FilterStates, LfoStates, EffectsStates};
 use nih_plug_iced::widget;
 use crate::plugin::DSynthParams;
 
@@ -280,5 +280,126 @@ impl PluginGui {
             ))
             .spacing(3)
             .padding(8)
+    }
+
+    pub(super) fn effects_section<'a>(
+        params: &'a DSynthParams,
+        states: &'a mut EffectsStates,
+    ) -> widget::Column<'a, Message> {
+        use widget::*;
+        use super::helpers::param_row;
+
+        // Distortion controls
+        let distortion = Column::new()
+            .push(Text::new("Distortion").size(16))
+            .push(param_row(
+                "Type",
+                &params.distortion_type,
+                &mut states.distortion_type,
+            ))
+            .push(param_row(
+                "Drive",
+                &params.distortion_drive,
+                &mut states.distortion_drive,
+            ))
+            .push(param_row(
+                "Mix",
+                &params.distortion_mix,
+                &mut states.distortion_mix,
+            ))
+            .spacing(3)
+            .padding(8);
+
+        // Chorus controls
+        let chorus = Column::new()
+            .push(Text::new("Chorus").size(16))
+            .push(param_row(
+                "Rate",
+                &params.chorus_rate,
+                &mut states.chorus_rate,
+            ))
+            .push(param_row(
+                "Depth",
+                &params.chorus_depth,
+                &mut states.chorus_depth,
+            ))
+            .push(param_row(
+                "Mix",
+                &params.chorus_mix,
+                &mut states.chorus_mix,
+            ))
+            .spacing(3)
+            .padding(8);
+
+        // Delay controls
+        let delay = Column::new()
+            .push(Text::new("Delay").size(16))
+            .push(param_row(
+                "Time",
+                &params.delay_time_ms,
+                &mut states.delay_time_ms,
+            ))
+            .push(param_row(
+                "Fdbk",
+                &params.delay_feedback,
+                &mut states.delay_feedback,
+            ))
+            .push(param_row(
+                "Wet",
+                &params.delay_wet,
+                &mut states.delay_wet,
+            ))
+            .push(param_row(
+                "Dry",
+                &params.delay_dry,
+                &mut states.delay_dry,
+            ))
+            .spacing(3)
+            .padding(8);
+
+        // Reverb controls
+        let reverb = Column::new()
+            .push(Text::new("Reverb").size(16))
+            .push(param_row(
+                "Room",
+                &params.reverb_room_size,
+                &mut states.reverb_room_size,
+            ))
+            .push(param_row(
+                "Damp",
+                &params.reverb_damping,
+                &mut states.reverb_damping,
+            ))
+            .push(param_row(
+                "Wet",
+                &params.reverb_wet,
+                &mut states.reverb_wet,
+            ))
+            .push(param_row(
+                "Dry",
+                &params.reverb_dry,
+                &mut states.reverb_dry,
+            ))
+            .push(param_row(
+                "Width",
+                &params.reverb_width,
+                &mut states.reverb_width,
+            ))
+            .spacing(3)
+            .padding(8);
+
+        Column::new()
+            .push(Text::new("EFFECTS").size(18))
+            .push(Text::new("Distortion → Chorus → Delay → Reverb").size(12))
+            .push(
+                Row::new()
+                    .push(distortion)
+                    .push(chorus)
+                    .push(delay)
+                    .push(reverb)
+                    .spacing(10)
+            )
+            .spacing(5)
+            .padding(10)
     }
 }

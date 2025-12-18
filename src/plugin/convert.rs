@@ -1,5 +1,6 @@
 use crate::params::{
-    EnvelopeParams, FilterParams, LFOParams, OscillatorParams, SynthParams, VelocityParams,
+    ChorusParams, DelayParams, DistortionParams, EffectsParams, EnvelopeParams, FilterParams,
+    LFOParams, OscillatorParams, ReverbParams, SynthParams, VelocityParams,
 };
 
 use super::DSynthPlugin;
@@ -102,6 +103,32 @@ impl DSynthPlugin {
             velocity: VelocityParams {
                 amp_sensitivity: p.velocity_amp.value(),
                 filter_sensitivity: p.velocity_filter.value(),
+            },
+
+            effects: EffectsParams {
+                reverb: ReverbParams {
+                    room_size: p.reverb_room_size.value(),
+                    damping: p.reverb_damping.value(),
+                    wet: p.reverb_wet.value(),
+                    dry: p.reverb_dry.value(),
+                    width: p.reverb_width.value(),
+                },
+                delay: DelayParams {
+                    time_ms: p.delay_time_ms.value(),
+                    feedback: p.delay_feedback.value(),
+                    wet: p.delay_wet.value(),
+                    dry: p.delay_dry.value(),
+                },
+                chorus: ChorusParams {
+                    rate: p.chorus_rate.value(),
+                    depth: p.chorus_depth.value(),
+                    mix: p.chorus_mix.value(),
+                },
+                distortion: DistortionParams {
+                    dist_type: p.distortion_type.value(),
+                    drive: p.distortion_drive.value(),
+                    mix: p.distortion_mix.value(),
+                },
             },
         }
     }

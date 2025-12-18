@@ -5,7 +5,7 @@ pub mod controls;
 pub mod plugin_gui;
 
 #[cfg(feature = "standalone")]
-use crate::params::{FilterType, LFOWaveform, SynthParams, Waveform};
+use crate::params::{DistortionType, FilterType, LFOWaveform, SynthParams, Waveform};
 
 #[cfg(feature = "standalone")]
 use crate::preset::Preset;
@@ -75,11 +75,52 @@ pub enum LFOMessage {
 
 #[cfg(feature = "standalone")]
 #[derive(Debug, Clone)]
+pub enum ReverbMessage {
+    RoomSizeChanged(f32),
+    DampingChanged(f32),
+    WetChanged(f32),
+    DryChanged(f32),
+    WidthChanged(f32),
+}
+
+#[cfg(feature = "standalone")]
+#[derive(Debug, Clone)]
+pub enum DelayMessage {
+    TimeChanged(f32),
+    FeedbackChanged(f32),
+    WetChanged(f32),
+    DryChanged(f32),
+}
+
+#[cfg(feature = "standalone")]
+#[derive(Debug, Clone)]
+pub enum ChorusMessage {
+    RateChanged(f32),
+    DepthChanged(f32),
+    MixChanged(f32),
+}
+
+#[cfg(feature = "standalone")]
+#[derive(Debug, Clone)]
+pub enum DistortionMessage {
+    DriveChanged(f32),
+    MixChanged(f32),
+    TypeChanged(DistortionType),
+}
+
+#[cfg(feature = "standalone")]
+#[derive(Debug, Clone)]
 pub enum Message {
     // Indexed parameter groups
     Oscillator(usize, OscillatorMessage),
     Filter(usize, FilterMessage),
     LFO(usize, LFOMessage),
+
+    // Effects
+    Reverb(ReverbMessage),
+    Delay(DelayMessage),
+    Chorus(ChorusMessage),
+    Distortion(DistortionMessage),
 
     // Velocity Sensitivity
     VelocityAmpChanged(f32),
@@ -205,6 +246,39 @@ impl SynthGui {
                 }
             }
 
+            // Effects
+            Message::Reverb(msg) => {
+                match msg {
+                    ReverbMessage::RoomSizeChanged(v) => self.params.effects.reverb.room_size = v,
+                    ReverbMessage::DampingChanged(v) => self.params.effects.reverb.damping = v,
+                    ReverbMessage::WetChanged(v) => self.params.effects.reverb.wet = v,
+                    ReverbMessage::DryChanged(v) => self.params.effects.reverb.dry = v,
+                    ReverbMessage::WidthChanged(v) => self.params.effects.reverb.width = v,
+                }
+            }
+            Message::Delay(msg) => {
+                match msg {
+                    DelayMessage::TimeChanged(v) => self.params.effects.delay.time_ms = v,
+                    DelayMessage::FeedbackChanged(v) => self.params.effects.delay.feedback = v,
+                    DelayMessage::WetChanged(v) => self.params.effects.delay.wet = v,
+                    DelayMessage::DryChanged(v) => self.params.effects.delay.dry = v,
+                }
+            }
+            Message::Chorus(msg) => {
+                match msg {
+                    ChorusMessage::RateChanged(v) => self.params.effects.chorus.rate = v,
+                    ChorusMessage::DepthChanged(v) => self.params.effects.chorus.depth = v,
+                    ChorusMessage::MixChanged(v) => self.params.effects.chorus.mix = v,
+                }
+            }
+            Message::Distortion(msg) => {
+                match msg {
+                    DistortionMessage::DriveChanged(v) => self.params.effects.distortion.drive = v,
+                    DistortionMessage::MixChanged(v) => self.params.effects.distortion.mix = v,
+                    DistortionMessage::TypeChanged(t) => self.params.effects.distortion.dist_type = t,
+                }
+            }
+
             // Velocity Sensitivity
             Message::VelocityAmpChanged(v) => self.params.velocity.amp_sensitivity = v,
             Message::VelocityFilterChanged(v) => self.params.velocity.filter_sensitivity = v,
@@ -299,6 +373,8 @@ impl SynthGui {
         let osc2_section = self.oscillator_controls(1, "Oscillator 2");
         let osc3_section = self.oscillator_controls(2, "Oscillator 3");
 
+        let effects_section = self.effects_controls();
+
         let velocity_controls = column![
             text("--- Velocity Sensitivity ---").size(18),
             text("Amplitude:"),
@@ -346,7 +422,13 @@ impl SynthGui {
         let content = column![
             row![title, keyboard_help, preset_controls],
             row![master_controls, velocity_controls],
-            scrollable(row![osc1_section, osc2_section, osc3_section].spacing(20)),
+            scrollable(
+                column![
+                    row![osc1_section, osc2_section, osc3_section].spacing(20),
+                    row![effects_section].padding(10),
+                ]
+                .spacing(20)
+            ),
         ]
         .spacing(20)
         .padding(20);
@@ -533,6 +615,151 @@ impl SynthGui {
             .spacing(5)
             .padding(10)
             .into()
+    }
+
+    fn effects_controls<'a>(&'a self) -> Element<'a, Message> {
+        let effects = &self.params.effects;
+
+        let distortion_types = vec![
+            DistortionType::Tanh,
+            DistortionType::SoftClip,
+            DistortionType::HardClip,
+            DistortionType::Cubic,
+        ];
+
+        // Distortion controls
+        let distortion_section = column![
+            text("DISTORTION").size(18),
+            text("Type:"),
+            pick_list(
+                distortion_types,
+                Some(effects.distortion.dist_type),
+                |t| Message::Distortion(DistortionMessage::TypeChanged(t))
+            ),
+            text("Drive:"),
+            slider(0.0..=1.0, effects.distortion.drive, |v| {
+                Message::Distortion(DistortionMessage::DriveChanged(v))
+            })
+            .step(0.01),
+            text(format!("{:.2}", effects.distortion.drive)),
+            text("Mix:"),
+            slider(0.0..=1.0, effects.distortion.mix, |v| {
+                Message::Distortion(DistortionMessage::MixChanged(v))
+            })
+            .step(0.01),
+            text(format!("{:.2}", effects.distortion.mix)),
+        ]
+        .spacing(5)
+        .padding(10);
+
+        // Chorus controls
+        let chorus_section = column![
+            text("CHORUS").size(18),
+            text("Rate (Hz):"),
+            slider(0.1..=5.0, effects.chorus.rate, |v| {
+                Message::Chorus(ChorusMessage::RateChanged(v))
+            })
+            .step(0.1),
+            text(format!("{:.1}", effects.chorus.rate)),
+            text("Depth:"),
+            slider(0.0..=1.0, effects.chorus.depth, |v| {
+                Message::Chorus(ChorusMessage::DepthChanged(v))
+            })
+            .step(0.01),
+            text(format!("{:.2}", effects.chorus.depth)),
+            text("Mix:"),
+            slider(0.0..=1.0, effects.chorus.mix, |v| {
+                Message::Chorus(ChorusMessage::MixChanged(v))
+            })
+            .step(0.01),
+            text(format!("{:.2}", effects.chorus.mix)),
+        ]
+        .spacing(5)
+        .padding(10);
+
+        // Delay controls
+        let delay_section = column![
+            text("DELAY").size(18),
+            text("Time (ms):"),
+            slider(1.0..=2000.0, effects.delay.time_ms, |v| {
+                Message::Delay(DelayMessage::TimeChanged(v))
+            })
+            .step(1.0),
+            text(format!("{:.0}", effects.delay.time_ms)),
+            text("Feedback:"),
+            slider(0.0..=0.95, effects.delay.feedback, |v| {
+                Message::Delay(DelayMessage::FeedbackChanged(v))
+            })
+            .step(0.01),
+            text(format!("{:.2}", effects.delay.feedback)),
+            text("Wet:"),
+            slider(0.0..=1.0, effects.delay.wet, |v| {
+                Message::Delay(DelayMessage::WetChanged(v))
+            })
+            .step(0.01),
+            text(format!("{:.2}", effects.delay.wet)),
+            text("Dry:"),
+            slider(0.0..=1.0, effects.delay.dry, |v| {
+                Message::Delay(DelayMessage::DryChanged(v))
+            })
+            .step(0.01),
+            text(format!("{:.2}", effects.delay.dry)),
+        ]
+        .spacing(5)
+        .padding(10);
+
+        // Reverb controls
+        let reverb_section = column![
+            text("REVERB").size(18),
+            text("Room Size:"),
+            slider(0.0..=1.0, effects.reverb.room_size, |v| {
+                Message::Reverb(ReverbMessage::RoomSizeChanged(v))
+            })
+            .step(0.01),
+            text(format!("{:.2}", effects.reverb.room_size)),
+            text("Damping:"),
+            slider(0.0..=1.0, effects.reverb.damping, |v| {
+                Message::Reverb(ReverbMessage::DampingChanged(v))
+            })
+            .step(0.01),
+            text(format!("{:.2}", effects.reverb.damping)),
+            text("Wet:"),
+            slider(0.0..=1.0, effects.reverb.wet, |v| {
+                Message::Reverb(ReverbMessage::WetChanged(v))
+            })
+            .step(0.01),
+            text(format!("{:.2}", effects.reverb.wet)),
+            text("Dry:"),
+            slider(0.0..=1.0, effects.reverb.dry, |v| {
+                Message::Reverb(ReverbMessage::DryChanged(v))
+            })
+            .step(0.01),
+            text(format!("{:.2}", effects.reverb.dry)),
+            text("Width:"),
+            slider(0.0..=1.0, effects.reverb.width, |v| {
+                Message::Reverb(ReverbMessage::WidthChanged(v))
+            })
+            .step(0.01),
+            text(format!("{:.2}", effects.reverb.width)),
+        ]
+        .spacing(5)
+        .padding(10);
+
+        // Combine all effects in a row
+        column![
+            text("=== EFFECTS CHAIN ===").size(20),
+            text("Signal Flow: Distortion → Chorus → Delay → Reverb").size(14),
+            row![
+                distortion_section,
+                chorus_section,
+                delay_section,
+                reverb_section
+            ]
+            .spacing(20)
+        ]
+        .spacing(10)
+        .padding(10)
+        .into()
     }
 
     pub fn subscription(&self) -> iced::Subscription<Message> {

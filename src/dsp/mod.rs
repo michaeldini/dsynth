@@ -1,4 +1,5 @@
 pub mod downsampler;
+pub mod effects;
 pub mod envelope;
 pub mod filter;
 pub mod lfo;

@@ -3,9 +3,9 @@ use nih_plug_iced::widgets as nih_widgets;
 use nih_plug_iced::*;
 use std::sync::Arc;
 
-mod sections;
-mod randomize;
 mod helpers;
+mod randomize;
+mod sections;
 
 pub(crate) fn default_state() -> Arc<IcedState> {
     IcedState::from_size(1200, 900)
@@ -56,6 +56,29 @@ struct VelocityStates {
 }
 
 #[derive(Default)]
+struct EffectsStates {
+    // Reverb
+    reverb_room_size: nih_widgets::param_slider::State,
+    reverb_damping: nih_widgets::param_slider::State,
+    reverb_wet: nih_widgets::param_slider::State,
+    reverb_dry: nih_widgets::param_slider::State,
+    reverb_width: nih_widgets::param_slider::State,
+    // Delay
+    delay_time_ms: nih_widgets::param_slider::State,
+    delay_feedback: nih_widgets::param_slider::State,
+    delay_wet: nih_widgets::param_slider::State,
+    delay_dry: nih_widgets::param_slider::State,
+    // Chorus
+    chorus_rate: nih_widgets::param_slider::State,
+    chorus_depth: nih_widgets::param_slider::State,
+    chorus_mix: nih_widgets::param_slider::State,
+    // Distortion
+    distortion_type: nih_widgets::param_slider::State,
+    distortion_drive: nih_widgets::param_slider::State,
+    distortion_mix: nih_widgets::param_slider::State,
+}
+
+#[derive(Default)]
 struct ParamStates {
     master_gain: nih_widgets::param_slider::State,
     monophonic: nih_widgets::param_slider::State,
@@ -73,6 +96,7 @@ struct ParamStates {
     lfo3: LfoStates,
 
     velocity: VelocityStates,
+    effects: EffectsStates,
 }
 
 pub struct PluginGui {
@@ -200,6 +224,9 @@ impl IcedEditor for PluginGui {
             .spacing(5)
             .padding(10);
 
+        // Effects
+        let effects = Self::effects_section(params, &mut self.param_states.effects);
+
         // Main layout
         let content = Column::new()
             .push(header)
@@ -208,6 +235,7 @@ impl IcedEditor for PluginGui {
             .push(filters)
             .push(lfos)
             .push(velocity)
+            .push(effects)
             .spacing(5);
 
         Scrollable::new(&mut self.scrollable_state)
@@ -217,8 +245,19 @@ impl IcedEditor for PluginGui {
 }
 
 impl PluginGui {
-    fn handle_param_message(&mut self, _message: nih_widgets::ParamMessage) {
-        // ParamMessage is just a wrapper; we update params via the context
-        // The message is already dispatched by nih_plug_iced internally
+    fn handle_param_message(&mut self, message: nih_widgets::ParamMessage) {
+        // Handle parameter updates from sliders and other widgets
+        // This is the standard pattern from nih_plug_iced's IcedEditor trait
+        match message {
+            nih_widgets::ParamMessage::BeginSetParameter(ptr) => unsafe {
+                self.context.raw_begin_set_parameter(ptr)
+            },
+            nih_widgets::ParamMessage::SetParameterNormalized(ptr, value) => unsafe {
+                self.context.raw_set_parameter_normalized(ptr, value)
+            },
+            nih_widgets::ParamMessage::EndSetParameter(ptr) => unsafe {
+                self.context.raw_end_set_parameter(ptr)
+            },
+        }
     }
 }

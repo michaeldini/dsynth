@@ -1,6 +1,6 @@
 use nih_plug::prelude::*;
 
-use crate::params::{FilterType, LFOWaveform, Waveform};
+use crate::params::{DistortionType, FilterType, LFOWaveform, Waveform};
 
 /// Plugin parameters that map to our SynthParams
 #[derive(Params)]
@@ -250,6 +250,55 @@ pub struct DSynthParams {
 
     #[id = "velocity_filter_env"]
     pub velocity_filter_env: FloatParam,
+
+    // Effects - Reverb
+    #[id = "reverb_room_size"]
+    pub reverb_room_size: FloatParam,
+
+    #[id = "reverb_damping"]
+    pub reverb_damping: FloatParam,
+
+    #[id = "reverb_wet"]
+    pub reverb_wet: FloatParam,
+
+    #[id = "reverb_dry"]
+    pub reverb_dry: FloatParam,
+
+    #[id = "reverb_width"]
+    pub reverb_width: FloatParam,
+
+    // Effects - Delay
+    #[id = "delay_time_ms"]
+    pub delay_time_ms: FloatParam,
+
+    #[id = "delay_feedback"]
+    pub delay_feedback: FloatParam,
+
+    #[id = "delay_wet"]
+    pub delay_wet: FloatParam,
+
+    #[id = "delay_dry"]
+    pub delay_dry: FloatParam,
+
+    // Effects - Chorus
+    #[id = "chorus_rate"]
+    pub chorus_rate: FloatParam,
+
+    #[id = "chorus_depth"]
+    pub chorus_depth: FloatParam,
+
+    #[id = "chorus_mix"]
+    pub chorus_mix: FloatParam,
+
+    // Effects - Distortion
+    #[id = "distortion_type"]
+    pub distortion_type: EnumParam<DistortionType>,
+
+    #[id = "distortion_drive"]
+    pub distortion_drive: FloatParam,
+
+    #[id = "distortion_mix"]
+    pub distortion_mix: FloatParam,
 }
 
 impl Default for DSynthParams {
@@ -460,10 +509,7 @@ impl Default for DSynthParams {
             filter1_bandwidth: FloatParam::new(
                 "Filter 1 Bandwidth",
                 1.0,
-                FloatRange::Linear {
-                    min: 0.1,
-                    max: 4.0,
-                },
+                FloatRange::Linear { min: 0.1, max: 4.0 },
             ),
             filter1_key_tracking: FloatParam::new(
                 "Filter 1 Key Tracking",
@@ -494,10 +540,7 @@ impl Default for DSynthParams {
             filter2_bandwidth: FloatParam::new(
                 "Filter 2 Bandwidth",
                 1.0,
-                FloatRange::Linear {
-                    min: 0.1,
-                    max: 4.0,
-                },
+                FloatRange::Linear { min: 0.1, max: 4.0 },
             ),
             filter2_key_tracking: FloatParam::new(
                 "Filter 2 Key Tracking",
@@ -528,10 +571,7 @@ impl Default for DSynthParams {
             filter3_bandwidth: FloatParam::new(
                 "Filter 3 Bandwidth",
                 1.0,
-                FloatRange::Linear {
-                    min: 0.1,
-                    max: 4.0,
-                },
+                FloatRange::Linear { min: 0.1, max: 4.0 },
             ),
             filter3_key_tracking: FloatParam::new(
                 "Filter 3 Key Tracking",
@@ -769,6 +809,85 @@ impl Default for DSynthParams {
             velocity_filter_env: FloatParam::new(
                 "Velocity Filter Env",
                 0.5,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+
+            // Reverb
+            reverb_room_size: FloatParam::new(
+                "Reverb Room Size",
+                0.5,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            reverb_damping: FloatParam::new(
+                "Reverb Damping",
+                0.5,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            reverb_wet: FloatParam::new(
+                "Reverb Wet",
+                0.33,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            reverb_dry: FloatParam::new(
+                "Reverb Dry",
+                1.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            reverb_width: FloatParam::new(
+                "Reverb Width",
+                1.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+
+            // Delay
+            delay_time_ms: FloatParam::new(
+                "Delay Time",
+                250.0,
+                FloatRange::Linear {
+                    min: 1.0,
+                    max: 2000.0,
+                },
+            )
+            .with_unit(" ms"),
+            delay_feedback: FloatParam::new(
+                "Delay Feedback",
+                0.3,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 0.95,
+                },
+            ),
+            delay_wet: FloatParam::new("Delay Wet", 0.3, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            delay_dry: FloatParam::new("Delay Dry", 1.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+
+            // Chorus
+            chorus_rate: FloatParam::new(
+                "Chorus Rate",
+                1.5,
+                FloatRange::Linear { min: 0.1, max: 5.0 },
+            )
+            .with_unit(" Hz"),
+            chorus_depth: FloatParam::new(
+                "Chorus Depth",
+                0.5,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            chorus_mix: FloatParam::new(
+                "Chorus Mix",
+                0.3,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+
+            // Distortion
+            distortion_type: EnumParam::new("Distortion Type", DistortionType::Tanh),
+            distortion_drive: FloatParam::new(
+                "Distortion Drive",
+                0.5,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            distortion_mix: FloatParam::new(
+                "Distortion Mix",
+                0.0,
                 FloatRange::Linear { min: 0.0, max: 1.0 },
             ),
         }

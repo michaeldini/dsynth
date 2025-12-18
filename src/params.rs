@@ -160,6 +160,38 @@ impl fmt::Display for LFOWaveform {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "vst", derive(Enum))]
+pub enum DistortionType {
+    #[default]
+    Tanh,
+    SoftClip,
+    HardClip,
+    Cubic,
+}
+
+impl fmt::Display for DistortionType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DistortionType::Tanh => write!(f, "Tanh"),
+            DistortionType::SoftClip => write!(f, "Soft Clip"),
+            DistortionType::HardClip => write!(f, "Hard Clip"),
+            DistortionType::Cubic => write!(f, "Cubic"),
+        }
+    }
+}
+
+impl From<DistortionType> for crate::dsp::effects::distortion::DistortionType {
+    fn from(dt: DistortionType) -> Self {
+        match dt {
+            DistortionType::Tanh => crate::dsp::effects::distortion::DistortionType::Tanh,
+            DistortionType::SoftClip => crate::dsp::effects::distortion::DistortionType::SoftClip,
+            DistortionType::HardClip => crate::dsp::effects::distortion::DistortionType::HardClip,
+            DistortionType::Cubic => crate::dsp::effects::distortion::DistortionType::Cubic,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct LFOParams {
     pub waveform: LFOWaveform,
@@ -206,6 +238,99 @@ impl Default for VelocityParams {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ReverbParams {
+    pub room_size: f32, // 0.0 to 1.0
+    pub damping: f32,   // 0.0 to 1.0 (0.0 = bright, 1.0 = dark)
+    pub wet: f32,       // 0.0 to 1.0
+    pub dry: f32,       // 0.0 to 1.0
+    pub width: f32,     // 0.0 to 1.0 (stereo width)
+}
+
+impl Default for ReverbParams {
+    fn default() -> Self {
+        Self {
+            room_size: 0.5,
+            damping: 0.5,
+            wet: 0.33,
+            dry: 0.67,
+            width: 1.0,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct DelayParams {
+    pub time_ms: f32,  // 1.0 to 2000.0
+    pub feedback: f32, // 0.0 to 0.95
+    pub wet: f32,      // 0.0 to 1.0
+    pub dry: f32,      // 0.0 to 1.0
+}
+
+impl Default for DelayParams {
+    fn default() -> Self {
+        Self {
+            time_ms: 500.0,
+            feedback: 0.3,
+            wet: 0.3,
+            dry: 0.7,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ChorusParams {
+    pub rate: f32,  // 0.1 to 5.0 Hz
+    pub depth: f32, // 0.0 to 1.0
+    pub mix: f32,   // 0.0 to 1.0
+}
+
+impl Default for ChorusParams {
+    fn default() -> Self {
+        Self {
+            rate: 0.5,
+            depth: 0.5,
+            mix: 0.5,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct DistortionParams {
+    pub drive: f32,             // 0.0 to 1.0
+    pub mix: f32,               // 0.0 to 1.0
+    pub dist_type: DistortionType,
+}
+
+impl Default for DistortionParams {
+    fn default() -> Self {
+        Self {
+            drive: 0.0,
+            mix: 0.5,
+            dist_type: DistortionType::Tanh,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct EffectsParams {
+    pub reverb: ReverbParams,
+    pub delay: DelayParams,
+    pub chorus: ChorusParams,
+    pub distortion: DistortionParams,
+}
+
+impl Default for EffectsParams {
+    fn default() -> Self {
+        Self {
+            reverb: ReverbParams::default(),
+            delay: DelayParams::default(),
+            chorus: ChorusParams::default(),
+            distortion: DistortionParams::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SynthParams {
     pub oscillators: [OscillatorParams; 3],
     pub filters: [FilterParams; 3],
@@ -213,6 +338,8 @@ pub struct SynthParams {
     #[serde(default)]
     pub envelope: EnvelopeParams,
     pub velocity: VelocityParams,
+    #[serde(default)]
+    pub effects: EffectsParams,
     pub master_gain: f32, // 0.0 to 1.0
     pub monophonic: bool, // Monophonic mode - only one note at a time
 }
@@ -225,6 +352,7 @@ impl Default for SynthParams {
             lfos: [LFOParams::default(); 3],
             envelope: EnvelopeParams::default(),
             velocity: VelocityParams::default(),
+            effects: EffectsParams::default(),
             master_gain: 0.5,
             monophonic: false,
         }
