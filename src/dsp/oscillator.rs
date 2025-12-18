@@ -129,6 +129,14 @@ impl Oscillator {
         self.initial_phase = phase.clamp(0.0, 1.0);
     }
 
+    /// Apply the configured initial phase to the running phase accumulator.
+    ///
+    /// This is intended for note-on (unison voice decorrelation) without resetting the
+    /// downsampler state, which helps avoid unnecessary transients.
+    pub fn apply_initial_phase(&mut self) {
+        self.phase = self.initial_phase;
+    }
+
     /// Set the frequency for this oscillator in Hz.
     ///
     /// The frequency determines how fast the phase advances. Higher frequencies advance
@@ -432,7 +440,10 @@ impl Oscillator {
     /// Note: This does NOT reset frequency, waveform, or shape parameters. It only clears
     /// the running state.
     pub fn reset(&mut self) {
-        self.phase = 0.0;
+        // Start from the configured initial phase (used for unison/stacked voices).
+        // This prevents multiple oscillators from starting perfectly phase-aligned,
+        // which can create large coherent peaks and audible clipping/distortion.
+        self.phase = self.initial_phase;
         self.downsampler.reset();
     }
 }
@@ -598,6 +609,37 @@ mod tests {
         // Reset should clear phase
         osc.reset();
         assert_eq!(osc.phase, 0.0);
+    }
+
+    #[test]
+    fn test_phase_offset_affects_output_after_reset() {
+        let mut osc_a = Oscillator::new(44100.0);
+        osc_a.set_waveform(Waveform::Sine);
+        osc_a.set_frequency(440.0);
+        osc_a.set_phase(0.0);
+        osc_a.reset();
+
+        let mut osc_b = Oscillator::new(44100.0);
+        osc_b.set_waveform(Waveform::Sine);
+        osc_b.set_frequency(440.0);
+        osc_b.set_phase(0.25);
+        osc_b.reset();
+
+        // Warm up the downsampler so we're comparing steady-state samples.
+        for _ in 0..256 {
+            let _ = osc_a.process();
+            let _ = osc_b.process();
+        }
+
+        let a = osc_a.process();
+        let b = osc_b.process();
+
+        assert!(
+            (a - b).abs() > 0.01,
+            "Phase offsets should produce different samples (a={:.6}, b={:.6})",
+            a,
+            b
+        );
     }
 
     #[test]

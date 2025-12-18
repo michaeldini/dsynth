@@ -6,7 +6,7 @@ mod optimization_tests {
     use dsynth::audio::engine::{SynthEngine, create_parameter_buffer};
     use dsynth::audio::voice::Voice;
     use dsynth::dsp::filter::BiquadFilter;
-    use dsynth::params::{FilterType, OscillatorParams, SynthParams};
+    use dsynth::params::{EnvelopeParams, FilterType, OscillatorParams, SynthParams};
 
     // ========== FILTER COEFFICIENT QUANTIZATION TESTS ==========
 
@@ -175,11 +175,12 @@ mod optimization_tests {
         let mut osc_params = [OscillatorParams::default(); 3];
         let filter_params = Default::default();
         let lfo_params = Default::default();
+        let envelope_params = EnvelopeParams::default();
 
         // Change unison count from 1 to 7
         for unison_count in 1..=7 {
             osc_params[0].unison = unison_count;
-            voice.update_parameters(&osc_params, &filter_params, &lfo_params);
+            voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
 
             let _output = voice.process(
                 &osc_params,
@@ -191,7 +192,7 @@ mod optimization_tests {
 
         // Then change back to 1
         osc_params[0].unison = 1;
-        voice.update_parameters(&osc_params, &filter_params, &lfo_params);
+        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
         let _output = voice.process(
             &osc_params,
             &filter_params,
@@ -214,8 +215,14 @@ mod optimization_tests {
         let filter_params = Default::default();
         let lfo_params = Default::default();
         let velocity_params = Default::default();
+        let envelope_params = EnvelopeParams {
+            attack: 0.001,
+            decay: 0.001,
+            sustain: 1.0,
+            release: 0.2,
+        };
 
-        voice.update_parameters(&osc_params, &filter_params, &lfo_params);
+        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
 
         // Process multiple samples with all 7 unison voices active
         let mut max_output: f32 = 0.0;
@@ -230,10 +237,13 @@ mod optimization_tests {
             );
         }
 
-        // With 7 unison voices, output should be noticeably larger
+        // With 7 unison voices, output should be present (though normalized to prevent clipping).
+        // The new unison compensation reduces levels with higher unison counts to prevent
+        // distortion when multiple voices play. This is expected behavior.
         assert!(
-            max_output > 0.1,
-            "7 unison voices should produce significant output"
+            max_output > 0.03,
+            "7 unison voices should produce output (got {:.4}), though normalized to prevent clipping",
+            max_output
         );
     }
 
@@ -248,8 +258,21 @@ mod optimization_tests {
 
         let filter_params = Default::default();
         let lfo_params = Default::default();
+        let envelope_params = EnvelopeParams::default();
 
-        voice.update_parameters(&osc_params, &filter_params, &lfo_params);
+        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+
+        // Let the envelope and any internal filters settle.
+        // The attack is 0.01s by default (~441 samples), and the oversampling/downsampler
+        // also needs a short warm-up before outputs are representative.
+        for _ in 0..2000 {
+            let _ = voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &Default::default(),
+            );
+        }
 
         // Process with spread unison voices
         let mut outputs = Vec::new();
@@ -260,7 +283,7 @@ mod optimization_tests {
                 &lfo_params,
                 &Default::default(),
             );
-            outputs.push((left.abs() + right.abs()) / 2.0);
+            outputs.push((left + right) / 2.0);
         }
 
         // Should have variation from unison detuning
@@ -327,12 +350,13 @@ mod optimization_tests {
         let filter_params = Default::default();
         let lfo_params = Default::default();
         let velocity_params = Default::default();
+        let envelope_params = EnvelopeParams::default();
 
         // Test multiple notes
         for midi_note in [60, 72, 48] {
             voice.reset();
             voice.note_on(midi_note, 0.8);
-            voice.update_parameters(&osc_params, &filter_params, &lfo_params);
+            voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
 
             // Process samples and verify output
             let mut output_sum = 0.0;

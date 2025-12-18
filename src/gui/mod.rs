@@ -591,8 +591,49 @@ pub fn run_gui(
     param_producer: Input<SynthParams>,
     event_sender: Sender<EngineEvent>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    iced::application("DSynth", SynthGui::update, SynthGui::view)
-        .subscription(SynthGui::subscription)
+    use iced::window;
+
+    // Load window icon from embedded PNG
+    let icon_bytes = include_bytes!("../../assets/icon.png");
+    println!("Loading icon... {} bytes", icon_bytes.len());
+    
+    let icon = match image::load_from_memory(icon_bytes) {
+        Ok(img) => {
+            let rgba = img.to_rgba8();
+            let (width, height) = rgba.dimensions();
+            println!("Icon loaded: {}x{}", width, height);
+            match window::icon::from_rgba(rgba.into_raw(), width, height) {
+                Ok(icon) => {
+                    println!("✓ Icon created successfully");
+                    Some(icon)
+                }
+                Err(e) => {
+                    eprintln!("✗ Failed to create icon: {:?}", e);
+                    None
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("✗ Failed to load icon image: {}", e);
+            None
+        }
+    };
+
+    let mut settings = iced::application("DSynth", SynthGui::update, SynthGui::view)
+        .subscription(SynthGui::subscription);
+
+    // Apply icon if loaded successfully
+    if let Some(icon) = icon {
+        println!("Applying icon to window settings...");
+        settings = settings.window(window::Settings {
+            icon: Some(icon),
+            ..window::Settings::default()
+        });
+    } else {
+        println!("Note: Window icon not available (this is normal on macOS - use app bundle icon instead)");
+    }
+
+    settings
         .run_with(move || {
             let gui = SynthGui::new(Some(param_producer), Some(event_sender));
             (gui, Task::none())

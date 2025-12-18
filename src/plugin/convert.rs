@@ -1,4 +1,6 @@
-use crate::params::{FilterParams, LFOParams, OscillatorParams, SynthParams, VelocityParams};
+use crate::params::{
+    EnvelopeParams, FilterParams, LFOParams, OscillatorParams, SynthParams, VelocityParams,
+};
 
 use super::DSynthPlugin;
 
@@ -94,6 +96,8 @@ impl DSynthPlugin {
                     filter_amount: p.lfo3_filter_amount.value(), // `SynthParams::lfos[].filter_amount` is in Hz (same as the standalone engine params)
                 },
             ],
+
+            envelope: EnvelopeParams::default(),
 
             velocity: VelocityParams {
                 amp_sensitivity: p.velocity_amp.value(),

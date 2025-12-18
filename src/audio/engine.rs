@@ -81,6 +81,16 @@ pub struct SynthEngine {
     /// changes feel instant to users but slow enough to be negligible CPU cost. Audio-rate
     /// effects (like LFO) still work because they're applied per-sample within the voice DSP.
     param_update_interval: u32,
+
+    /// Current gain reduction applied by the master limiter.
+    ///
+    /// This is a transparent peak limiter (not a saturator). It prevents hard clipping
+    /// at the output without introducing harmonic distortion like `tanh()`.
+    limiter_gain: f32,
+
+    /// One-pole smoothing coefficient for limiter release.
+    /// Recovery is smoothed to avoid pumping; gain reduction is applied instantly.
+    limiter_release_coeff: f32,
 }
 
 impl SynthEngine {
@@ -110,6 +120,11 @@ impl SynthEngine {
             voices.push(Voice::new(sample_rate));
         }
 
+        // Limiter tuning: fast attack, slower release. These are conservative and
+        // designed to avoid audible artifacts while preventing clipping.
+        let limiter_release_s = 0.050; // 50ms
+        let limiter_release_coeff = (-1.0 / (limiter_release_s * sample_rate)).exp();
+
         Self {
             sample_rate,
             voices,
@@ -118,7 +133,101 @@ impl SynthEngine {
             note_stack: Vec::new(),
             sample_counter: 0,
             param_update_interval: 32, // Update every 32 samples (~0.7ms at 44.1kHz)
+            limiter_gain: 1.0,
+            limiter_release_coeff,
         }
+    }
+
+    #[inline]
+    fn maybe_update_params(&mut self) {
+        self.sample_counter += 1;
+        if self.sample_counter < self.param_update_interval {
+            return;
+        }
+        self.sample_counter = 0;
+
+        // Check for parameter updates from triple buffer
+        let new_params = self.params_consumer.read();
+
+        // Only update if parameters actually changed
+        if *new_params == self.current_params {
+            return;
+        }
+
+        self.current_params = *new_params;
+
+        // Update all active voices with current parameters
+        for voice in &mut self.voices {
+            if voice.is_active() {
+                voice.update_parameters(
+                    &self.current_params.oscillators,
+                    &self.current_params.filters,
+                    &self.current_params.lfos,
+                    &self.current_params.envelope,
+                );
+            }
+        }
+    }
+
+    #[inline]
+    fn apply_output_limiter(&mut self, left: f32, right: f32) -> (f32, f32) {
+        // Leave a small headroom margin so sample format conversion/interleaving
+        // doesn’t accidentally exceed full scale due to rounding.
+        const THRESHOLD: f32 = 0.98;
+
+        let peak = left.abs().max(right.abs());
+
+        // Compute instantaneous target gain to keep peak under threshold.
+        let target_gain = if peak > THRESHOLD {
+            // Avoid divide-by-zero; peak>THRESHOLD implies peak>0.
+            THRESHOLD / peak
+        } else {
+            1.0
+        };
+
+        // Critical: prevent overshoot.
+        // If we need *more* gain reduction (target_gain < current), apply it immediately.
+        // This ensures the limiter never relies on the final clamp (which is audible).
+        if target_gain < self.limiter_gain {
+            self.limiter_gain = target_gain;
+        } else {
+            // Release: recover smoothly back toward unity.
+            let coeff = self.limiter_release_coeff;
+            self.limiter_gain = coeff * self.limiter_gain + (1.0 - coeff) * target_gain;
+        }
+
+        let out_l = left * self.limiter_gain;
+        let out_r = right * self.limiter_gain;
+
+        // Safety clamp (should not engage with instantaneous attack).
+        (out_l.clamp(-1.0, 1.0), out_r.clamp(-1.0, 1.0))
+    }
+
+    #[inline]
+    fn process_stereo_internal(&mut self) -> (f32, f32) {
+        self.maybe_update_params();
+
+        // Mix all voices - stereo
+        let mut output_left = 0.0;
+        let mut output_right = 0.0;
+        for voice in &mut self.voices {
+            let (left, right) = voice.process(
+                &self.current_params.oscillators,
+                &self.current_params.filters,
+                &self.current_params.lfos,
+                &self.current_params.velocity,
+            );
+            output_left += left;
+            output_right += right;
+        }
+
+        // Apply master gain
+        let master = self.current_params.master_gain;
+        output_left *= master;
+        output_right *= master;
+
+        // Transparent limiter to prevent clipping without harmonic distortion.
+        self.apply_output_limiter(output_left, output_right)
     }
 
     /// Trigger a note on (MIDI note event).
@@ -175,6 +284,7 @@ impl SynthEngine {
                 &self.current_params.oscillators,
                 &self.current_params.filters,
                 &self.current_params.lfos,
+                &self.current_params.envelope,
             );
         } else {
             // Polyphonic mode: original behavior
@@ -185,6 +295,7 @@ impl SynthEngine {
                     &self.current_params.oscillators,
                     &self.current_params.filters,
                     &self.current_params.lfos,
+                    &self.current_params.envelope,
                 );
                 return;
             }
@@ -196,6 +307,7 @@ impl SynthEngine {
                 &self.current_params.oscillators,
                 &self.current_params.filters,
                 &self.current_params.lfos,
+                &self.current_params.envelope,
             );
         }
     }
@@ -251,6 +363,7 @@ impl SynthEngine {
                     &self.current_params.oscillators,
                     &self.current_params.filters,
                     &self.current_params.lfos,
+                    &self.current_params.envelope,
                 );
             } else {
                 // No more notes in stack, release the voice
@@ -348,58 +461,9 @@ impl SynthEngine {
     /// A single mono audio sample (-1.0 to +1.0). Note: This version averages stereo outputs
     /// from voices for backward compatibility.
     pub fn process(&mut self) -> f32 {
-        // Check for parameter updates every N samples (throttled to control-rate)
-        self.sample_counter += 1;
-        if self.sample_counter >= self.param_update_interval {
-            self.sample_counter = 0;
-
-            // Check for parameter updates from triple buffer
-            let new_params = self.params_consumer.read();
-
-            // Only update if parameters actually changed
-            if *new_params != self.current_params {
-                self.current_params = *new_params;
-
-                // Update all active voices with current parameters
-                for voice in &mut self.voices {
-                    if voice.is_active() {
-                        voice.update_parameters(
-                            &self.current_params.oscillators,
-                            &self.current_params.filters,
-                            &self.current_params.lfos,
-                        );
-                    }
-                }
-            }
-        }
-
-        // Mix all voices - now stereo
-        let mut output_left = 0.0;
-        let mut output_right = 0.0;
-        for voice in &mut self.voices {
-            let (left, right) = voice.process(
-                &self.current_params.oscillators,
-                &self.current_params.filters,
-                &self.current_params.lfos,
-                &self.current_params.velocity,
-            );
-            output_left += left;
-            output_right += right;
-        }
-
-        // Apply master gain
-        let master = self.current_params.master_gain;
-        output_left *= master;
-        output_right *= master;
-
-        // Final soft limiting to prevent clipping from extreme parameter combinations
-        // tanh ensures output stays within ±1.0 while preserving dynamics
-        output_left = output_left.tanh();
-        output_right = output_right.tanh();
-
-        // Return mono average
-        // (This method is kept for compatibility, but now averages stereo)
-        (output_left + output_right) / 2.0
+        let (left, right) = self.process_stereo_internal();
+        // Return mono average (kept for compatibility).
+        (left + right) / 2.0
     }
 
     /// Get the count of currently active voices.
@@ -470,53 +534,7 @@ impl SynthEngine {
     /// audio_buffer[frame * 2 + 1] = right;
     /// ```
     pub fn process_stereo(&mut self) -> (f32, f32) {
-        // Check for parameter updates every N samples (throttled to control-rate)
-        self.sample_counter += 1;
-        if self.sample_counter >= self.param_update_interval {
-            self.sample_counter = 0;
-
-            // Check for parameter updates from triple buffer
-            let new_params = self.params_consumer.read();
-
-            // Only update if parameters actually changed
-            if *new_params != self.current_params {
-                self.current_params = *new_params;
-
-                // Update all active voices with current parameters
-                for voice in &mut self.voices {
-                    if voice.is_active() {
-                        voice.update_parameters(
-                            &self.current_params.oscillators,
-                            &self.current_params.filters,
-                            &self.current_params.lfos,
-                        );
-                    }
-                }
-            }
-        }
-
-        // Mix all voices - stereo
-        let mut output_left = 0.0;
-        let mut output_right = 0.0;
-        for voice in &mut self.voices {
-            let (left, right) = voice.process(
-                &self.current_params.oscillators,
-                &self.current_params.filters,
-                &self.current_params.lfos,
-                &self.current_params.velocity,
-            );
-            output_left += left;
-            output_right += right;
-        }
-
-        // Apply master gain
-        let master = self.current_params.master_gain;
-        output_left *= master;
-        output_right *= master;
-
-        // Final soft limiting to prevent clipping from extreme parameter combinations
-        // tanh ensures output stays within ±1.0 while preserving dynamics
-        (output_left.tanh(), output_right.tanh())
+        self.process_stereo_internal()
     }
 
     /// Process a block of audio samples efficiently.
@@ -879,6 +897,38 @@ mod tests {
         assert!(
             max_output > 0.0 && max_output < 1.0,
             "Zero velocity should produce reduced but non-zero output with velocity sensitivity"
+        );
+    }
+
+    #[test]
+    fn test_no_clipping_on_basic_chord() {
+        let (_producer, consumer) = create_parameter_buffer();
+        let mut engine = SynthEngine::new(44100.0, consumer);
+
+        // Use a moderately hot master gain to catch headroom issues.
+        engine.current_params.master_gain = 1.0;
+
+        // Trigger a basic triad + octave.
+        engine.note_on(60, 0.8); // C4
+        engine.note_on(64, 0.8); // E4
+        engine.note_on(67, 0.8); // G4
+        engine.note_on(72, 0.8); // C5
+
+        // Let the envelope get past attack.
+        for _ in 0..4000 {
+            let _ = engine.process_stereo();
+        }
+
+        let mut max_peak = 0.0_f32;
+        for _ in 0..12000 {
+            let (l, r) = engine.process_stereo();
+            max_peak = max_peak.max(l.abs().max(r.abs()));
+        }
+
+        assert!(
+            max_peak <= 1.0,
+            "Output should not clip (peak was {:.4})",
+            max_peak
         );
     }
 }

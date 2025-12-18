@@ -101,6 +101,26 @@ impl Default for FilterParams {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct EnvelopeParams {
+    pub attack: f32,  // seconds, 0.001 to 5.0
+    pub decay: f32,   // seconds, 0.001 to 5.0
+    pub sustain: f32, // level, 0.0 to 1.0
+    pub release: f32, // seconds, 0.001 to 5.0
+}
+
+impl Default for EnvelopeParams {
+    fn default() -> Self {
+        // Match dsp::envelope::Envelope defaults
+        Self {
+            attack: 0.01,
+            decay: 0.1,
+            sustain: 0.7,
+            release: 0.2,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct FilterEnvelopeParams {
     pub attack: f32,  // seconds, 0.001 to 5.0
     pub decay: f32,   // seconds, 0.001 to 5.0
@@ -192,6 +212,8 @@ pub struct SynthParams {
     pub oscillators: [OscillatorParams; 3],
     pub filters: [FilterParams; 3],
     pub lfos: [LFOParams; 3],
+    #[serde(default)]
+    pub envelope: EnvelopeParams,
     pub velocity: VelocityParams,
     pub master_gain: f32, // 0.0 to 1.0
     pub monophonic: bool, // Monophonic mode - only one note at a time
@@ -203,6 +225,7 @@ impl Default for SynthParams {
             oscillators: [OscillatorParams::default(); 3],
             filters: [FilterParams::default(); 3],
             lfos: [LFOParams::default(); 3],
+            envelope: EnvelopeParams::default(),
             velocity: VelocityParams::default(),
             master_gain: 0.5,
             monophonic: false,
