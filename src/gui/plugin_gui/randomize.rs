@@ -4,7 +4,7 @@ use nih_plug_iced::IcedEditor;
 
 impl PluginGui {
     pub(super) fn randomize_params(&self) {
-        let params = crate::params::randomize_synth_params(&mut rand::thread_rng());
+        let params = crate::randomize::randomize_synth_params(&mut rand::thread_rng());
         self.apply_synth_params(&params);
     }
 

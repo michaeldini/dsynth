@@ -273,7 +273,7 @@ impl SynthGui {
 
     /// Generate random parameters for sound design exploration
     fn randomize_params() -> SynthParams {
-        crate::params::randomize_synth_params(&mut rand::thread_rng())
+        crate::randomize::randomize_synth_params(&mut rand::thread_rng())
     }
 
     pub fn view<'a>(&'a self) -> Element<'a, Message> {
@@ -596,7 +596,7 @@ pub fn run_gui(
     // Load window icon from embedded PNG
     let icon_bytes = include_bytes!("../../assets/icon.png");
     println!("Loading icon... {} bytes", icon_bytes.len());
-    
+
     let icon = match image::load_from_memory(icon_bytes) {
         Ok(img) => {
             let rgba = img.to_rgba8();
@@ -630,7 +630,9 @@ pub fn run_gui(
             ..window::Settings::default()
         });
     } else {
-        println!("Note: Window icon not available (this is normal on macOS - use app bundle icon instead)");
+        println!(
+            "Note: Window icon not available (this is normal on macOS - use app bundle icon instead)"
+        );
     }
 
     settings

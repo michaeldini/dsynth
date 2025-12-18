@@ -124,6 +124,15 @@ pub mod params;
 /// Presets are typically stored in JSON format for readability and ease of editing.
 pub mod preset;
 
+/// The **randomize** module provides utilities for generating randomized parameter sets.
+///
+/// This module contains functions for sound design exploration:
+/// - `randomize_synth_params()`: Generates a random but musically useful parameter configuration
+///
+/// Randomization is useful for discovering new sounds and creative exploration. The randomization
+/// logic ensures parameters stay within reasonable ranges to avoid silent or broken sounds.
+pub mod randomize;
+
 /// The **plugin** module contains the VST3/CLAP plugin wrapper code.
 ///
 /// This is conditionally compiled ONLY when the `vst` feature is enabled. The plugin module
