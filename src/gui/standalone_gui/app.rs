@@ -81,6 +81,10 @@ impl SynthGui {
                         LFOMessage::RateChanged(r) => lfo.rate = r,
                         LFOMessage::DepthChanged(d) => lfo.depth = d,
                         LFOMessage::FilterAmountChanged(a) => lfo.filter_amount = a,
+                        LFOMessage::PitchAmountChanged(p) => lfo.pitch_amount = p,
+                        LFOMessage::GainAmountChanged(g) => lfo.gain_amount = g,
+                        LFOMessage::PanAmountChanged(p) => lfo.pan_amount = p,
+                        LFOMessage::PwmAmountChanged(p) => lfo.pwm_amount = p,
                     }
                 }
             }

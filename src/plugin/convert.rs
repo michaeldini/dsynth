@@ -98,18 +98,30 @@ impl DSynthPlugin {
                     rate: p.lfo1_rate.value(),
                     depth: p.lfo1_depth.value(),
                     filter_amount: p.lfo1_filter_amount.value(), // `SynthParams::lfos[].filter_amount` is in Hz (same as the standalone engine params)
+                    pitch_amount: p.lfo1_pitch_amount.value(),
+                    gain_amount: p.lfo1_gain_amount.value(),
+                    pan_amount: p.lfo1_pan_amount.value(),
+                    pwm_amount: p.lfo1_pwm_amount.value(),
                 },
                 LFOParams {
                     waveform: p.lfo2_waveform.value(),
                     rate: p.lfo2_rate.value(),
                     depth: p.lfo2_depth.value(),
                     filter_amount: p.lfo2_filter_amount.value(), // `SynthParams::lfos[].filter_amount` is in Hz (same as the standalone engine params)
+                    pitch_amount: p.lfo2_pitch_amount.value(),
+                    gain_amount: p.lfo2_gain_amount.value(),
+                    pan_amount: p.lfo2_pan_amount.value(),
+                    pwm_amount: p.lfo2_pwm_amount.value(),
                 },
                 LFOParams {
                     waveform: p.lfo3_waveform.value(),
                     rate: p.lfo3_rate.value(),
                     depth: p.lfo3_depth.value(),
                     filter_amount: p.lfo3_filter_amount.value(), // `SynthParams::lfos[].filter_amount` is in Hz (same as the standalone engine params)
+                    pitch_amount: p.lfo3_pitch_amount.value(),
+                    gain_amount: p.lfo3_gain_amount.value(),
+                    pan_amount: p.lfo3_pan_amount.value(),
+                    pwm_amount: p.lfo3_pwm_amount.value(),
                 },
             ],
 

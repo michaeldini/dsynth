@@ -33,6 +33,10 @@ pub enum LFOMessage {
     RateChanged(f32),
     DepthChanged(f32),
     FilterAmountChanged(f32),
+    PitchAmountChanged(f32),
+    GainAmountChanged(f32),
+    PanAmountChanged(f32),
+    PwmAmountChanged(f32),
 }
 
 #[derive(Debug, Clone)]

@@ -224,6 +224,38 @@ pub fn oscillator_controls<'a>(
             .step(50.0),
         )
         .push(text(format!("{:.0}", lfo.filter_amount)))
+        .push(text("Pitch Amount (cents):"))
+        .push(
+            slider(0.0..=100.0, lfo.pitch_amount, move |p| {
+                Message::LFO(index, LFOMessage::PitchAmountChanged(p))
+            })
+            .step(1.0),
+        )
+        .push(text(format!("{:.1}", lfo.pitch_amount)))
+        .push(text("Gain Amount:"))
+        .push(
+            slider(0.0..=1.0, lfo.gain_amount, move |g| {
+                Message::LFO(index, LFOMessage::GainAmountChanged(g))
+            })
+            .step(0.01),
+        )
+        .push(text(format!("{:.2}", lfo.gain_amount)))
+        .push(text("Pan Amount:"))
+        .push(
+            slider(0.0..=1.0, lfo.pan_amount, move |p| {
+                Message::LFO(index, LFOMessage::PanAmountChanged(p))
+            })
+            .step(0.01),
+        )
+        .push(text(format!("{:.2}", lfo.pan_amount)))
+        .push(text("PWM Amount:"))
+        .push(
+            slider(0.0..=1.0, lfo.pwm_amount, move |p| {
+                Message::LFO(index, LFOMessage::PwmAmountChanged(p))
+            })
+            .step(0.01),
+        )
+        .push(text(format!("{:.2}", lfo.pwm_amount)))
         .spacing(5)
         .padding(10)
         .into()

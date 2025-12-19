@@ -580,6 +580,36 @@ impl Voice {
         // This is a common DAW/synth feature for isolating sounds during sound design.
         let any_soloed = osc_params.iter().any(|o| o.solo);
 
+        // === STEP 4.5: Process all LFOs for global routing matrix ===
+        // Process all 3 LFOs upfront to get modulation values for pitch/gain/pan/PWM.
+        // These are global modulations that affect all oscillators.
+        // Filter modulation is still per-oscillator (processed later in Step 6).
+        let mut lfo_values = [0.0; 3];
+        for i in 0..3 {
+            lfo_values[i] = self.lfos[i].process(); // Returns -1.0 to 1.0
+        }
+
+        // Calculate global LFO modulations (sum contributions from all 3 LFOs)
+        // Pitch modulation in cents (bipolar: ±pitch_amount)
+        let mut global_pitch_mod_cents = 0.0;
+        // Gain modulation (bipolar: ±0.5 when gain_amount = 1.0)
+        let mut global_gain_mod = 0.0;
+        // Pan modulation (bipolar: ±1.0 when pan_amount = 1.0)
+        let mut global_pan_mod = 0.0;
+        // PWM/shape modulation (bipolar: ±1.0 when pwm_amount = 1.0)
+        let mut global_pwm_mod = 0.0;
+
+        for i in 0..3 {
+            let lfo_val = lfo_values[i];
+            let depth = lfo_params[i].depth;
+
+            // Sum contributions from each LFO (bipolar modulation)
+            global_pitch_mod_cents += lfo_val * lfo_params[i].pitch_amount * depth;
+            global_gain_mod += lfo_val * lfo_params[i].gain_amount * depth * 0.5; // Scale to ±0.5
+            global_pan_mod += lfo_val * lfo_params[i].pan_amount * depth;
+            global_pwm_mod += lfo_val * lfo_params[i].pwm_amount * depth;
+        }
+
         // === STEP 5: Generate all oscillator outputs first (required for FM) ===
         // We process oscillators in order: 0 → 1 → 2
         // This allows FM routing where later oscillators can be modulated by earlier ones.
@@ -601,11 +631,46 @@ impl Voice {
                 continue;
             }
 
+            // === STEP 5a: Apply LFO pitch and PWM modulation ===
+            // Pitch modulation: Recalculate frequency with LFO cents offset
+            // PWM modulation: Modify shape parameter with LFO offset
+            if global_pitch_mod_cents.abs() > 0.001 || global_pwm_mod.abs() > 0.001 {
+                let base_freq = Self::midi_note_to_freq(self.note);
+                let pitch_mult = 2.0_f32.powf(osc_params[i].pitch / 12.0);
+                let detune_mult = 2.0_f32.powf(osc_params[i].detune / 1200.0);
+                
+                // Apply LFO pitch modulation (in cents)
+                let lfo_pitch_mult = 2.0_f32.powf(global_pitch_mod_cents / 1200.0);
+                let base_osc_freq = base_freq * pitch_mult * detune_mult * lfo_pitch_mult;
+
+                // Calculate modulated shape for PWM
+                let modulated_shape = (osc_params[i].shape + global_pwm_mod).clamp(-1.0, 1.0);
+
+                // Apply to all unison voices
+                for unison_idx in 0..unison_count {
+                    if let Some(ref mut osc) = self.oscillators[i][unison_idx] {
+                        // Calculate unison detune spread (same as update_parameters)
+                        let unison_detune = if unison_count > 1 {
+                            let spread = osc_params[i].unison_detune / 100.0;
+                            let offset = (unison_idx as f32 - (unison_count - 1) as f32 / 2.0)
+                                / (unison_count - 1) as f32;
+                            2.0_f32.powf(offset * spread / 12.0)
+                        } else {
+                            1.0
+                        };
+
+                        let freq = base_osc_freq * unison_detune;
+                        osc.set_frequency(freq);
+                        osc.set_shape(modulated_shape);
+                    }
+                }
+            }
+
             // Check if this oscillator should be frequency modulated
             let fm_config = osc_params[i].fm_source;
             let fm_amount = osc_params[i].fm_amount;
 
-            // === STEP 5a: Mix all unison voices for this oscillator ===
+            // === STEP 5b: Mix all unison voices for this oscillator ===
             // Unison creates a thick sound by layering detuned copies of the same waveform.
             // We sum all unison voices and normalize to prevent clipping.
             let mut osc_sum = 0.0;
@@ -664,14 +729,21 @@ impl Voice {
                 continue;
             }
 
-            let osc_out = osc_outputs[i];
+            let mut osc_out = osc_outputs[i];
 
-            // === STEP 6a: Process LFO for filter modulation ===
+            // === STEP 6a: Apply LFO gain modulation ===
+            // Gain modulation (tremolo): Modulate oscillator amplitude
+            if global_gain_mod.abs() > 0.001 {
+                let gain_mult = (1.0 + global_gain_mod).clamp(0.0, 2.0);
+                osc_out *= gain_mult;
+            }
+
+            // === STEP 6b: Process LFO for filter modulation ===
             // LFOs generate slow-moving waveforms (typically <20 Hz) that modulate parameters.
-            // Here, we use them to modulate the filter cutoff frequency.
-            let lfo_value = self.lfos[i].process();
+            // We already processed LFOs earlier; reuse the stored value.
+            let lfo_value = lfo_values[i];
 
-            // === STEP 6b: Calculate modulated filter cutoff ===
+            // === STEP 6c: Calculate modulated filter cutoff ===
             // The cutoff frequency is determined by multiple factors:
             // 1. Base cutoff (set by user or automation)
             // 2. Key tracking (higher notes → higher cutoff, follows keyboard)
@@ -708,14 +780,17 @@ impl Voice {
                 + lfo_value * lfo_params[i].filter_amount * lfo_params[i].depth)
                 .clamp(20.0, 20000.0);
 
-            // === STEP 6c: Update filter and apply to oscillator output ===
+            // === STEP 6d: Update filter and apply to oscillator output ===
             self.filters[i].set_cutoff(modulated_cutoff);
             self.filters[i].set_bandwidth(filter_params[i].bandwidth);
             let filtered = self.filters[i].process(osc_out);
 
-            // === STEP 6d: Apply stereo panning using equal-power panning law ===
+            // === STEP 6e: Apply LFO pan modulation and stereo panning ===
             // Pan: -1.0 (full left) to 1.0 (full right), 0.0 = center
             //
+            // Apply LFO pan modulation first
+            let modulated_pan = (osc_params[i].pan + global_pan_mod).clamp(-1.0, 1.0);
+            
             // Equal-power panning law ensures constant perceived loudness as we pan.
             // We map pan to an angle (0 to π/2) and use sin/cos for the gain curves:
             //   pan = -1.0 → angle = 0       → left = 1.0, right = 0.0 (full left)
@@ -724,8 +799,7 @@ impl Voice {
             //
             // Why π/4 radians (45°) for center? sin(45°) = cos(45°) = 1/√2 ≈ 0.707,
             // and 0.707² + 0.707² = 1.0 (constant power).
-            let pan = osc_params[i].pan;
-            let pan_radians = (pan + 1.0) * std::f32::consts::PI / 4.0; // Map [-1, 1] to [0, π/2]
+            let pan_radians = (modulated_pan + 1.0) * std::f32::consts::PI / 4.0; // Map [-1, 1] to [0, π/2]
             let left_gain = pan_radians.cos(); // Decreases as pan moves right
             let right_gain = pan_radians.sin(); // Increases as pan moves right
 
@@ -942,6 +1016,7 @@ impl Voice {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::params::Waveform;
     use approx::assert_relative_eq;
 
     /// Helper function to create default oscillator parameters for testing.
@@ -1227,5 +1302,292 @@ mod tests {
         assert_eq!(voice.note(), 0);
         assert_eq!(voice.velocity, 0.0);
         assert_eq!(voice.get_rms(), 0.0);
+    }
+
+    #[test]
+    fn test_lfo_pitch_routing_modulates_frequency() {
+        // Test that LFO pitch routing applies vibrato (frequency modulation)
+        let sample_rate = 44100.0;
+        let mut voice = Voice::new(sample_rate);
+
+        let mut osc_params = default_osc_params();
+        osc_params[0].gain = 1.0;
+        osc_params[0].waveform = Waveform::Sine;
+        osc_params[0].gain = 1.0;
+
+        let filter_params = default_filter_params();
+        let mut lfo_params = default_lfo_params();
+        
+        // Set LFO1 to full depth, max rate, with 100 cents pitch amount
+        lfo_params[0].depth = 1.0;
+        lfo_params[0].rate = 20.0;
+        lfo_params[0].pitch_amount = 100.0; // ±100 cents = ±1 semitone
+
+        let envelope_params = default_envelope_params();
+        let velocity_params = default_velocity_params();
+
+        voice.note_on(60, 1.0);
+        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+
+        // Process several samples and verify pitch modulation occurs
+        // (frequency changes over time due to LFO)
+        let sample1 = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+        
+        // Advance LFO by 1/4 period (should be near different LFO value)
+        for _ in 0..(sample_rate as usize / (lfo_params[0].rate as usize * 4)) {
+            let _ = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+        }
+        
+        let sample2 = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+
+        // With pitch modulation, the samples should differ significantly
+        // (Note: exact values are hard to predict, but they shouldn't be identical)
+        assert_ne!(sample1.0, sample2.0, "Pitch modulation should change output over time");
+    }
+
+    #[test]
+    fn test_lfo_gain_routing_applies_tremolo() {
+        // Test that LFO gain routing applies tremolo (amplitude modulation)
+        let sample_rate = 44100.0;
+        let mut voice = Voice::new(sample_rate);
+
+        let mut osc_params = default_osc_params();
+        osc_params[0].gain = 1.0;
+        osc_params[0].waveform = Waveform::Sine;
+        osc_params[0].gain = 1.0;
+
+        let filter_params = default_filter_params();
+        let mut lfo_params = default_lfo_params();
+        
+        // Set LFO1 to full depth with maximum gain modulation
+        lfo_params[0].depth = 1.0;
+        lfo_params[0].rate = 10.0;
+        lfo_params[0].gain_amount = 1.0; // Maximum tremolo depth
+
+        let envelope_params = default_envelope_params();
+        let velocity_params = default_velocity_params();
+
+        voice.note_on(60, 1.0);
+        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+
+        // Collect samples over one LFO period
+        let num_samples = (sample_rate / lfo_params[0].rate) as usize;
+        let mut samples = Vec::new();
+        
+        for _ in 0..num_samples {
+            let sample = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+            samples.push(sample.0.abs() + sample.1.abs()); // Sum L+R for amplitude
+        }
+
+        // With tremolo, amplitude should vary significantly
+        let max_amp = samples.iter().cloned().fold(0.0f32, f32::max);
+        let min_amp = samples.iter().cloned().fold(f32::INFINITY, f32::min);
+        
+        // With gain_amount=1.0 and depth=1.0, we should see amplitude variation
+        // (min should be noticeably less than max)
+        assert!(max_amp > min_amp * 1.5, "Tremolo should create amplitude variation (max={}, min={})", max_amp, min_amp);
+    }
+
+    #[test]
+    fn test_lfo_pan_routing_creates_auto_pan() {
+        // Test that LFO pan routing creates auto-pan (stereo position modulation)
+        let sample_rate = 44100.0;
+        let mut voice = Voice::new(sample_rate);
+
+        let mut osc_params = default_osc_params();
+        osc_params[0].gain = 1.0;
+        osc_params[0].waveform = Waveform::Sine;
+        osc_params[0].gain = 1.0;
+        osc_params[0].pan = 0.0; // Center pan
+
+        let filter_params = default_filter_params();
+        let mut lfo_params = default_lfo_params();
+        
+        // Set LFO1 to full depth with maximum pan modulation
+        lfo_params[0].depth = 1.0;
+        lfo_params[0].rate = 5.0;
+        lfo_params[0].pan_amount = 1.0; // Full auto-pan range
+
+        let envelope_params = default_envelope_params();
+        let velocity_params = default_velocity_params();
+
+        voice.note_on(60, 1.0);
+        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+
+        // Process samples and find when left/right channels differ significantly
+        let mut found_left_bias = false;
+        let mut found_right_bias = false;
+
+        for _ in 0..(sample_rate as usize) {
+            let sample = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+            
+            let left = sample.0.abs();
+            let right = sample.1.abs();
+            
+            // Check for significant left bias
+            if left > right * 1.2 {
+                found_left_bias = true;
+            }
+            // Check for significant right bias
+            if right > left * 1.2 {
+                found_right_bias = true;
+            }
+            
+            if found_left_bias && found_right_bias {
+                break;
+            }
+        }
+
+        assert!(found_left_bias && found_right_bias, 
+            "Auto-pan should create both left and right biased stereo positions");
+    }
+
+    #[test]
+    fn test_lfo_pwm_routing_modulates_pulse_width() {
+        // Test that LFO PWM routing modulates pulse width on square/pulse waveforms
+        let sample_rate = 44100.0;
+        let mut voice = Voice::new(sample_rate);
+
+        let mut osc_params = default_osc_params();
+        osc_params[0].gain = 1.0;
+        osc_params[0].waveform = Waveform::Square;
+        osc_params[0].gain = 1.0;
+        osc_params[0].shape = 0.0; // 50% duty cycle baseline
+
+        let filter_params = default_filter_params();
+        let mut lfo_params = default_lfo_params();
+        
+        // Set LFO1 to full depth with PWM modulation
+        lfo_params[0].depth = 1.0;
+        lfo_params[0].rate = 10.0;
+        lfo_params[0].pwm_amount = 0.5; // Moderate PWM depth
+
+        let envelope_params = default_envelope_params();
+        let velocity_params = default_velocity_params();
+
+        voice.note_on(60, 1.0);
+        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+
+        // Process samples and verify spectral content changes
+        // (PWM creates characteristic harmonic variation)
+        let mut samples1 = Vec::new();
+        for _ in 0..100 {
+            let sample = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+            samples1.push(sample.0);
+        }
+
+        // Advance by 1/2 LFO period (opposite PWM phase)
+        for _ in 0..((sample_rate / (lfo_params[0].rate * 2.0)) as usize) {
+            let _ = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+        }
+
+        let mut samples2 = Vec::new();
+        for _ in 0..100 {
+            let sample = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+            samples2.push(sample.0);
+        }
+
+        // Compare sample sets - they should differ due to PWM modulation
+        let diff: f32 = samples1.iter().zip(samples2.iter())
+            .map(|(a, b)| (a - b).abs())
+            .sum();
+        
+        assert!(diff > 1.0, "PWM modulation should change waveform shape over time (diff={})", diff);
+    }
+
+    #[test]
+    fn test_lfo_routing_multiple_lfos_sum() {
+        // Test that multiple LFOs with routing sum their contributions (global modulation)
+        let sample_rate = 44100.0;
+        let mut voice = Voice::new(sample_rate);
+
+        let mut osc_params = default_osc_params();
+        osc_params[0].gain = 1.0;
+        osc_params[0].waveform = Waveform::Sine;
+        osc_params[0].gain = 1.0;
+
+        let filter_params = default_filter_params();
+        let mut lfo_params = default_lfo_params();
+        
+        // Enable pitch routing on all 3 LFOs with different rates
+        lfo_params[0].depth = 1.0;
+        lfo_params[0].rate = 5.0;
+        lfo_params[0].pitch_amount = 20.0; // ±20 cents
+
+        lfo_params[1].depth = 1.0;
+        lfo_params[1].rate = 7.0;
+        lfo_params[1].pitch_amount = 30.0; // ±30 cents
+
+        lfo_params[2].depth = 1.0;
+        lfo_params[2].rate = 3.0;
+        lfo_params[2].pitch_amount = 10.0; // ±10 cents
+
+        let envelope_params = default_envelope_params();
+        let velocity_params = default_velocity_params();
+
+        voice.note_on(60, 1.0);
+        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+
+        // Process samples - the 3 LFOs should create complex modulation
+        let mut samples = Vec::new();
+        for _ in 0..1000 {
+            let sample = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+            samples.push(sample.0);
+        }
+
+        // With 3 LFOs at different rates, we should see complex variation
+        // (not just a simple sine wave pattern)
+        let max_val = samples.iter().cloned().fold(0.0f32, f32::max);
+        let min_val = samples.iter().cloned().fold(0.0f32, f32::min);
+        
+        // Verify we have both positive and negative values (complex waveform)
+        assert!(max_val > 0.1 && min_val < -0.1, 
+            "Multiple LFO routing should create complex modulation pattern");
+    }
+
+    #[test]
+    fn test_lfo_routing_zero_amount_no_effect() {
+        // Test that routing amount of 0.0 disables modulation
+        let sample_rate = 44100.0;
+        let mut voice1 = Voice::new(sample_rate);
+        let mut voice2 = Voice::new(sample_rate);
+
+        let mut osc_params = default_osc_params();
+        osc_params[0].gain = 1.0;
+        osc_params[0].waveform = Waveform::Sine;
+        osc_params[0].gain = 1.0;
+
+        let filter_params = default_filter_params();
+        
+        // Voice 1: LFO enabled but routing amount = 0.0
+        let mut lfo_params1 = default_lfo_params();
+        lfo_params1[0].depth = 1.0;
+        lfo_params1[0].rate = 10.0;
+        lfo_params1[0].pitch_amount = 0.0; // Disabled
+        lfo_params1[0].gain_amount = 0.0;  // Disabled
+        lfo_params1[0].pan_amount = 0.0;   // Disabled
+        lfo_params1[0].pwm_amount = 0.0;   // Disabled
+
+        // Voice 2: LFO completely disabled
+        let lfo_params2 = default_lfo_params();
+
+        let envelope_params = default_envelope_params();
+        let velocity_params = default_velocity_params();
+
+        voice1.note_on(60, 1.0);
+        voice2.note_on(60, 1.0);
+        
+        voice1.update_parameters(&osc_params, &filter_params, &lfo_params1, &envelope_params);
+        voice2.update_parameters(&osc_params, &filter_params, &lfo_params2, &envelope_params);
+
+        // Process same number of samples on both voices
+        for _ in 0..100 {
+            let sample1 = voice1.process(&osc_params, &filter_params, &lfo_params1, &velocity_params);
+            let sample2 = voice2.process(&osc_params, &filter_params, &lfo_params2, &velocity_params);
+
+            // With routing amounts at 0.0, both voices should produce identical output
+            assert_relative_eq!(sample1.0, sample2.0, epsilon = 0.001);
+            assert_relative_eq!(sample1.1, sample2.1, epsilon = 0.001);
+        }
     }
 }

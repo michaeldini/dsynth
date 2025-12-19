@@ -246,6 +246,26 @@ impl PluginGui {
                 &params.lfo1_filter_amount,
                 &mut states.filter_amount,
             ))
+            .push(param_row(
+                "Pitch",
+                &params.lfo1_pitch_amount,
+                &mut states.pitch_amount,
+            ))
+            .push(param_row(
+                "Gain",
+                &params.lfo1_gain_amount,
+                &mut states.gain_amount,
+            ))
+            .push(param_row(
+                "Pan",
+                &params.lfo1_pan_amount,
+                &mut states.pan_amount,
+            ))
+            .push(param_row(
+                "PWM",
+                &params.lfo1_pwm_amount,
+                &mut states.pwm_amount,
+            ))
             .spacing(3)
             .padding(8)
     }
@@ -272,6 +292,26 @@ impl PluginGui {
                 &params.lfo2_filter_amount,
                 &mut states.filter_amount,
             ))
+            .push(param_row(
+                "Pitch",
+                &params.lfo2_pitch_amount,
+                &mut states.pitch_amount,
+            ))
+            .push(param_row(
+                "Gain",
+                &params.lfo2_gain_amount,
+                &mut states.gain_amount,
+            ))
+            .push(param_row(
+                "Pan",
+                &params.lfo2_pan_amount,
+                &mut states.pan_amount,
+            ))
+            .push(param_row(
+                "PWM",
+                &params.lfo2_pwm_amount,
+                &mut states.pwm_amount,
+            ))
             .spacing(3)
             .padding(8)
     }
@@ -297,6 +337,26 @@ impl PluginGui {
                 "F-Amt",
                 &params.lfo3_filter_amount,
                 &mut states.filter_amount,
+            ))
+            .push(param_row(
+                "Pitch",
+                &params.lfo3_pitch_amount,
+                &mut states.pitch_amount,
+            ))
+            .push(param_row(
+                "Gain",
+                &params.lfo3_gain_amount,
+                &mut states.gain_amount,
+            ))
+            .push(param_row(
+                "Pan",
+                &params.lfo3_pan_amount,
+                &mut states.pan_amount,
+            ))
+            .push(param_row(
+                "PWM",
+                &params.lfo3_pwm_amount,
+                &mut states.pwm_amount,
             ))
             .spacing(3)
             .padding(8)

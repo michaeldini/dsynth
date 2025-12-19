@@ -233,6 +233,18 @@ pub struct DSynthParams {
     #[id = "lfo1_filter_amount"]
     pub lfo1_filter_amount: FloatParam,
 
+    #[id = "lfo1_pitch_amount"]
+    pub lfo1_pitch_amount: FloatParam,
+
+    #[id = "lfo1_gain_amount"]
+    pub lfo1_gain_amount: FloatParam,
+
+    #[id = "lfo1_pan_amount"]
+    pub lfo1_pan_amount: FloatParam,
+
+    #[id = "lfo1_pwm_amount"]
+    pub lfo1_pwm_amount: FloatParam,
+
     // LFO 2
     #[id = "lfo2_waveform"]
     pub lfo2_waveform: EnumParam<LFOWaveform>,
@@ -246,6 +258,18 @@ pub struct DSynthParams {
     #[id = "lfo2_filter_amount"]
     pub lfo2_filter_amount: FloatParam,
 
+    #[id = "lfo2_pitch_amount"]
+    pub lfo2_pitch_amount: FloatParam,
+
+    #[id = "lfo2_gain_amount"]
+    pub lfo2_gain_amount: FloatParam,
+
+    #[id = "lfo2_pan_amount"]
+    pub lfo2_pan_amount: FloatParam,
+
+    #[id = "lfo2_pwm_amount"]
+    pub lfo2_pwm_amount: FloatParam,
+
     // LFO 3
     #[id = "lfo3_waveform"]
     pub lfo3_waveform: EnumParam<LFOWaveform>,
@@ -258,6 +282,18 @@ pub struct DSynthParams {
 
     #[id = "lfo3_filter_amount"]
     pub lfo3_filter_amount: FloatParam,
+
+    #[id = "lfo3_pitch_amount"]
+    pub lfo3_pitch_amount: FloatParam,
+
+    #[id = "lfo3_gain_amount"]
+    pub lfo3_gain_amount: FloatParam,
+
+    #[id = "lfo3_pan_amount"]
+    pub lfo3_pan_amount: FloatParam,
+
+    #[id = "lfo3_pwm_amount"]
+    pub lfo3_pwm_amount: FloatParam,
 
     // Velocity Sensitivity
     #[id = "velocity_amp"]
@@ -812,6 +848,30 @@ impl Default for DSynthParams {
                     max: 1.0,
                 },
             ),
+            lfo1_pitch_amount: FloatParam::new(
+                "LFO 1 Pitch Amount",
+                0.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 100.0,
+                },
+            )
+            .with_unit(" cents"),
+            lfo1_gain_amount: FloatParam::new(
+                "LFO 1 Gain Amount",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            lfo1_pan_amount: FloatParam::new(
+                "LFO 1 Pan Amount",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            lfo1_pwm_amount: FloatParam::new(
+                "LFO 1 PWM Amount",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
 
             // LFO 2
             lfo2_waveform: EnumParam::new("LFO 2 Waveform", LFOWaveform::Sine),
@@ -838,6 +898,30 @@ impl Default for DSynthParams {
                     max: 1.0,
                 },
             ),
+            lfo2_pitch_amount: FloatParam::new(
+                "LFO 2 Pitch Amount",
+                0.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 100.0,
+                },
+            )
+            .with_unit(" cents"),
+            lfo2_gain_amount: FloatParam::new(
+                "LFO 2 Gain Amount",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            lfo2_pan_amount: FloatParam::new(
+                "LFO 2 Pan Amount",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            lfo2_pwm_amount: FloatParam::new(
+                "LFO 2 PWM Amount",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
 
             // LFO 3
             lfo3_waveform: EnumParam::new("LFO 3 Waveform", LFOWaveform::Sine),
@@ -863,6 +947,30 @@ impl Default for DSynthParams {
                     min: -1.0,
                     max: 1.0,
                 },
+            ),
+            lfo3_pitch_amount: FloatParam::new(
+                "LFO 3 Pitch Amount",
+                0.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 100.0,
+                },
+            )
+            .with_unit(" cents"),
+            lfo3_gain_amount: FloatParam::new(
+                "LFO 3 Gain Amount",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            lfo3_pan_amount: FloatParam::new(
+                "LFO 3 Pan Amount",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            lfo3_pwm_amount: FloatParam::new(
+                "LFO 3 PWM Amount",
+                0.0,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
             ),
 
             // Velocity Sensitivity

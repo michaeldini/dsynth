@@ -49,6 +49,10 @@ struct LfoStates {
     rate: nih_widgets::param_slider::State,
     depth: nih_widgets::param_slider::State,
     filter_amount: nih_widgets::param_slider::State,
+    pitch_amount: nih_widgets::param_slider::State,
+    gain_amount: nih_widgets::param_slider::State,
+    pan_amount: nih_widgets::param_slider::State,
+    pwm_amount: nih_widgets::param_slider::State,
 }
 
 #[derive(Default)]
