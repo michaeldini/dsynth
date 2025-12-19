@@ -580,7 +580,14 @@ impl Voice {
         // This is a common DAW/synth feature for isolating sounds during sound design.
         let any_soloed = osc_params.iter().any(|o| o.solo);
 
-        // === STEP 5: Process each of the 3 oscillator/filter groups ===
+        // === STEP 5: Generate all oscillator outputs first (required for FM) ===
+        // We process oscillators in order: 0 → 1 → 2
+        // This allows FM routing where later oscillators can be modulated by earlier ones.
+        // For example: Osc 0 can modulate Osc 1, and Osc 1 can modulate Osc 2.
+        //
+        // Store raw oscillator outputs before filtering (needed for FM sources).
+        let mut osc_outputs = [0.0; 3];
+
         for i in 0..3 {
             // Skip this oscillator if:
             // - Solo mode is active AND this oscillator is not soloed
@@ -594,13 +601,42 @@ impl Voice {
                 continue;
             }
 
+            // Check if this oscillator should be frequency modulated
+            let fm_config = osc_params[i].fm_source;
+            let fm_amount = osc_params[i].fm_amount;
+
             // === STEP 5a: Mix all unison voices for this oscillator ===
             // Unison creates a thick sound by layering detuned copies of the same waveform.
             // We sum all unison voices and normalize to prevent clipping.
             let mut osc_sum = 0.0;
-            for unison_idx in 0..unison_count {
-                if let Some(ref mut osc) = self.oscillators[i][unison_idx] {
-                    osc_sum += osc.process();
+
+            // Determine if we should use FM synthesis for this oscillator
+            let use_fm = if let Some(source_idx) = fm_config {
+                // Only use FM if:
+                // 1. Source oscillator index is valid (0-2) and different from current
+                // 2. Source oscillator comes before this one (prevent feedback)
+                // 3. FM amount is non-zero
+                source_idx < i && fm_amount.abs() > 0.001
+            } else {
+                false
+            };
+
+            if use_fm {
+                // FM synthesis: modulate this oscillator's phase using a previous oscillator
+                let source_idx = fm_config.unwrap();
+                let modulator_output = osc_outputs[source_idx];
+
+                for unison_idx in 0..unison_count {
+                    if let Some(ref mut osc) = self.oscillators[i][unison_idx] {
+                        osc_sum += osc.process_with_fm(modulator_output, fm_amount);
+                    }
+                }
+            } else {
+                // Standard synthesis: no FM modulation
+                for unison_idx in 0..unison_count {
+                    if let Some(ref mut osc) = self.oscillators[i][unison_idx] {
+                        osc_sum += osc.process();
+                    }
                 }
             }
 
@@ -612,12 +648,30 @@ impl Voice {
             let unison_count_f32 = unison_count as f32;
             let osc_out = osc_sum / unison_count_f32;
 
-            // === STEP 5c: Process LFO for filter modulation ===
+            // Store the raw oscillator output (needed for FM routing)
+            osc_outputs[i] = osc_out;
+        }
+
+        // === STEP 6: Apply filters and generate stereo output ===
+        // Now that all oscillators have been processed (and their outputs stored),
+        // we can apply filtering and panning to generate the final stereo mix.
+        for i in 0..3 {
+            // Skip if this oscillator is inactive
+            if any_soloed && !osc_params[i].solo {
+                continue;
+            }
+            if self.active_unison[i] == 0 {
+                continue;
+            }
+
+            let osc_out = osc_outputs[i];
+
+            // === STEP 6a: Process LFO for filter modulation ===
             // LFOs generate slow-moving waveforms (typically <20 Hz) that modulate parameters.
             // Here, we use them to modulate the filter cutoff frequency.
             let lfo_value = self.lfos[i].process();
 
-            // === STEP 5d: Calculate modulated filter cutoff ===
+            // === STEP 6b: Calculate modulated filter cutoff ===
             // The cutoff frequency is determined by multiple factors:
             // 1. Base cutoff (set by user or automation)
             // 2. Key tracking (higher notes → higher cutoff, follows keyboard)
@@ -654,12 +708,12 @@ impl Voice {
                 + lfo_value * lfo_params[i].filter_amount * lfo_params[i].depth)
                 .clamp(20.0, 20000.0);
 
-            // === STEP 5e: Update filter and apply to oscillator output ===
+            // === STEP 6c: Update filter and apply to oscillator output ===
             self.filters[i].set_cutoff(modulated_cutoff);
             self.filters[i].set_bandwidth(filter_params[i].bandwidth);
             let filtered = self.filters[i].process(osc_out);
 
-            // === STEP 5f: Apply stereo panning using equal-power panning law ===
+            // === STEP 6d: Apply stereo panning using equal-power panning law ===
             // Pan: -1.0 (full left) to 1.0 (full right), 0.0 = center
             //
             // Equal-power panning law ensures constant perceived loudness as we pan.
@@ -681,7 +735,7 @@ impl Voice {
             output_right += scaled * right_gain;
         }
 
-        // === STEP 6: Normalize for multiple active oscillators with unison ===
+        // === STEP 7: Normalize for multiple active oscillators with unison ===
         // When multiple oscillators are active, their signals sum and can exceed ±1.0.
         // We need to account for both:
         // 1. The number of active oscillator slots (1-3)
@@ -726,13 +780,13 @@ impl Voice {
             output_right *= osc_normalization;
         }
 
-        // === STEP 7: Apply envelope and velocity-sensitive amplitude ===
+        // === STEP 8: Apply envelope and velocity-sensitive amplitude ===
         // Multiply the final mixed output by the envelope (0.0-1.0) and velocity factor.
         // This shapes the amplitude over time (ADSR) and scales by key velocity.
         output_left = output_left * env_value * velocity_factor;
         output_right = output_right * env_value * velocity_factor;
 
-        // === STEP 7: Track peak amplitude for voice stealing ===
+        // === STEP 9: Track peak amplitude for voice stealing ===
         // The engine uses peak amplitude to identify the quietest voice when all 16 voices
         // are busy and a new note arrives. We track the peak of both channels.
         //

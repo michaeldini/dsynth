@@ -52,6 +52,8 @@ impl SynthGui {
                         OscillatorMessage::PhaseChanged(p) => osc.phase = p,
                         OscillatorMessage::ShapeChanged(s) => osc.shape = s,
                         OscillatorMessage::SoloToggled(s) => osc.solo = s,
+                        OscillatorMessage::FmSourceChanged(src) => osc.fm_source = src,
+                        OscillatorMessage::FmAmountChanged(amt) => osc.fm_amount = amt,
                     }
                 }
             }

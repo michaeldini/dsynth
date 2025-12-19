@@ -13,6 +13,8 @@ pub enum Waveform {
     Square,
     Triangle,
     Pulse,
+    WhiteNoise,
+    PinkNoise,
 }
 
 impl fmt::Display for Waveform {
@@ -23,6 +25,8 @@ impl fmt::Display for Waveform {
             Waveform::Square => write!(f, "Square"),
             Waveform::Triangle => write!(f, "Triangle"),
             Waveform::Pulse => write!(f, "Pulse"),
+            Waveform::WhiteNoise => write!(f, "White Noise"),
+            Waveform::PinkNoise => write!(f, "Pink Noise"),
         }
     }
 }
@@ -58,6 +62,10 @@ pub struct OscillatorParams {
     pub phase: f32,         // Initial phase offset (0.0 to 1.0)
     pub shape: f32,         // Wave shaping amount (-1.0 to 1.0)
     pub solo: bool,         // Solo mode - when any osc is soloed, only soloed oscs are heard
+    #[serde(default)]
+    pub fm_source: Option<usize>, // FM source oscillator index (0-2), None = no FM
+    #[serde(default)]
+    pub fm_amount: f32, // FM modulation depth (0.0 to 10.0)
 }
 
 impl Default for OscillatorParams {
@@ -69,6 +77,8 @@ impl Default for OscillatorParams {
             gain: 0.25, // Reduced from 0.33 to prevent clipping with multiple oscillators
             pan: 0.0,
             unison: 1,
+            fm_source: None,
+            fm_amount: 0.0,
             unison_detune: 10.0,
             phase: 0.0,
             shape: 0.0,
@@ -296,8 +306,8 @@ impl Default for ChorusParams {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct DistortionParams {
-    pub drive: f32,             // 0.0 to 1.0
-    pub mix: f32,               // 0.0 to 1.0
+    pub drive: f32, // 0.0 to 1.0
+    pub mix: f32,   // 0.0 to 1.0
     pub dist_type: DistortionType,
 }
 

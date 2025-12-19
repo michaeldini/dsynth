@@ -25,6 +25,8 @@ pub fn oscillator_controls<'a>(
         Waveform::Square,
         Waveform::Triangle,
         Waveform::Pulse,
+        Waveform::WhiteNoise,
+        Waveform::PinkNoise,
     ];
 
     let filter_types = vec![
@@ -123,6 +125,35 @@ pub fn oscillator_controls<'a>(
             .step(0.01),
         )
         .push(text(format!("{:.2}", osc.shape)))
+        // FM Synthesis controls
+        .push(text("--- FM Synthesis ---").size(18))
+        .push(text("FM Source:"))
+        .push({
+            // Create a simple list for FM source selection
+            // -1 = None, 0-2 = Osc 1-3
+            let fm_sources = vec![-1, 0, 1, 2];
+            let current_source = osc.fm_source.map(|s| s as i32).unwrap_or(-1);
+            
+            pick_list(fm_sources, Some(current_source), move |src| {
+                let opt_src = if src < 0 { None } else { Some(src as usize) };
+                Message::Oscillator(index, OscillatorMessage::FmSourceChanged(opt_src))
+            })
+        })
+        .push(text(match osc.fm_source {
+            None => "None".to_string(),
+            Some(0) => "Osc 1".to_string(),
+            Some(1) => "Osc 2".to_string(),
+            Some(2) => "Osc 3".to_string(),
+            _ => "Invalid".to_string(),
+        }))
+        .push(text("FM Amount:"))
+        .push(
+            slider(0.0..=10.0, osc.fm_amount, move |a| {
+                Message::Oscillator(index, OscillatorMessage::FmAmountChanged(a))
+            })
+            .step(0.1),
+        )
+        .push(text(format!("{:.1}", osc.fm_amount)))
         // Filter controls
         .push(text("--- Filter ---").size(18))
         .push(text("Type:"))

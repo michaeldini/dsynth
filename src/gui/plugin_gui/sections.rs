@@ -33,6 +33,8 @@ impl PluginGui {
             ))
             .push(param_row("Phase", &params.osc1_phase, &mut states.phase))
             .push(param_row("Shape", &params.osc1_shape, &mut states.shape))
+            .push(param_row("FM Src", &params.osc1_fm_source, &mut states.fm_source))
+            .push(param_row("FM Amt", &params.osc1_fm_amount, &mut states.fm_amount))
             .spacing(3)
             .padding(8)
     }
@@ -65,6 +67,8 @@ impl PluginGui {
             ))
             .push(param_row("Phase", &params.osc2_phase, &mut states.phase))
             .push(param_row("Shape", &params.osc2_shape, &mut states.shape))
+            .push(param_row("FM Src", &params.osc2_fm_source, &mut states.fm_source))
+            .push(param_row("FM Amt", &params.osc2_fm_amount, &mut states.fm_amount))
             .spacing(3)
             .padding(8)
     }
@@ -97,6 +101,8 @@ impl PluginGui {
             ))
             .push(param_row("Phase", &params.osc3_phase, &mut states.phase))
             .push(param_row("Shape", &params.osc3_shape, &mut states.shape))
+            .push(param_row("FM Src", &params.osc3_fm_source, &mut states.fm_source))
+            .push(param_row("FM Amt", &params.osc3_fm_amount, &mut states.fm_amount))
             .spacing(3)
             .padding(8)
     }

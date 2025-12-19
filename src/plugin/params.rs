@@ -44,6 +44,12 @@ pub struct DSynthParams {
     #[id = "osc1_shape"]
     pub osc1_shape: FloatParam,
 
+    #[id = "osc1_fm_source"]
+    pub osc1_fm_source: IntParam,
+
+    #[id = "osc1_fm_amount"]
+    pub osc1_fm_amount: FloatParam,
+
     // Oscillator 2 parameters
     #[id = "osc2_waveform"]
     pub osc2_waveform: EnumParam<Waveform>,
@@ -75,6 +81,12 @@ pub struct DSynthParams {
     #[id = "osc2_shape"]
     pub osc2_shape: FloatParam,
 
+    #[id = "osc2_fm_source"]
+    pub osc2_fm_source: IntParam,
+
+    #[id = "osc2_fm_amount"]
+    pub osc2_fm_amount: FloatParam,
+
     // Oscillator 3 parameters
     #[id = "osc3_waveform"]
     pub osc3_waveform: EnumParam<Waveform>,
@@ -105,6 +117,12 @@ pub struct DSynthParams {
 
     #[id = "osc3_shape"]
     pub osc3_shape: FloatParam,
+
+    #[id = "osc3_fm_source"]
+    pub osc3_fm_source: IntParam,
+
+    #[id = "osc3_fm_amount"]
+    pub osc3_fm_amount: FloatParam,
 
     // Filter 1 parameters
     #[id = "filter1_type"]
@@ -382,6 +400,19 @@ impl Default for DSynthParams {
                     max: 1.0,
                 },
             ),
+            osc1_fm_source: IntParam::new(
+                "Osc 1 FM Source",
+                -1, // -1 = None, 0-2 = Osc 1-3
+                IntRange::Linear { min: -1, max: 2 },
+            ),
+            osc1_fm_amount: FloatParam::new(
+                "Osc 1 FM Amount",
+                0.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 10.0,
+                },
+            ),
 
             // Oscillator 2
             osc2_waveform: EnumParam::new("Osc 2 Wave", Waveform::Saw),
@@ -440,6 +471,19 @@ impl Default for DSynthParams {
                     max: 1.0,
                 },
             ),
+            osc2_fm_source: IntParam::new(
+                "Osc 2 FM Source",
+                -1,
+                IntRange::Linear { min: -1, max: 2 },
+            ),
+            osc2_fm_amount: FloatParam::new(
+                "Osc 2 FM Amount",
+                0.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 10.0,
+                },
+            ),
 
             // Oscillator 3
             osc3_waveform: EnumParam::new("Osc 3 Wave", Waveform::Square),
@@ -496,6 +540,19 @@ impl Default for DSynthParams {
                 FloatRange::Linear {
                     min: -1.0,
                     max: 1.0,
+                },
+            ),
+            osc3_fm_source: IntParam::new(
+                "Osc 3 FM Source",
+                -1,
+                IntRange::Linear { min: -1, max: 2 },
+            ),
+            osc3_fm_amount: FloatParam::new(
+                "Osc 3 FM Amount",
+                0.0,
+                FloatRange::Linear {
+                    min: 0.0,
+                    max: 10.0,
                 },
             ),
 

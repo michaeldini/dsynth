@@ -26,6 +26,11 @@ impl DSynthPlugin {
                     phase: p.osc1_phase.value(),
                     shape: p.osc1_shape.value(),
                     solo: p.osc1_solo.value(),
+                    fm_source: {
+                        let source = p.osc1_fm_source.value();
+                        if source < 0 { None } else { Some(source as usize) }
+                    },
+                    fm_amount: p.osc1_fm_amount.value(),
                 },
                 OscillatorParams {
                     waveform: p.osc2_waveform.value(),
@@ -38,6 +43,11 @@ impl DSynthPlugin {
                     phase: p.osc2_phase.value(),
                     shape: p.osc2_shape.value(),
                     solo: p.osc2_solo.value(),
+                    fm_source: {
+                        let source = p.osc2_fm_source.value();
+                        if source < 0 { None } else { Some(source as usize) }
+                    },
+                    fm_amount: p.osc2_fm_amount.value(),
                 },
                 OscillatorParams {
                     waveform: p.osc3_waveform.value(),
@@ -50,6 +60,11 @@ impl DSynthPlugin {
                     phase: p.osc3_phase.value(),
                     shape: p.osc3_shape.value(),
                     solo: p.osc3_solo.value(),
+                    fm_source: {
+                        let source = p.osc3_fm_source.value();
+                        if source < 0 { None } else { Some(source as usize) }
+                    },
+                    fm_amount: p.osc3_fm_amount.value(),
                 },
             ],
 

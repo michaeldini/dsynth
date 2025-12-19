@@ -30,6 +30,8 @@ struct OscStates {
     unison_detune: nih_widgets::param_slider::State,
     phase: nih_widgets::param_slider::State,
     shape: nih_widgets::param_slider::State,
+    fm_source: nih_widgets::param_slider::State,
+    fm_amount: nih_widgets::param_slider::State,
 }
 
 #[derive(Default)]

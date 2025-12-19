@@ -14,6 +14,8 @@ pub enum OscillatorMessage {
     PhaseChanged(f32),
     ShapeChanged(f32),
     SoloToggled(bool),
+    FmSourceChanged(Option<usize>),
+    FmAmountChanged(f32),
 }
 
 #[derive(Debug, Clone)]
