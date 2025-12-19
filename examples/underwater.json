@@ -1,0 +1,123 @@
+{
+  "name": "My Preset",
+  "params": {
+    "oscillators": [
+      {
+        "waveform": "Triangle",
+        "pitch": 12.0,
+        "detune": 47.0,
+        "gain": 0.3658483,
+        "pan": 0.33971608,
+        "unison": 5,
+        "unison_detune": 22.851881,
+        "phase": 0.098515764,
+        "shape": 0.12743771,
+        "solo": false
+      },
+      {
+        "waveform": "Sine",
+        "pitch": 15.0,
+        "detune": -17.0,
+        "gain": 0.54270697,
+        "pan": 0.45304358,
+        "unison": 3,
+        "unison_detune": 11.815269,
+        "phase": 0.45687252,
+        "shape": 0.70846957,
+        "solo": false
+      },
+      {
+        "waveform": "Pulse",
+        "pitch": 19.0,
+        "detune": -1.0,
+        "gain": 0.34358305,
+        "pan": -0.6230723,
+        "unison": 5,
+        "unison_detune": 43.23703,
+        "phase": 0.33624235,
+        "shape": -0.02678001,
+        "solo": false
+      }
+    ],
+    "filters": [
+      {
+        "filter_type": "Lowpass",
+        "cutoff": 1272.222,
+        "resonance": 3.6610165,
+        "bandwidth": 1.0515373,
+        "key_tracking": 0.24912277
+      },
+      {
+        "filter_type": "Highpass",
+        "cutoff": 2310.7869,
+        "resonance": 3.830275,
+        "bandwidth": 2.4119062,
+        "key_tracking": 0.92473257
+      },
+      {
+        "filter_type": "Lowpass",
+        "cutoff": 8381.797,
+        "resonance": 4.2060566,
+        "bandwidth": 1.2408909,
+        "key_tracking": 0.7770499
+      }
+    ],
+    "lfos": [
+      {
+        "waveform": "Triangle",
+        "rate": 6.8726707,
+        "depth": 0.19521216,
+        "filter_amount": 1160.6091
+      },
+      {
+        "waveform": "Sine",
+        "rate": 4.6190534,
+        "depth": 0.9299259,
+        "filter_amount": 2470.0415
+      },
+      {
+        "waveform": "Sine",
+        "rate": 5.566474,
+        "depth": 0.9897746,
+        "filter_amount": 2273.604
+      }
+    ],
+    "envelope": {
+      "attack": 0.01,
+      "decay": 0.1,
+      "sustain": 0.7,
+      "release": 0.2
+    },
+    "velocity": {
+      "amp_sensitivity": 0.35719174,
+      "filter_sensitivity": 0.60700464
+    },
+    "effects": {
+      "reverb": {
+        "room_size": 0.5,
+        "damping": 0.5,
+        "wet": 0.33,
+        "dry": 0.67,
+        "width": 1.0
+      },
+      "delay": {
+        "time_ms": 500.0,
+        "feedback": 0.3,
+        "wet": 0.3,
+        "dry": 0.7
+      },
+      "chorus": {
+        "rate": 0.5,
+        "depth": 0.5,
+        "mix": 0.5
+      },
+      "distortion": {
+        "drive": 0.0,
+        "mix": 0.5,
+        "dist_type": "Tanh"
+      }
+    },
+    "master_gain": 0.5363171,
+    "monophonic": false
+  }
+}

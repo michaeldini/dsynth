@@ -56,6 +56,14 @@ struct VelocityStates {
 }
 
 #[derive(Default)]
+struct EnvelopeStates {
+    attack: nih_widgets::param_slider::State,
+    decay: nih_widgets::param_slider::State,
+    sustain: nih_widgets::param_slider::State,
+    release: nih_widgets::param_slider::State,
+}
+
+#[derive(Default)]
 struct EffectsStates {
     // Reverb
     reverb_room_size: nih_widgets::param_slider::State,
@@ -96,6 +104,7 @@ struct ParamStates {
     lfo3: LfoStates,
 
     velocity: VelocityStates,
+    envelope: EnvelopeStates,
     effects: EffectsStates,
 }
 
@@ -224,6 +233,9 @@ impl IcedEditor for PluginGui {
             .spacing(5)
             .padding(10);
 
+        // Envelope (ADSR)
+        let envelope = Self::envelope_section(params, &mut self.param_states.envelope);
+
         // Effects
         let effects = Self::effects_section(params, &mut self.param_states.effects);
 
@@ -235,6 +247,7 @@ impl IcedEditor for PluginGui {
             .push(filters)
             .push(lfos)
             .push(velocity)
+            .push(envelope)
             .push(effects)
             .spacing(5);
 

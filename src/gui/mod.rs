@@ -110,6 +110,15 @@ pub enum DistortionMessage {
 
 #[cfg(feature = "standalone")]
 #[derive(Debug, Clone)]
+pub enum EnvelopeMessage {
+    AttackChanged(f32),
+    DecayChanged(f32),
+    SustainChanged(f32),
+    ReleaseChanged(f32),
+}
+
+#[cfg(feature = "standalone")]
+#[derive(Debug, Clone)]
 pub enum Message {
     // Indexed parameter groups
     Oscillator(usize, OscillatorMessage),
@@ -121,6 +130,9 @@ pub enum Message {
     Delay(DelayMessage),
     Chorus(ChorusMessage),
     Distortion(DistortionMessage),
+
+    // Envelope
+    Envelope(EnvelopeMessage),
 
     // Velocity Sensitivity
     VelocityAmpChanged(f32),
@@ -247,37 +259,37 @@ impl SynthGui {
             }
 
             // Effects
-            Message::Reverb(msg) => {
-                match msg {
-                    ReverbMessage::RoomSizeChanged(v) => self.params.effects.reverb.room_size = v,
-                    ReverbMessage::DampingChanged(v) => self.params.effects.reverb.damping = v,
-                    ReverbMessage::WetChanged(v) => self.params.effects.reverb.wet = v,
-                    ReverbMessage::DryChanged(v) => self.params.effects.reverb.dry = v,
-                    ReverbMessage::WidthChanged(v) => self.params.effects.reverb.width = v,
-                }
-            }
-            Message::Delay(msg) => {
-                match msg {
-                    DelayMessage::TimeChanged(v) => self.params.effects.delay.time_ms = v,
-                    DelayMessage::FeedbackChanged(v) => self.params.effects.delay.feedback = v,
-                    DelayMessage::WetChanged(v) => self.params.effects.delay.wet = v,
-                    DelayMessage::DryChanged(v) => self.params.effects.delay.dry = v,
-                }
-            }
-            Message::Chorus(msg) => {
-                match msg {
-                    ChorusMessage::RateChanged(v) => self.params.effects.chorus.rate = v,
-                    ChorusMessage::DepthChanged(v) => self.params.effects.chorus.depth = v,
-                    ChorusMessage::MixChanged(v) => self.params.effects.chorus.mix = v,
-                }
-            }
-            Message::Distortion(msg) => {
-                match msg {
-                    DistortionMessage::DriveChanged(v) => self.params.effects.distortion.drive = v,
-                    DistortionMessage::MixChanged(v) => self.params.effects.distortion.mix = v,
-                    DistortionMessage::TypeChanged(t) => self.params.effects.distortion.dist_type = t,
-                }
-            }
+            Message::Reverb(msg) => match msg {
+                ReverbMessage::RoomSizeChanged(v) => self.params.effects.reverb.room_size = v,
+                ReverbMessage::DampingChanged(v) => self.params.effects.reverb.damping = v,
+                ReverbMessage::WetChanged(v) => self.params.effects.reverb.wet = v,
+                ReverbMessage::DryChanged(v) => self.params.effects.reverb.dry = v,
+                ReverbMessage::WidthChanged(v) => self.params.effects.reverb.width = v,
+            },
+            Message::Delay(msg) => match msg {
+                DelayMessage::TimeChanged(v) => self.params.effects.delay.time_ms = v,
+                DelayMessage::FeedbackChanged(v) => self.params.effects.delay.feedback = v,
+                DelayMessage::WetChanged(v) => self.params.effects.delay.wet = v,
+                DelayMessage::DryChanged(v) => self.params.effects.delay.dry = v,
+            },
+            Message::Chorus(msg) => match msg {
+                ChorusMessage::RateChanged(v) => self.params.effects.chorus.rate = v,
+                ChorusMessage::DepthChanged(v) => self.params.effects.chorus.depth = v,
+                ChorusMessage::MixChanged(v) => self.params.effects.chorus.mix = v,
+            },
+            Message::Distortion(msg) => match msg {
+                DistortionMessage::DriveChanged(v) => self.params.effects.distortion.drive = v,
+                DistortionMessage::MixChanged(v) => self.params.effects.distortion.mix = v,
+                DistortionMessage::TypeChanged(t) => self.params.effects.distortion.dist_type = t,
+            },
+
+            // Envelope (ADSR)
+            Message::Envelope(msg) => match msg {
+                EnvelopeMessage::AttackChanged(v) => self.params.envelope.attack = v,
+                EnvelopeMessage::DecayChanged(v) => self.params.envelope.decay = v,
+                EnvelopeMessage::SustainChanged(v) => self.params.envelope.sustain = v,
+                EnvelopeMessage::ReleaseChanged(v) => self.params.envelope.release = v,
+            },
 
             // Velocity Sensitivity
             Message::VelocityAmpChanged(v) => self.params.velocity.amp_sensitivity = v,
@@ -351,7 +363,7 @@ impl SynthGui {
     }
 
     pub fn view<'a>(&'a self) -> Element<'a, Message> {
-        let title = text("DSynth - Digital Synthesizer").size(32);
+        let title = text("DSynth").size(32);
 
         let keyboard_help = text("Keyboard: AWSEDFTGYHUJKOLP (C4-D#5) | ZXCVBNM (C3-B3)").size(14);
 
@@ -373,6 +385,7 @@ impl SynthGui {
         let osc2_section = self.oscillator_controls(1, "Oscillator 2");
         let osc3_section = self.oscillator_controls(2, "Oscillator 3");
 
+        let envelope_section = self.envelope_controls();
         let effects_section = self.effects_controls();
 
         let velocity_controls = column![
@@ -420,11 +433,13 @@ impl SynthGui {
         .padding(10);
 
         let content = column![
-            row![title, keyboard_help, preset_controls],
+            row![title, preset_controls],
+            row![keyboard_help],
             row![master_controls, velocity_controls],
             scrollable(
                 column![
                     row![osc1_section, osc2_section, osc3_section].spacing(20),
+                    row![envelope_section].padding(10),
                     row![effects_section].padding(10),
                 ]
                 .spacing(20)
@@ -631,11 +646,9 @@ impl SynthGui {
         let distortion_section = column![
             text("DISTORTION").size(18),
             text("Type:"),
-            pick_list(
-                distortion_types,
-                Some(effects.distortion.dist_type),
-                |t| Message::Distortion(DistortionMessage::TypeChanged(t))
-            ),
+            pick_list(distortion_types, Some(effects.distortion.dist_type), |t| {
+                Message::Distortion(DistortionMessage::TypeChanged(t))
+            }),
             text("Drive:"),
             slider(0.0..=1.0, effects.distortion.drive, |v| {
                 Message::Distortion(DistortionMessage::DriveChanged(v))
@@ -758,6 +771,41 @@ impl SynthGui {
             .spacing(20)
         ]
         .spacing(10)
+        .padding(10)
+        .into()
+    }
+
+    fn envelope_controls<'a>(&'a self) -> Element<'a, Message> {
+        let env = &self.params.envelope;
+
+        column![
+            text("=== ENVELOPE (ADSR) ===").size(20),
+            text("Attack (s):"),
+            slider(0.001..=5.0, env.attack, |v| {
+                Message::Envelope(EnvelopeMessage::AttackChanged(v))
+            })
+            .step(0.001),
+            text(format!("{:.3}", env.attack)),
+            text("Decay (s):"),
+            slider(0.001..=5.0, env.decay, |v| {
+                Message::Envelope(EnvelopeMessage::DecayChanged(v))
+            })
+            .step(0.001),
+            text(format!("{:.3}", env.decay)),
+            text("Sustain (level):"),
+            slider(0.0..=1.0, env.sustain, |v| {
+                Message::Envelope(EnvelopeMessage::SustainChanged(v))
+            })
+            .step(0.01),
+            text(format!("{:.2}", env.sustain)),
+            text("Release (s):"),
+            slider(0.001..=5.0, env.release, |v| {
+                Message::Envelope(EnvelopeMessage::ReleaseChanged(v))
+            })
+            .step(0.001),
+            text(format!("{:.3}", env.release)),
+        ]
+        .spacing(5)
         .padding(10)
         .into()
     }

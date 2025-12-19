@@ -98,7 +98,12 @@ impl DSynthPlugin {
                 },
             ],
 
-            envelope: EnvelopeParams::default(),
+            envelope: EnvelopeParams {
+                attack: p.envelope_attack.value(),
+                decay: p.envelope_decay.value(),
+                sustain: p.envelope_sustain.value(),
+                release: p.envelope_release.value(),
+            },
 
             velocity: VelocityParams {
                 amp_sensitivity: p.velocity_amp.value(),

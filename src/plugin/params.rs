@@ -251,6 +251,19 @@ pub struct DSynthParams {
     #[id = "velocity_filter_env"]
     pub velocity_filter_env: FloatParam,
 
+    // Envelope (ADSR)
+    #[id = "envelope_attack"]
+    pub envelope_attack: FloatParam,
+
+    #[id = "envelope_decay"]
+    pub envelope_decay: FloatParam,
+
+    #[id = "envelope_sustain"]
+    pub envelope_sustain: FloatParam,
+
+    #[id = "envelope_release"]
+    pub envelope_release: FloatParam,
+
     // Effects - Reverb
     #[id = "reverb_room_size"]
     pub reverb_room_size: FloatParam,
@@ -811,6 +824,43 @@ impl Default for DSynthParams {
                 0.5,
                 FloatRange::Linear { min: 0.0, max: 1.0 },
             ),
+
+            // Envelope (ADSR)
+            envelope_attack: FloatParam::new(
+                "Envelope Attack",
+                0.01,
+                FloatRange::Skewed {
+                    min: 0.001,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-2.0),
+                },
+            )
+            .with_unit(" s"),
+            envelope_decay: FloatParam::new(
+                "Envelope Decay",
+                0.1,
+                FloatRange::Skewed {
+                    min: 0.001,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-2.0),
+                },
+            )
+            .with_unit(" s"),
+            envelope_sustain: FloatParam::new(
+                "Envelope Sustain",
+                0.7,
+                FloatRange::Linear { min: 0.0, max: 1.0 },
+            ),
+            envelope_release: FloatParam::new(
+                "Envelope Release",
+                0.2,
+                FloatRange::Skewed {
+                    min: 0.001,
+                    max: 5.0,
+                    factor: FloatRange::skew_factor(-2.0),
+                },
+            )
+            .with_unit(" s"),
 
             // Reverb
             reverb_room_size: FloatParam::new(

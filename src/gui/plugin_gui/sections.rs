@@ -1,4 +1,4 @@
-use super::{PluginGui, Message, OscStates, FilterStates, LfoStates, EffectsStates};
+use super::{PluginGui, Message, OscStates, FilterStates, LfoStates, EffectsStates, EnvelopeStates};
 use nih_plug_iced::widget;
 use crate::plugin::DSynthParams;
 
@@ -399,6 +399,39 @@ impl PluginGui {
                     .push(reverb)
                     .spacing(10)
             )
+            .spacing(5)
+            .padding(10)
+    }
+
+    pub(super) fn envelope_section<'a>(
+        params: &'a DSynthParams,
+        states: &'a mut EnvelopeStates,
+    ) -> widget::Column<'a, Message> {
+        use widget::*;
+        use super::helpers::param_row;
+
+        Column::new()
+            .push(Text::new("ENVELOPE (ADSR)").size(18))
+            .push(param_row(
+                "Attack",
+                &params.envelope_attack,
+                &mut states.attack,
+            ))
+            .push(param_row(
+                "Decay",
+                &params.envelope_decay,
+                &mut states.decay,
+            ))
+            .push(param_row(
+                "Sustain",
+                &params.envelope_sustain,
+                &mut states.sustain,
+            ))
+            .push(param_row(
+                "Release",
+                &params.envelope_release,
+                &mut states.release,
+            ))
             .spacing(5)
             .padding(10)
     }
