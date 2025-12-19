@@ -1,6 +1,8 @@
-use super::{PluginGui, Message, OscStates, FilterStates, LfoStates, EffectsStates, EnvelopeStates};
-use nih_plug_iced::widget;
+use super::{
+    EffectsStates, EnvelopeStates, FilterStates, LfoStates, Message, OscStates, PluginGui,
+};
 use crate::plugin::DSynthParams;
+use nih_plug_iced::widget;
 
 impl PluginGui {
     pub(super) fn osc1_section<'a>(
@@ -8,8 +10,8 @@ impl PluginGui {
         params: &'a DSynthParams,
         states: &'a mut OscStates,
     ) -> widget::Column<'a, Message> {
-        use widget::*;
         use super::helpers::param_row;
+        use widget::*;
 
         Column::new()
             .push(Text::new(title).size(16))
@@ -40,8 +42,8 @@ impl PluginGui {
         params: &'a DSynthParams,
         states: &'a mut OscStates,
     ) -> widget::Column<'a, Message> {
-        use widget::*;
         use super::helpers::param_row;
+        use widget::*;
 
         Column::new()
             .push(Text::new(title).size(16))
@@ -72,8 +74,8 @@ impl PluginGui {
         params: &'a DSynthParams,
         states: &'a mut OscStates,
     ) -> widget::Column<'a, Message> {
-        use widget::*;
         use super::helpers::param_row;
+        use widget::*;
 
         Column::new()
             .push(Text::new(title).size(16))
@@ -104,8 +106,8 @@ impl PluginGui {
         params: &'a DSynthParams,
         states: &'a mut FilterStates,
     ) -> widget::Column<'a, Message> {
-        use widget::*;
         use super::helpers::param_row;
+        use widget::*;
 
         Column::new()
             .push(Text::new(title).size(16))
@@ -124,7 +126,11 @@ impl PluginGui {
                 &params.filter1_resonance,
                 &mut states.resonance,
             ))
-            .push(param_row("Width", &params.filter1_bandwidth, &mut states.bandwidth))
+            .push(param_row(
+                "Width",
+                &params.filter1_bandwidth,
+                &mut states.bandwidth,
+            ))
             .push(param_row(
                 "KeyTrk",
                 &params.filter1_key_tracking,
@@ -139,8 +145,8 @@ impl PluginGui {
         params: &'a DSynthParams,
         states: &'a mut FilterStates,
     ) -> widget::Column<'a, Message> {
-        use widget::*;
         use super::helpers::param_row;
+        use widget::*;
 
         Column::new()
             .push(Text::new(title).size(16))
@@ -159,7 +165,11 @@ impl PluginGui {
                 &params.filter2_resonance,
                 &mut states.resonance,
             ))
-            .push(param_row("Width", &params.filter2_bandwidth, &mut states.bandwidth))
+            .push(param_row(
+                "Width",
+                &params.filter2_bandwidth,
+                &mut states.bandwidth,
+            ))
             .push(param_row(
                 "KeyTrk",
                 &params.filter2_key_tracking,
@@ -174,8 +184,8 @@ impl PluginGui {
         params: &'a DSynthParams,
         states: &'a mut FilterStates,
     ) -> widget::Column<'a, Message> {
-        use widget::*;
         use super::helpers::param_row;
+        use widget::*;
 
         Column::new()
             .push(Text::new(title).size(16))
@@ -194,7 +204,11 @@ impl PluginGui {
                 &params.filter3_resonance,
                 &mut states.resonance,
             ))
-            .push(param_row("Width", &params.filter3_bandwidth, &mut states.bandwidth))
+            .push(param_row(
+                "Width",
+                &params.filter3_bandwidth,
+                &mut states.bandwidth,
+            ))
             .push(param_row(
                 "KeyTrk",
                 &params.filter3_key_tracking,
@@ -209,8 +223,8 @@ impl PluginGui {
         params: &'a DSynthParams,
         states: &'a mut LfoStates,
     ) -> widget::Column<'a, Message> {
-        use widget::*;
         use super::helpers::param_row;
+        use widget::*;
 
         Column::new()
             .push(Text::new(title).size(16))
@@ -235,8 +249,8 @@ impl PluginGui {
         params: &'a DSynthParams,
         states: &'a mut LfoStates,
     ) -> widget::Column<'a, Message> {
-        use widget::*;
         use super::helpers::param_row;
+        use widget::*;
 
         Column::new()
             .push(Text::new(title).size(16))
@@ -261,8 +275,8 @@ impl PluginGui {
         params: &'a DSynthParams,
         states: &'a mut LfoStates,
     ) -> widget::Column<'a, Message> {
-        use widget::*;
         use super::helpers::param_row;
+        use widget::*;
 
         Column::new()
             .push(Text::new(title).size(16))
@@ -286,8 +300,8 @@ impl PluginGui {
         params: &'a DSynthParams,
         states: &'a mut EffectsStates,
     ) -> widget::Column<'a, Message> {
-        use widget::*;
         use super::helpers::param_row;
+        use widget::*;
 
         // Distortion controls
         let distortion = Column::new()
@@ -323,11 +337,7 @@ impl PluginGui {
                 &params.chorus_depth,
                 &mut states.chorus_depth,
             ))
-            .push(param_row(
-                "Mix",
-                &params.chorus_mix,
-                &mut states.chorus_mix,
-            ))
+            .push(param_row("Mix", &params.chorus_mix, &mut states.chorus_mix))
             .spacing(3)
             .padding(8);
 
@@ -344,16 +354,8 @@ impl PluginGui {
                 &params.delay_feedback,
                 &mut states.delay_feedback,
             ))
-            .push(param_row(
-                "Wet",
-                &params.delay_wet,
-                &mut states.delay_wet,
-            ))
-            .push(param_row(
-                "Dry",
-                &params.delay_dry,
-                &mut states.delay_dry,
-            ))
+            .push(param_row("Wet", &params.delay_wet, &mut states.delay_wet))
+            .push(param_row("Dry", &params.delay_dry, &mut states.delay_dry))
             .spacing(3)
             .padding(8);
 
@@ -370,16 +372,8 @@ impl PluginGui {
                 &params.reverb_damping,
                 &mut states.reverb_damping,
             ))
-            .push(param_row(
-                "Wet",
-                &params.reverb_wet,
-                &mut states.reverb_wet,
-            ))
-            .push(param_row(
-                "Dry",
-                &params.reverb_dry,
-                &mut states.reverb_dry,
-            ))
+            .push(param_row("Wet", &params.reverb_wet, &mut states.reverb_wet))
+            .push(param_row("Dry", &params.reverb_dry, &mut states.reverb_dry))
             .push(param_row(
                 "Width",
                 &params.reverb_width,
@@ -397,7 +391,7 @@ impl PluginGui {
                     .push(chorus)
                     .push(delay)
                     .push(reverb)
-                    .spacing(10)
+                    .spacing(10),
             )
             .spacing(5)
             .padding(10)
@@ -407,8 +401,8 @@ impl PluginGui {
         params: &'a DSynthParams,
         states: &'a mut EnvelopeStates,
     ) -> widget::Column<'a, Message> {
-        use widget::*;
         use super::helpers::param_row;
+        use widget::*;
 
         Column::new()
             .push(Text::new("ENVELOPE (ADSR)").size(18))
