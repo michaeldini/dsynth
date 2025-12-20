@@ -4,7 +4,7 @@ use std::fmt;
 #[cfg(feature = "vst")]
 use nih_plug::prelude::Enum;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "vst", derive(Enum))]
 pub enum Waveform {
     #[default]

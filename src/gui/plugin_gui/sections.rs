@@ -21,7 +21,7 @@ impl PluginGui {
                 &params.osc1_waveform,
                 &mut states.waveform,
             ))
-            .push(param_row("Solo", &params.osc1_solo, &mut states.solo))
+            .push(super::helpers::param_checkbox("Solo", &params.osc1_solo))
             .push(param_row("Pitch", &params.osc1_pitch, &mut states.pitch))
             .push(param_row("Detune", &params.osc1_detune, &mut states.detune))
             .push(param_row("Gain", &params.osc1_gain, &mut states.gain))
@@ -70,7 +70,7 @@ impl PluginGui {
                 &params.osc2_waveform,
                 &mut states.waveform,
             ))
-            .push(param_row("Solo", &params.osc2_solo, &mut states.solo))
+            .push(super::helpers::param_checkbox("Solo", &params.osc2_solo))
             .push(param_row("Pitch", &params.osc2_pitch, &mut states.pitch))
             .push(param_row("Detune", &params.osc2_detune, &mut states.detune))
             .push(param_row("Gain", &params.osc2_gain, &mut states.gain))
@@ -119,7 +119,7 @@ impl PluginGui {
                 &params.osc3_waveform,
                 &mut states.waveform,
             ))
-            .push(param_row("Solo", &params.osc3_solo, &mut states.solo))
+            .push(super::helpers::param_checkbox("Solo", &params.osc3_solo))
             .push(param_row("Pitch", &params.osc3_pitch, &mut states.pitch))
             .push(param_row("Detune", &params.osc3_detune, &mut states.detune))
             .push(param_row("Gain", &params.osc3_gain, &mut states.gain))

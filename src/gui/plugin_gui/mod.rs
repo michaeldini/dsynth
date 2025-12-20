@@ -21,7 +21,6 @@ pub(crate) fn create(
 #[derive(Default)]
 struct OscStates {
     waveform: nih_widgets::param_slider::State,
-    solo: nih_widgets::param_slider::State,
     pitch: nih_widgets::param_slider::State,
     detune: nih_widgets::param_slider::State,
     gain: nih_widgets::param_slider::State,
@@ -104,7 +103,6 @@ struct EffectsStates {
 #[derive(Default)]
 struct ParamStates {
     master_gain: nih_widgets::param_slider::State,
-    monophonic: nih_widgets::param_slider::State,
 
     osc1: OscStates,
     osc2: OscStates,
@@ -203,11 +201,7 @@ impl IcedEditor for PluginGui {
                 &params.master_gain,
                 &mut self.param_states.master_gain,
             ))
-            .push(helpers::param_row(
-                "Monophonic",
-                &params.monophonic,
-                &mut self.param_states.monophonic,
-            ))
+            .push(helpers::param_checkbox("Monophonic", &params.monophonic))
             .spacing(5)
             .padding(10);
 
