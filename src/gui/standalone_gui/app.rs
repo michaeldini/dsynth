@@ -19,6 +19,7 @@ pub struct SynthGui {
     event_sender: Option<Sender<EngineEvent>>,
     pressed_keys: HashSet<keyboard::Key>,
     preset_name: String,
+    osc_tabs: [OscTab; 3], // Active tab for each oscillator
 }
 
 impl SynthGui {
@@ -32,6 +33,7 @@ impl SynthGui {
             event_sender,
             pressed_keys: HashSet::new(),
             preset_name: String::from("My Preset"),
+            osc_tabs: [OscTab::Basic, OscTab::Basic, OscTab::Basic],
         }
     }
 
@@ -54,7 +56,19 @@ impl SynthGui {
                         OscillatorMessage::SoloToggled(s) => osc.solo = s,
                         OscillatorMessage::FmSourceChanged(src) => osc.fm_source = src,
                         OscillatorMessage::FmAmountChanged(amt) => osc.fm_amount = amt,
+                        OscillatorMessage::AdditiveHarmonicChanged(h_idx, amp) => {
+                            if h_idx < 8 {
+                                osc.additive_harmonics[h_idx] = amp;
+                            }
+                        }
                     }
+                }
+            }
+
+            // Oscillator tab changes
+            Message::OscTabChanged(idx, tab) => {
+                if idx < 3 {
+                    self.osc_tabs[idx] = tab;
                 }
             }
 
@@ -212,9 +226,9 @@ impl SynthGui {
         .spacing(10)
         .padding(10);
 
-        let osc1_section = sections::oscillator_controls(&self.params, 0, "Oscillator 1");
-        let osc2_section = sections::oscillator_controls(&self.params, 1, "Oscillator 2");
-        let osc3_section = sections::oscillator_controls(&self.params, 2, "Oscillator 3");
+        let osc1_section = sections::oscillator_controls(&self.params, 0, "Oscillator 1", self.osc_tabs[0]);
+        let osc2_section = sections::oscillator_controls(&self.params, 1, "Oscillator 2", self.osc_tabs[1]);
+        let osc3_section = sections::oscillator_controls(&self.params, 2, "Oscillator 3", self.osc_tabs[2]);
 
         let envelope_section = sections::envelope_controls(&self.params);
         let effects_section = sections::effects_controls(&self.params);

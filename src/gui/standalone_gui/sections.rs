@@ -4,9 +4,10 @@ use iced::{
     Element,
 };
 
+use super::additive_gui;
 use super::messages::{
     ChorusMessage, DelayMessage, DistortionMessage, EnvelopeMessage, FilterMessage, LFOMessage,
-    Message, OscillatorMessage, ReverbMessage,
+    Message, OscTab, OscillatorMessage, ReverbMessage,
 };
 
 /// Build oscillator controls UI section
@@ -14,6 +15,30 @@ pub fn oscillator_controls<'a>(
     params: &'a SynthParams,
     index: usize,
     label: &'a str,
+    active_tab: OscTab,
+) -> Element<'a, Message> {
+    let mut content = Column::new()
+        .push(text(label).size(20))
+        .push(additive_gui::oscillator_tab_buttons(index, active_tab))
+        .spacing(10);
+
+    // Render appropriate tab content
+    match active_tab {
+        OscTab::Basic => {
+            content = content.extend(vec![basic_oscillator_section(params, index)]);
+        }
+        OscTab::Harmonics => {
+            content = content.push(additive_gui::harmonics_tab_content(params, index));
+        }
+    }
+
+    content.into()
+}
+
+/// Render the basic oscillator section (existing controls)
+fn basic_oscillator_section<'a>(
+    params: &'a SynthParams,
+    index: usize,
 ) -> Element<'a, Message> {
     let osc = &params.oscillators[index];
     let filter = &params.filters[index];
@@ -27,6 +52,7 @@ pub fn oscillator_controls<'a>(
         Waveform::Pulse,
         Waveform::WhiteNoise,
         Waveform::PinkNoise,
+        Waveform::Additive,
     ];
 
     let filter_types = vec![
@@ -43,7 +69,6 @@ pub fn oscillator_controls<'a>(
     ];
 
     Column::new()
-        .push(text(label).size(20))
         // Solo button
         .push(
             iced::widget::button(if osc.solo {

@@ -1,3 +1,4 @@
+pub mod additive_gui;
 pub mod app;
 pub mod keyboard;
 pub mod messages;

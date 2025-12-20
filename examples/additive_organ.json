@@ -1,0 +1,171 @@
+{
+    "name": "Additive Organ",
+    "params": {
+        "master_gain": 0.8,
+        "monophonic": false,
+        "oscillators": [
+            {
+                "waveform": "Additive",
+                "pitch": 0.0,
+                "detune": 0.0,
+                "gain": 0.4,
+                "pan": 0.0,
+                "unison": 1,
+                "unison_detune": 10.0,
+                "phase": 0.0,
+                "shape": 0.0,
+                "solo": false,
+                "fm_source": null,
+                "fm_amount": 0.0,
+                "additive_harmonics": [
+                    1.0,
+                    0.0,
+                    0.5,
+                    0.0,
+                    0.3,
+                    0.0,
+                    0.2,
+                    0.0
+                ]
+            },
+            {
+                "waveform": "Additive",
+                "pitch": 12.0,
+                "detune": 0.0,
+                "gain": 0.2,
+                "pan": 0.0,
+                "unison": 1,
+                "unison_detune": 10.0,
+                "phase": 0.0,
+                "shape": 0.0,
+                "solo": false,
+                "fm_source": null,
+                "fm_amount": 0.0,
+                "additive_harmonics": [
+                    1.0,
+                    0.0,
+                    0.5,
+                    0.0,
+                    0.3,
+                    0.0,
+                    0.2,
+                    0.0
+                ]
+            },
+            {
+                "waveform": "Sine",
+                "pitch": 0.0,
+                "detune": 0.0,
+                "gain": 0.0,
+                "pan": 0.0,
+                "unison": 1,
+                "unison_detune": 10.0,
+                "phase": 0.0,
+                "shape": 0.0,
+                "solo": false,
+                "fm_source": null,
+                "fm_amount": 0.0,
+                "additive_harmonics": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                ]
+            }
+        ],
+        "filters": [
+            {
+                "filter_type": "Lowpass",
+                "cutoff": 8000.0,
+                "resonance": 1.0,
+                "bandwidth": 1.0,
+                "key_tracking": 0.0
+            },
+            {
+                "filter_type": "Lowpass",
+                "cutoff": 8000.0,
+                "resonance": 1.0,
+                "bandwidth": 1.0,
+                "key_tracking": 0.0
+            },
+            {
+                "filter_type": "Lowpass",
+                "cutoff": 8000.0,
+                "resonance": 1.0,
+                "bandwidth": 1.0,
+                "key_tracking": 0.0
+            }
+        ],
+        "lfos": [
+            {
+                "waveform": "Sine",
+                "rate": 5.0,
+                "depth": 0.0,
+                "filter_amount": 0.0,
+                "pitch_amount": 0.0,
+                "gain_amount": 0.0,
+                "pan_amount": 0.0,
+                "pwm_amount": 0.0
+            },
+            {
+                "waveform": "Sine",
+                "rate": 5.0,
+                "depth": 0.0,
+                "filter_amount": 0.0,
+                "pitch_amount": 0.0,
+                "gain_amount": 0.0,
+                "pan_amount": 0.0,
+                "pwm_amount": 0.0
+            },
+            {
+                "waveform": "Sine",
+                "rate": 5.0,
+                "depth": 0.0,
+                "filter_amount": 0.0,
+                "pitch_amount": 0.0,
+                "gain_amount": 0.0,
+                "pan_amount": 0.0,
+                "pwm_amount": 0.0
+            }
+        ],
+        "envelope": {
+            "attack": 0.01,
+            "decay": 0.1,
+            "sustain": 0.7,
+            "release": 0.3
+        },
+        "velocity": {
+            "amp_sensitivity": 0.5,
+            "filter_sensitivity": 0.3
+        },
+        "effects": {
+            "reverb": {
+                "room_size": 0.3,
+                "damping": 0.5,
+                "wet": 0.2,
+                "dry": 0.8,
+                "width": 0.5
+            },
+            "delay": {
+                "time": 0.25,
+                "feedback": 0.3,
+                "wet": 0.1,
+                "dry": 0.9
+            },
+            "chorus": {
+                "rate": 1.5,
+                "depth": 0.3,
+                "mix": 0.2
+            },
+            "distortion": {
+                "drive": 1.0,
+                "mix": 0.0,
+                "distortion_type": "Soft"
+            }
+        }
+    }
+}

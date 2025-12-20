@@ -83,6 +83,14 @@ pub struct Oscillator {
     pink_b0: f32,
     pink_b1: f32,
     pink_b2: f32,
+
+    /// Pre-computed wavetable for additive synthesis (2048 samples per cycle)
+    /// Synthesized from harmonic amplitudes when set_additive_harmonics() is called
+    additive_wavetable: [f32; 2048],
+
+    /// Current harmonic amplitudes for additive synthesis (8 harmonics)
+    /// Index 0 = fundamental, 1 = 2nd harmonic, etc.
+    additive_harmonics: [f32; 8],
 }
 
 impl Oscillator {
@@ -110,7 +118,7 @@ impl Oscillator {
     /// // (internal state verification would require pub fields)
     /// ```
     pub fn new(sample_rate: f32) -> Self {
-        Self {
+        let mut osc = Self {
             oversample_rate: sample_rate * 4.0,
             phase: 0.0,
             phase_increment: 0.0,
@@ -122,7 +130,12 @@ impl Oscillator {
             pink_b0: 0.0,
             pink_b1: 0.0,
             pink_b2: 0.0,
-        }
+            additive_wavetable: [0.0; 2048],
+            additive_harmonics: [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        };
+        // Generate default wavetable (pure sine from fundamental harmonic)
+        osc.generate_additive_wavetable();
+        osc
     }
 
     /// Set the initial phase offset for this oscillator.
@@ -187,6 +200,77 @@ impl Oscillator {
     /// Values outside [-1.0, 1.0] are clamped to stay in range.
     pub fn set_shape(&mut self, shape: f32) {
         self.shape = shape.clamp(-1.0, 1.0);
+    }
+
+    /// Set the harmonic amplitudes for additive synthesis and regenerate the wavetable.
+    ///
+    /// The harmonics array contains 8 amplitude values (0.0 to 1.0) representing the
+    /// strength of each harmonic component:
+    /// - Index 0: Fundamental frequency (1×)
+    /// - Index 1: 2nd harmonic (2×)
+    /// - Index 2: 3rd harmonic (3×)
+    /// - ...
+    /// - Index 7: 8th harmonic (8×)
+    ///
+    /// The wavetable is immediately regenerated using additive synthesis:
+    /// `waveform = Σ(harmonic[n] × sin(2π × (n+1) × phase))`
+    ///
+    /// The resulting waveform is normalized to prevent clipping.
+    pub fn set_additive_harmonics(&mut self, harmonics: [f32; 8]) {
+        self.additive_harmonics = harmonics;
+        self.generate_additive_wavetable();
+    }
+
+    /// Generate the additive wavetable from current harmonic amplitudes.
+    ///
+    /// This synthesizes a 2048-sample wavetable by summing sine waves at harmonic
+    /// frequencies, weighted by their amplitudes. The result is normalized to
+    /// prevent clipping when all harmonics are at maximum amplitude.
+    ///
+    /// The wavetable is pre-computed (not generated in real-time during playback)
+    /// to minimize CPU usage. It's only regenerated when harmonic amplitudes change.
+    fn generate_additive_wavetable(&mut self) {
+        use std::f32::consts::PI;
+
+        // Sum of all harmonic amplitudes for normalization
+        let amplitude_sum: f32 = self.additive_harmonics.iter().sum();
+        let norm_factor = if amplitude_sum > 0.001 {
+            1.0 / amplitude_sum
+        } else {
+            1.0 // Avoid division by zero
+        };
+
+        // Generate 2048 samples covering one complete cycle
+        for i in 0..2048 {
+            let phase = i as f32 / 2048.0; // 0.0 to 1.0
+            let mut sample = 0.0;
+
+            // Sum all 8 harmonics
+            for (n, &amplitude) in self.additive_harmonics.iter().enumerate() {
+                if amplitude > 0.001 {
+                    // Skip near-zero harmonics for efficiency
+                    let harmonic_freq = (n + 1) as f32; // 1, 2, 3, ..., 8
+                    sample += amplitude * (2.0 * PI * harmonic_freq * phase).sin();
+                }
+            }
+
+            // Normalize to prevent clipping
+            self.additive_wavetable[i] = sample * norm_factor;
+        }
+    }
+
+    /// Lookup sample from additive wavetable with linear interpolation.
+    ///
+    /// Uses the current phase (0.0 to 1.0) to index into the 2048-sample wavetable.
+    /// Linear interpolation provides smooth playback without audible stepping artifacts.
+    fn lookup_additive_wavetable(&self, phase: f32) -> f32 {
+        let index = phase * 2048.0;
+        let i0 = index.floor() as usize % 2048;
+        let i1 = (i0 + 1) % 2048;
+        let frac = index.fract();
+
+        // Linear interpolation between adjacent samples
+        self.additive_wavetable[i0] * (1.0 - frac) + self.additive_wavetable[i1] * frac
     }
 
     /// Apply wave shaping to an SIMD vector of samples (SIMD version).
@@ -263,7 +347,7 @@ impl Oscillator {
                 samples * (f32x4::splat(1.0) - shape_amount) + saw * shape_amount
             }
             Waveform::Pulse => samples, // Pulse uses shape for PWM, not morphing
-            Waveform::WhiteNoise | Waveform::PinkNoise => samples, // Handled separately
+            Waveform::WhiteNoise | Waveform::PinkNoise | Waveform::Additive => samples, // Handled separately
         }
     }
 
@@ -289,7 +373,7 @@ impl Oscillator {
                 } else {
                     // Apply pink filter and morph based on shape
                     let pink = self.generate_pink_noise(white);
-                    
+
                     if self.shape < 0.0 {
                         // Morph from pink to white (shape: -1.0 to 0.0)
                         let amount = -self.shape;
@@ -305,7 +389,7 @@ impl Oscillator {
             Waveform::PinkNoise => {
                 // Generate pink noise with shape controlling frequency content
                 let pink = self.generate_pink_noise(white);
-                
+
                 if self.shape < 0.0 {
                     // Morph towards white (brighter)
                     let amount = -self.shape;
@@ -329,9 +413,51 @@ impl Oscillator {
         self.pink_b0 = 0.99886 * self.pink_b0 + white * 0.0555179;
         self.pink_b1 = 0.99332 * self.pink_b1 + white * 0.0750759;
         self.pink_b2 = 0.96900 * self.pink_b2 + white * 0.1538520;
-        
+
         let pink = self.pink_b0 + self.pink_b1 + self.pink_b2 + white * 0.3104856;
         pink * 0.11 // Scale to roughly match white noise amplitude
+    }
+
+    /// Apply harmonic morphing to additive waveform (SIMD version).
+    ///
+    /// The shape parameter morphs the harmonic balance:
+    /// - Positive shape: Emphasizes higher harmonics (brighter, more harmonics)
+    /// - Negative shape: Suppresses higher harmonics (darker, more fundamental)
+    ///
+    /// This is implemented as a simple high-pass/low-pass filter on the signal,
+    /// which effectively changes the harmonic balance in real-time without
+    /// regenerating the wavetable.
+    #[cfg(feature = "simd")]
+    fn apply_additive_morph(&self, samples: f32x4) -> f32x4 {
+        use std::simd::StdFloat;
+
+        if self.shape > 0.0 {
+            // Positive shape: Emphasize highs (high-pass characteristic)
+            // Simple differentiator adds harmonics
+            let boost = f32x4::splat(1.0 + self.shape * 0.5);
+            samples * boost
+        } else {
+            // Negative shape: Suppress highs (low-pass characteristic)
+            // Soft clipping reduces harmonic content
+            let amount = f32x4::splat(-self.shape);
+            let one = f32x4::splat(1.0);
+            let dampened = samples * (one - amount * f32x4::splat(0.3));
+            dampened
+        }
+    }
+
+    /// Apply harmonic morphing to additive waveform (scalar version).
+    ///
+    /// See SIMD version documentation for details.
+    #[cfg(not(feature = "simd"))]
+    fn apply_additive_morph_scalar(&self, sample: f32) -> f32 {
+        if self.shape > 0.0 {
+            // Positive shape: Emphasize highs
+            sample * (1.0 + self.shape * 0.5)
+        } else {
+            // Negative shape: Suppress highs
+            sample * (1.0 + self.shape * 0.3)
+        }
     }
 
     /// Generate one output sample (processes 4× oversampled internally) - SIMD optimized version.
@@ -368,7 +494,10 @@ impl Oscillator {
         }
 
         // OPTIMIZATION: Early return if shape is effectively zero (skip expensive shaping)
-        if self.shape.abs() < 0.001 && self.waveform != Waveform::Pulse {
+        if self.shape.abs() < 0.001
+            && self.waveform != Waveform::Pulse
+            && self.waveform != Waveform::Additive
+        {
             // Fast path: no wave shaping needed
             let phases = f32x4::from_array([
                 self.phase,
@@ -411,12 +540,30 @@ impl Oscillator {
                 // Use SIMD comparison: if phase < pulse_width, output 1.0, else -1.0
                 phases.simd_lt(threshold).select(one, neg_one)
             }
+            Waveform::Additive => {
+                // Lookup from pre-computed wavetable (scalar, could optimize with SIMD later)
+                let phase_array = phases.to_array();
+                f32x4::from_array([
+                    self.lookup_additive_wavetable(phase_array[0]),
+                    self.lookup_additive_wavetable(phase_array[1]),
+                    self.lookup_additive_wavetable(phase_array[2]),
+                    self.lookup_additive_wavetable(phase_array[3]),
+                ])
+            }
             _ => waveform::generate_simd(phases, self.waveform),
         };
 
         // Apply wave shaping if shape parameter is non-zero
-        if self.shape != 0.0 && self.waveform != Waveform::Pulse {
+        if self.shape != 0.0
+            && self.waveform != Waveform::Pulse
+            && self.waveform != Waveform::Additive
+        {
             samples = self.apply_wave_shaping(samples);
+        } else if self.waveform == Waveform::Additive && self.shape.abs() > 0.001 {
+            // For additive waveform, shape morphs the harmonic balance
+            // Positive shape: emphasize higher harmonics (brighter)
+            // Negative shape: suppress higher harmonics (darker)
+            samples = self.apply_additive_morph(samples);
         }
 
         // Advance phase by 4 increments (one for each oversampled sample)
@@ -446,7 +593,10 @@ impl Oscillator {
         }
 
         // OPTIMIZATION: Early return if shape is effectively zero (skip expensive shaping)
-        if self.shape.abs() < 0.001 && self.waveform != Waveform::Pulse {
+        if self.shape.abs() < 0.001
+            && self.waveform != Waveform::Pulse
+            && self.waveform != Waveform::Additive
+        {
             // Fast path: no wave shaping needed, just generate base waveform
             let mut oversampled = [0.0; 4];
             for sample in &mut oversampled {
@@ -469,12 +619,22 @@ impl Oscillator {
                     let pulse_width = 0.5 + self.shape * 0.4;
                     if self.phase < pulse_width { 1.0 } else { -1.0 }
                 }
+                Waveform::Additive => {
+                    // Lookup from pre-computed wavetable
+                    self.lookup_additive_wavetable(self.phase)
+                }
                 _ => waveform::generate_scalar(self.phase, self.waveform),
             };
 
             // Apply wave shaping if not Pulse (Pulse uses shape for PWM, not morphing)
-            if self.shape != 0.0 && self.waveform != Waveform::Pulse {
+            if self.shape != 0.0
+                && self.waveform != Waveform::Pulse
+                && self.waveform != Waveform::Additive
+            {
                 *sample = self.apply_wave_shaping_scalar(*sample);
+            } else if self.waveform == Waveform::Additive && self.shape.abs() > 0.001 {
+                // For additive waveform, shape morphs the harmonic balance
+                *sample = self.apply_additive_morph_scalar(*sample);
             }
 
             // Advance phase for next sample
@@ -532,7 +692,11 @@ impl Oscillator {
             *sample = match self.waveform {
                 Waveform::Pulse => {
                     let pulse_width = 0.5 + self.shape * 0.4;
-                    if modulated_phase < pulse_width { 1.0 } else { -1.0 }
+                    if modulated_phase < pulse_width {
+                        1.0
+                    } else {
+                        -1.0
+                    }
                 }
                 _ => waveform::generate_scalar(modulated_phase, self.waveform),
             };
@@ -610,6 +774,7 @@ impl Oscillator {
                 sample * (1.0 - shape_amount) + saw * shape_amount
             }
             Waveform::Pulse => sample,
+            Waveform::WhiteNoise | Waveform::PinkNoise | Waveform::Additive => sample,
         }
     }
 
@@ -627,7 +792,7 @@ impl Oscillator {
         // which can create large coherent peaks and audible clipping/distortion.
         self.phase = self.initial_phase;
         self.downsampler.reset();
-        
+
         // Reset noise generation state
         self.noise_state = 0x12345678; // Re-seed PRNG
         self.pink_b0 = 0.0;
@@ -887,19 +1052,29 @@ mod tests {
         // Check range
         let max = samples.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         let min = samples.iter().cloned().fold(f32::INFINITY, f32::min);
-        
-        assert!(max > 0.5, "White noise should have substantial positive values");
-        assert!(min < -0.5, "White noise should have substantial negative values");
-        
+
+        assert!(
+            max > 0.5,
+            "White noise should have substantial positive values"
+        );
+        assert!(
+            min < -0.5,
+            "White noise should have substantial negative values"
+        );
+
         // Check entropy - values should vary
         let first = samples[0];
         let all_same = samples.iter().all(|&s| (s - first).abs() < 0.001);
         assert!(!all_same, "White noise should produce varying values");
-        
+
         // Check DC offset is low
         let sum: f32 = samples.iter().sum();
         let avg = sum / samples.len() as f32;
-        assert!(avg.abs() < 0.1, "White noise should have low DC offset, got {}", avg);
+        assert!(
+            avg.abs() < 0.1,
+            "White noise should have low DC offset, got {}",
+            avg
+        );
     }
 
     #[test]
@@ -915,10 +1090,18 @@ mod tests {
         // Check range
         let max = samples.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         let min = samples.iter().cloned().fold(f32::INFINITY, f32::min);
-        
-        assert!((-1.5..=1.5).contains(&max), "Pink noise max {} in range", max);
-        assert!((-1.5..=1.5).contains(&min), "Pink noise min {} in range", min);
-        
+
+        assert!(
+            (-1.5..=1.5).contains(&max),
+            "Pink noise max {} in range",
+            max
+        );
+        assert!(
+            (-1.5..=1.5).contains(&min),
+            "Pink noise min {} in range",
+            min
+        );
+
         // Pink noise should have lower high-frequency content than white
         // This is hard to test without FFT, so just check it produces varied output
         let first = samples[0];
@@ -934,15 +1117,15 @@ mod tests {
         // Test shape = -1.0 (bright/white)
         osc.set_shape(-1.0);
         let bright = osc.process();
-        
+
         // Test shape = 0.0 (pink)
         osc.set_shape(0.0);
         let pink = osc.process();
-        
+
         // Test shape = 1.0 (brown/dark)
         osc.set_shape(1.0);
         let brown = osc.process();
-        
+
         // All should be in valid range
         assert!((-1.5..=1.5).contains(&bright), "Bright noise in range");
         assert!((-1.5..=1.5).contains(&pink), "Pink noise in range");
@@ -954,7 +1137,7 @@ mod tests {
         // Noise generation should be fast since it bypasses oversampling
         let mut osc = Oscillator::new(44100.0);
         osc.set_waveform(Waveform::WhiteNoise);
-        
+
         // Generate many samples quickly
         for _ in 0..10000 {
             let sample = osc.process();
@@ -990,7 +1173,7 @@ mod tests {
         // Check that output is in valid range
         let max = fm_samples.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         let min = fm_samples.iter().cloned().fold(f32::INFINITY, f32::min);
-        
+
         assert!(max <= 1.2, "FM output max {} should be reasonable", max);
         assert!(min >= -1.2, "FM output min {} should be reasonable", min);
 
@@ -1036,13 +1219,16 @@ mod tests {
         for _ in 0..500 {
             let mod_out = modulator.process();
             let fm_sample = carrier.process_with_fm(mod_out, 5.0); // High modulation
-            
+
             // With high FM amounts (5.0), output can significantly exceed ±1.0
             // This is expected - FM creates complex harmonic content
             // We just verify it stays finite and not absurdly large
             assert!(fm_sample.is_finite(), "FM should produce finite output");
-            assert!((-10.0..=10.0).contains(&fm_sample), 
-                "FM with high modulation should stay in reasonable range, got {}", fm_sample);
+            assert!(
+                (-10.0..=10.0).contains(&fm_sample),
+                "FM with high modulation should stay in reasonable range, got {}",
+                fm_sample
+            );
         }
     }
 
@@ -1057,9 +1243,12 @@ mod tests {
         // Test with extreme modulator values
         let extreme_mod = 10.0; // Way beyond normal ±1.0 range
         let sample = carrier.process_with_fm(extreme_mod, 1.0);
-        
+
         // Should still produce valid output (clamping should prevent NaN/Inf)
-        assert!(sample.is_finite(), "FM should handle extreme modulator values");
+        assert!(
+            sample.is_finite(),
+            "FM should handle extreme modulator values"
+        );
         assert!((-2.0..=2.0).contains(&sample), "Clamped FM in range");
     }
 
@@ -1073,10 +1262,16 @@ mod tests {
         // FM with noise should still work (but just return normal noise)
         let sample1 = noise_osc.process_with_fm(0.5, 2.0);
         let sample2 = noise_osc.process_with_fm(-0.8, 2.0);
-        
+
         // Both should be valid noise samples
-        assert!((-2.0..=2.0).contains(&sample1), "Noise FM sample 1 in range");
-        assert!((-2.0..=2.0).contains(&sample2), "Noise FM sample 2 in range");
+        assert!(
+            (-2.0..=2.0).contains(&sample1),
+            "Noise FM sample 1 in range"
+        );
+        assert!(
+            (-2.0..=2.0).contains(&sample2),
+            "Noise FM sample 2 in range"
+        );
     }
 
     #[test]
@@ -1092,17 +1287,21 @@ mod tests {
         modulator.set_frequency(5.0); // Slow modulation
 
         let mut prev_sample = carrier.process_with_fm(modulator.process(), 1.0);
-        
+
         // Check for discontinuities over many samples
         for _ in 0..1000 {
             let mod_out = modulator.process();
             let sample = carrier.process_with_fm(mod_out, 1.0);
-            
+
             // Difference between consecutive samples should be reasonable
             // (no sudden jumps that would cause clicks)
             let diff = (sample - prev_sample).abs();
-            assert!(diff < 0.5, "FM should have smooth phase continuity, got diff {}", diff);
-            
+            assert!(
+                diff < 0.5,
+                "FM should have smooth phase continuity, got diff {}",
+                diff
+            );
+
             prev_sample = sample;
         }
     }

@@ -32,6 +32,15 @@ struct OscStates {
     shape: nih_widgets::param_slider::State,
     fm_source: nih_widgets::param_slider::State,
     fm_amount: nih_widgets::param_slider::State,
+    // Additive harmonics
+    h1: nih_widgets::param_slider::State,
+    h2: nih_widgets::param_slider::State,
+    h3: nih_widgets::param_slider::State,
+    h4: nih_widgets::param_slider::State,
+    h5: nih_widgets::param_slider::State,
+    h6: nih_widgets::param_slider::State,
+    h7: nih_widgets::param_slider::State,
+    h8: nih_widgets::param_slider::State,
 }
 
 #[derive(Default)]

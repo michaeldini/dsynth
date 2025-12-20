@@ -31,6 +31,16 @@ impl DSynthPlugin {
                         if source < 0 { None } else { Some(source as usize) }
                     },
                     fm_amount: p.osc1_fm_amount.value(),
+                    additive_harmonics: [
+                        p.osc1_h1.value(),
+                        p.osc1_h2.value(),
+                        p.osc1_h3.value(),
+                        p.osc1_h4.value(),
+                        p.osc1_h5.value(),
+                        p.osc1_h6.value(),
+                        p.osc1_h7.value(),
+                        p.osc1_h8.value(),
+                    ],
                 },
                 OscillatorParams {
                     waveform: p.osc2_waveform.value(),
@@ -48,6 +58,16 @@ impl DSynthPlugin {
                         if source < 0 { None } else { Some(source as usize) }
                     },
                     fm_amount: p.osc2_fm_amount.value(),
+                    additive_harmonics: [
+                        p.osc2_h1.value(),
+                        p.osc2_h2.value(),
+                        p.osc2_h3.value(),
+                        p.osc2_h4.value(),
+                        p.osc2_h5.value(),
+                        p.osc2_h6.value(),
+                        p.osc2_h7.value(),
+                        p.osc2_h8.value(),
+                    ],
                 },
                 OscillatorParams {
                     waveform: p.osc3_waveform.value(),
@@ -65,6 +85,16 @@ impl DSynthPlugin {
                         if source < 0 { None } else { Some(source as usize) }
                     },
                     fm_amount: p.osc3_fm_amount.value(),
+                    additive_harmonics: [
+                        p.osc3_h1.value(),
+                        p.osc3_h2.value(),
+                        p.osc3_h3.value(),
+                        p.osc3_h4.value(),
+                        p.osc3_h5.value(),
+                        p.osc3_h6.value(),
+                        p.osc3_h7.value(),
+                        p.osc3_h8.value(),
+                    ],
                 },
             ],
 

@@ -61,6 +61,11 @@ pub fn generate_scalar(phase: f32, waveform: Waveform) -> f32 {
             // This path shouldn't be called for noise waveforms
             0.0
         }
+        Waveform::Additive => {
+            // Additive synthesis uses wavetable lookup, handled by oscillator
+            // This path shouldn't be called for additive waveforms
+            0.0
+        }
     }
 }
 
@@ -101,6 +106,11 @@ pub fn generate_simd(phases: f32x4, waveform: Waveform) -> f32x4 {
         Waveform::WhiteNoise | Waveform::PinkNoise => {
             // Noise generation requires stateful PRNG, handled by oscillator
             // This path shouldn't be called for noise waveforms
+            f32x4::splat(0.0)
+        }
+        Waveform::Additive => {
+            // Additive synthesis uses wavetable lookup, handled by oscillator
+            // This path shouldn't be called for additive waveforms
             f32x4::splat(0.0)
         }
     }
@@ -192,7 +202,7 @@ mod tests {
         for _ in 0..100 {
             values.push(xorshift32(&mut state));
         }
-        
+
         // Check that values are not all the same
         let first = values[0];
         let all_same = values.iter().all(|&v| v == first);
@@ -206,11 +216,7 @@ mod tests {
         for _ in 0..1000 {
             let u = xorshift32(&mut state);
             let f = u32_to_f32_bipolar(u);
-            assert!(
-                (-1.0..=1.0).contains(&f),
-                "Noise value out of range: {}",
-                f
-            );
+            assert!((-1.0..=1.0).contains(&f), "Noise value out of range: {}", f);
         }
     }
 
@@ -220,8 +226,9 @@ mod tests {
         // 0 should map to -1.0
         let min = u32_to_f32_bipolar(0);
         assert!((min - (-1.0)).abs() < 0.01, "Min should be near -1.0");
-        
+
         // u32::MAX should map to ~1.0
         let max = u32_to_f32_bipolar(u32::MAX);
         assert!((max - 1.0).abs() < 0.01, "Max should be near 1.0");
-    }}
+    }
+}

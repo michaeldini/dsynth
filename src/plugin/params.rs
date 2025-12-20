@@ -50,6 +50,24 @@ pub struct DSynthParams {
     #[id = "osc1_fm_amount"]
     pub osc1_fm_amount: FloatParam,
 
+    // Oscillator 1 additive harmonics
+    #[id = "osc1_h1"]
+    pub osc1_h1: FloatParam,
+    #[id = "osc1_h2"]
+    pub osc1_h2: FloatParam,
+    #[id = "osc1_h3"]
+    pub osc1_h3: FloatParam,
+    #[id = "osc1_h4"]
+    pub osc1_h4: FloatParam,
+    #[id = "osc1_h5"]
+    pub osc1_h5: FloatParam,
+    #[id = "osc1_h6"]
+    pub osc1_h6: FloatParam,
+    #[id = "osc1_h7"]
+    pub osc1_h7: FloatParam,
+    #[id = "osc1_h8"]
+    pub osc1_h8: FloatParam,
+
     // Oscillator 2 parameters
     #[id = "osc2_waveform"]
     pub osc2_waveform: EnumParam<Waveform>,
@@ -87,6 +105,24 @@ pub struct DSynthParams {
     #[id = "osc2_fm_amount"]
     pub osc2_fm_amount: FloatParam,
 
+    // Oscillator 2 additive harmonics
+    #[id = "osc2_h1"]
+    pub osc2_h1: FloatParam,
+    #[id = "osc2_h2"]
+    pub osc2_h2: FloatParam,
+    #[id = "osc2_h3"]
+    pub osc2_h3: FloatParam,
+    #[id = "osc2_h4"]
+    pub osc2_h4: FloatParam,
+    #[id = "osc2_h5"]
+    pub osc2_h5: FloatParam,
+    #[id = "osc2_h6"]
+    pub osc2_h6: FloatParam,
+    #[id = "osc2_h7"]
+    pub osc2_h7: FloatParam,
+    #[id = "osc2_h8"]
+    pub osc2_h8: FloatParam,
+
     // Oscillator 3 parameters
     #[id = "osc3_waveform"]
     pub osc3_waveform: EnumParam<Waveform>,
@@ -123,6 +159,24 @@ pub struct DSynthParams {
 
     #[id = "osc3_fm_amount"]
     pub osc3_fm_amount: FloatParam,
+
+    // Oscillator 3 additive harmonics
+    #[id = "osc3_h1"]
+    pub osc3_h1: FloatParam,
+    #[id = "osc3_h2"]
+    pub osc3_h2: FloatParam,
+    #[id = "osc3_h3"]
+    pub osc3_h3: FloatParam,
+    #[id = "osc3_h4"]
+    pub osc3_h4: FloatParam,
+    #[id = "osc3_h5"]
+    pub osc3_h5: FloatParam,
+    #[id = "osc3_h6"]
+    pub osc3_h6: FloatParam,
+    #[id = "osc3_h7"]
+    pub osc3_h7: FloatParam,
+    #[id = "osc3_h8"]
+    pub osc3_h8: FloatParam,
 
     // Filter 1 parameters
     #[id = "filter1_type"]
@@ -450,6 +504,16 @@ impl Default for DSynthParams {
                 },
             ),
 
+            // Oscillator 1 Additive Harmonics
+            osc1_h1: FloatParam::new("Osc 1 H1", 1.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc1_h2: FloatParam::new("Osc 1 H2", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc1_h3: FloatParam::new("Osc 1 H3", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc1_h4: FloatParam::new("Osc 1 H4", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc1_h5: FloatParam::new("Osc 1 H5", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc1_h6: FloatParam::new("Osc 1 H6", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc1_h7: FloatParam::new("Osc 1 H7", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc1_h8: FloatParam::new("Osc 1 H8", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+
             // Oscillator 2
             osc2_waveform: EnumParam::new("Osc 2 Wave", Waveform::Saw),
             osc2_solo: BoolParam::new("Osc 2 Solo", false),
@@ -521,6 +585,16 @@ impl Default for DSynthParams {
                 },
             ),
 
+            // Oscillator 2 Additive Harmonics
+            osc2_h1: FloatParam::new("Osc 2 H1", 1.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc2_h2: FloatParam::new("Osc 2 H2", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc2_h3: FloatParam::new("Osc 2 H3", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc2_h4: FloatParam::new("Osc 2 H4", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc2_h5: FloatParam::new("Osc 2 H5", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc2_h6: FloatParam::new("Osc 2 H6", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc2_h7: FloatParam::new("Osc 2 H7", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc2_h8: FloatParam::new("Osc 2 H8", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+
             // Oscillator 3
             osc3_waveform: EnumParam::new("Osc 3 Wave", Waveform::Square),
             osc3_solo: BoolParam::new("Osc 3 Solo", false),
@@ -591,6 +665,16 @@ impl Default for DSynthParams {
                     max: 10.0,
                 },
             ),
+
+            // Oscillator 3 Additive Harmonics
+            osc3_h1: FloatParam::new("Osc 3 H1", 1.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc3_h2: FloatParam::new("Osc 3 H2", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc3_h3: FloatParam::new("Osc 3 H3", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc3_h4: FloatParam::new("Osc 3 H4", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc3_h5: FloatParam::new("Osc 3 H5", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc3_h6: FloatParam::new("Osc 3 H6", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc3_h7: FloatParam::new("Osc 3 H7", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
+            osc3_h8: FloatParam::new("Osc 3 H8", 0.0, FloatRange::Linear { min: 0.0, max: 1.0 }),
 
             // Filter 1
             filter1_type: EnumParam::new("Filter 1 Type", FilterType::Lowpass),

@@ -15,6 +15,7 @@ pub enum Waveform {
     Pulse,
     WhiteNoise,
     PinkNoise,
+    Additive,
 }
 
 impl fmt::Display for Waveform {
@@ -27,6 +28,7 @@ impl fmt::Display for Waveform {
             Waveform::Pulse => write!(f, "Pulse"),
             Waveform::WhiteNoise => write!(f, "White Noise"),
             Waveform::PinkNoise => write!(f, "Pink Noise"),
+            Waveform::Additive => write!(f, "Additive"),
         }
     }
 }
@@ -66,6 +68,8 @@ pub struct OscillatorParams {
     pub fm_source: Option<usize>, // FM source oscillator index (0-2), None = no FM
     #[serde(default)]
     pub fm_amount: f32, // FM modulation depth (0.0 to 10.0)
+    #[serde(default)]
+    pub additive_harmonics: [f32; 8], // Harmonic amplitudes for additive synthesis (0.0 to 1.0)
 }
 
 impl Default for OscillatorParams {
@@ -83,6 +87,7 @@ impl Default for OscillatorParams {
             phase: 0.0,
             shape: 0.0,
             solo: false,
+            additive_harmonics: [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], // Default: fundamental only
         }
     }
 }

@@ -2,6 +2,12 @@ use crate::params::{DistortionType, FilterType, LFOWaveform, Waveform};
 use iced::keyboard;
 
 /// Hierarchical message types to reduce boilerplate
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum OscTab {
+    Basic,
+    Harmonics,
+}
+
 #[derive(Debug, Clone)]
 pub enum OscillatorMessage {
     WaveformChanged(Waveform),
@@ -16,6 +22,7 @@ pub enum OscillatorMessage {
     SoloToggled(bool),
     FmSourceChanged(Option<usize>),
     FmAmountChanged(f32),
+    AdditiveHarmonicChanged(usize, f32), // (harmonic_index, amplitude)
 }
 
 #[derive(Debug, Clone)]
@@ -102,6 +109,9 @@ pub enum Message {
     MasterGainChanged(f32),
     MonophonicToggled(bool),
     PanicPressed,
+
+    // Oscillator tabs
+    OscTabChanged(usize, OscTab), // (oscillator_index, new_tab)
 
     // Keyboard events
     KeyPressed(keyboard::Key),

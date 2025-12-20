@@ -12,8 +12,9 @@ impl PluginGui {
     ) -> widget::Column<'a, Message> {
         use super::helpers::param_row;
         use widget::*;
+        use crate::params::Waveform;
 
-        Column::new()
+        let mut column = Column::new()
             .push(Text::new(title).size(16))
             .push(param_row(
                 "Wave",
@@ -34,9 +35,23 @@ impl PluginGui {
             .push(param_row("Phase", &params.osc1_phase, &mut states.phase))
             .push(param_row("Shape", &params.osc1_shape, &mut states.shape))
             .push(param_row("FM Src", &params.osc1_fm_source, &mut states.fm_source))
-            .push(param_row("FM Amt", &params.osc1_fm_amount, &mut states.fm_amount))
-            .spacing(3)
-            .padding(8)
+            .push(param_row("FM Amt", &params.osc1_fm_amount, &mut states.fm_amount));
+
+        // Add harmonic sliders if Additive waveform is selected
+        if params.osc1_waveform.value() == Waveform::Additive {
+            column = column
+                .push(Text::new("--- Harmonics ---").size(14))
+                .push(param_row("H1", &params.osc1_h1, &mut states.h1))
+                .push(param_row("H2", &params.osc1_h2, &mut states.h2))
+                .push(param_row("H3", &params.osc1_h3, &mut states.h3))
+                .push(param_row("H4", &params.osc1_h4, &mut states.h4))
+                .push(param_row("H5", &params.osc1_h5, &mut states.h5))
+                .push(param_row("H6", &params.osc1_h6, &mut states.h6))
+                .push(param_row("H7", &params.osc1_h7, &mut states.h7))
+                .push(param_row("H8", &params.osc1_h8, &mut states.h8));
+        }
+
+        column.spacing(3).padding(8)
     }
 
     pub(super) fn osc2_section<'a>(
@@ -46,8 +61,9 @@ impl PluginGui {
     ) -> widget::Column<'a, Message> {
         use super::helpers::param_row;
         use widget::*;
+        use crate::params::Waveform;
 
-        Column::new()
+        let mut column = Column::new()
             .push(Text::new(title).size(16))
             .push(param_row(
                 "Wave",
@@ -68,9 +84,23 @@ impl PluginGui {
             .push(param_row("Phase", &params.osc2_phase, &mut states.phase))
             .push(param_row("Shape", &params.osc2_shape, &mut states.shape))
             .push(param_row("FM Src", &params.osc2_fm_source, &mut states.fm_source))
-            .push(param_row("FM Amt", &params.osc2_fm_amount, &mut states.fm_amount))
-            .spacing(3)
-            .padding(8)
+            .push(param_row("FM Amt", &params.osc2_fm_amount, &mut states.fm_amount));
+
+        // Add harmonic sliders if Additive waveform is selected
+        if params.osc2_waveform.value() == Waveform::Additive {
+            column = column
+                .push(Text::new("--- Harmonics ---").size(14))
+                .push(param_row("H1", &params.osc2_h1, &mut states.h1))
+                .push(param_row("H2", &params.osc2_h2, &mut states.h2))
+                .push(param_row("H3", &params.osc2_h3, &mut states.h3))
+                .push(param_row("H4", &params.osc2_h4, &mut states.h4))
+                .push(param_row("H5", &params.osc2_h5, &mut states.h5))
+                .push(param_row("H6", &params.osc2_h6, &mut states.h6))
+                .push(param_row("H7", &params.osc2_h7, &mut states.h7))
+                .push(param_row("H8", &params.osc2_h8, &mut states.h8));
+        }
+
+        column.spacing(3).padding(8)
     }
 
     pub(super) fn osc3_section<'a>(
@@ -80,8 +110,9 @@ impl PluginGui {
     ) -> widget::Column<'a, Message> {
         use super::helpers::param_row;
         use widget::*;
+        use crate::params::Waveform;
 
-        Column::new()
+        let mut column = Column::new()
             .push(Text::new(title).size(16))
             .push(param_row(
                 "Wave",
@@ -102,9 +133,23 @@ impl PluginGui {
             .push(param_row("Phase", &params.osc3_phase, &mut states.phase))
             .push(param_row("Shape", &params.osc3_shape, &mut states.shape))
             .push(param_row("FM Src", &params.osc3_fm_source, &mut states.fm_source))
-            .push(param_row("FM Amt", &params.osc3_fm_amount, &mut states.fm_amount))
-            .spacing(3)
-            .padding(8)
+            .push(param_row("FM Amt", &params.osc3_fm_amount, &mut states.fm_amount));
+
+        // Add harmonic sliders if Additive waveform is selected
+        if params.osc3_waveform.value() == Waveform::Additive {
+            column = column
+                .push(Text::new("--- Harmonics ---").size(14))
+                .push(param_row("H1", &params.osc3_h1, &mut states.h1))
+                .push(param_row("H2", &params.osc3_h2, &mut states.h2))
+                .push(param_row("H3", &params.osc3_h3, &mut states.h3))
+                .push(param_row("H4", &params.osc3_h4, &mut states.h4))
+                .push(param_row("H5", &params.osc3_h5, &mut states.h5))
+                .push(param_row("H6", &params.osc3_h6, &mut states.h6))
+                .push(param_row("H7", &params.osc3_h7, &mut states.h7))
+                .push(param_row("H8", &params.osc3_h8, &mut states.h8));
+        }
+
+        column.spacing(3).padding(8)
     }
 
     pub(super) fn filter1_section<'a>(

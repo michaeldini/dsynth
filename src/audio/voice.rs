@@ -419,6 +419,11 @@ impl Voice {
                     osc.set_waveform(param.waveform);
                     osc.set_shape(param.shape);
 
+                    // Update additive harmonics if waveform is Additive
+                    if param.waveform == crate::params::Waveform::Additive {
+                        osc.set_additive_harmonics(param.additive_harmonics);
+                    }
+
                     // Set phase offset for unison decorrelation.
                     //
                     // IMPORTANT: Avoid evenly-spaced phases (idx/N). For some waveforms
