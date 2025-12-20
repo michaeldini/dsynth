@@ -645,10 +645,7 @@ fn test_randomize_generates_valid_parameters() {
 
         // Check oscillators
         for osc in &params.oscillators {
-            assert!(
-                osc.waveform as u32 <= 4,
-                "Waveform should be valid enum"
-            );
+            assert!(osc.waveform as u32 <= 4, "Waveform should be valid enum");
             assert!(
                 osc.pitch >= -24.0 && osc.pitch <= 24.0,
                 "Pitch should be in semitones ±24"
@@ -657,18 +654,12 @@ fn test_randomize_generates_valid_parameters() {
                 osc.detune >= -50.0 && osc.detune <= 50.0,
                 "Detune should be in cents ±50"
             );
-            assert!(
-                osc.gain >= 0.0 && osc.gain <= 1.0,
-                "Gain should be 0.0-1.0"
-            );
+            assert!(osc.gain >= 0.0 && osc.gain <= 1.0, "Gain should be 0.0-1.0");
             assert!(
                 osc.pan >= -1.0 && osc.pan <= 1.0,
                 "Pan should be -1.0 to 1.0"
             );
-            assert!(
-                osc.unison >= 1 && osc.unison <= 7,
-                "Unison should be 1-7"
-            );
+            assert!(osc.unison >= 1 && osc.unison <= 7, "Unison should be 1-7");
         }
 
         // Check filters
@@ -772,8 +763,8 @@ fn test_randomize_parameter_ranges() {
 
         // Verify reasonable filter cutoff (not too extreme)
         for filter in &params.filters {
-            let cutoff_is_reasonable = (filter.cutoff >= 100.0 && filter.cutoff <= 15000.0)
-                || filter.cutoff < 20.0; // Allow silenced filters
+            let cutoff_is_reasonable =
+                (filter.cutoff >= 100.0 && filter.cutoff <= 15000.0) || filter.cutoff < 20.0; // Allow silenced filters
             assert!(
                 cutoff_is_reasonable,
                 "Filter cutoff should be reasonable: {}",
@@ -917,7 +908,11 @@ fn test_monophonic_mode_toggle() {
         engine.process();
     }
 
-    assert_eq!(engine.active_voice_count(), 3, "Should have 3 voices in poly mode");
+    assert_eq!(
+        engine.active_voice_count(),
+        3,
+        "Should have 3 voices in poly mode"
+    );
 
     // Switch to monophonic mode
     params.monophonic = true;
@@ -1029,7 +1024,10 @@ fn test_key_tracking_zero_disables_feature() {
     let peak = samples.iter().map(|s| s.abs()).fold(0.0_f32, f32::max);
 
     // Should still produce output (disabling key tracking doesn't mute)
-    assert!(peak > 0.001, "Key tracking 0.0 should still allow audio through");
+    assert!(
+        peak > 0.001,
+        "Key tracking 0.0 should still allow audio through"
+    );
 }
 
 /// Test that key tracking amount scales the effect proportionally.
@@ -1063,9 +1061,11 @@ fn test_key_tracking_modulates_correctly() {
     // Verify key tracking parameter is stored correctly
     let (_, param_consumer) = create_parameter_buffer();
     let _engine = SynthEngine::new(44100.0, param_consumer);
-    
+
     // This test verifies the feature doesn't crash and parameters apply
     let params = SynthParams::default();
-    assert_eq!(params.filters[0].key_tracking, 0.0, "Default key tracking should be 0.0");
+    assert_eq!(
+        params.filters[0].key_tracking, 0.0,
+        "Default key tracking should be 0.0"
+    );
 }
-
