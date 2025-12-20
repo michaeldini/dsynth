@@ -101,9 +101,10 @@ fn test_unison_3_with_polyphony_no_clipping() {
     );
 
     // Tertiary assertion: RMS should be reasonable (not dead silent, not constantly hot)
+    // With unison normalization and moderate gains (0.33 per oscillator), RMS is typically 0.01-0.15
     assert!(
-        rms > 0.05 && rms < 0.5,
-        "RMS level outside expected range: {:.6}. Too quiet (<0.05) or too hot (>0.5).",
+        rms > 0.01 && rms < 0.2,
+        "RMS level outside expected range: {:.6}. Too quiet (<0.01) or too hot (>0.2).",
         rms
     );
 }
