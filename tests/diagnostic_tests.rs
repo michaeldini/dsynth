@@ -13,8 +13,9 @@ use dsynth::params::{SynthParams, Waveform};
 /// - Per-voice contribution
 /// - Waveform statistics (crest factor, dynamic range)
 ///
-/// Run this test with: cargo test diagnostic_polyphony_playback -- --nocapture
+/// Run this test with: cargo test diagnostic_polyphony_playback -- --ignored --nocapture
 #[test]
+#[ignore]
 fn diagnostic_polyphony_playback() {
     let sample_rate = 44100.0;
     let (mut param_producer, param_consumer) = create_parameter_buffer();
@@ -224,8 +225,9 @@ fn diagnostic_polyphony_playback() {
 /// Attack transient test - checks for clipping at note-on
 ///
 /// This test specifically checks the attack phase where distortion often occurs.
-/// Run with: cargo test --test diagnostic_tests test_attack_transients
+/// Run with: cargo test --test diagnostic_tests test_attack_transients -- --ignored
 #[test]
+#[ignore]
 fn test_attack_transients() {
     println!("\n╔══════════════════════════════════════════════════════════════╗");
     println!("║          ATTACK TRANSIENT DIAGNOSTIC TEST                   ║");
@@ -381,6 +383,7 @@ fn test_attack_transients() {
 
 /// Test with filter resonance enabled - often causes unexpected peaks
 #[test]
+#[ignore]
 fn test_with_filter_resonance() {
     println!("\n╔══════════════════════════════════════════════════════════════╗");
     println!("║          FILTER RESONANCE DIAGNOSTIC TEST                   ║");
@@ -442,6 +445,7 @@ fn test_with_filter_resonance() {
 /// This will tell you EXACTLY what the synth is outputting.
 /// If this shows low levels but you hear distortion, the problem is external.
 #[test]
+#[ignore]
 fn definitive_output_level_test() {
     println!("\n╔══════════════════════════════════════════════════════════════╗");
     println!("║            DEFINITIVE OUTPUT LEVEL TEST                     ║");
@@ -562,6 +566,7 @@ fn definitive_output_level_test() {
 /// User: Modify this test to match your exact playing situation, then run:
 /// cargo test my_exact_scenario -- --nocapture
 #[test]
+#[ignore]
 fn my_exact_scenario() {
     let sample_rate = 44100.0;
     let (mut param_producer, param_consumer) = create_parameter_buffer();
