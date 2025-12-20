@@ -184,7 +184,6 @@ impl IcedEditor for PluginGui {
         let title = Text::new("DSynth").size(26);
         let header = Row::new()
             .push(title)
-            .push(Space::with_width(Length::Fill))
             .push(
                 Button::new(&mut self.randomize_button_state, Text::new("Randomize"))
                     .on_press(Message::Randomize)
