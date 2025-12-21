@@ -456,7 +456,7 @@ impl Default for DSynthParams {
             .with_unit(" cents"),
             osc1_gain: FloatParam::new(
                 "Osc 1 Gain",
-                0.33,
+                0.25,
                 FloatRange::Linear { min: 0.0, max: 1.0 },
             ),
             osc1_pan: FloatParam::new(
@@ -537,7 +537,7 @@ impl Default for DSynthParams {
             .with_unit(" cents"),
             osc2_gain: FloatParam::new(
                 "Osc 2 Gain",
-                0.33,
+                0.0,
                 FloatRange::Linear { min: 0.0, max: 1.0 },
             ),
             osc2_pan: FloatParam::new(
@@ -618,7 +618,7 @@ impl Default for DSynthParams {
             .with_unit(" cents"),
             osc3_gain: FloatParam::new(
                 "Osc 3 Gain",
-                0.33,
+                0.0,
                 FloatRange::Linear { min: 0.0, max: 1.0 },
             ),
             osc3_pan: FloatParam::new(
@@ -680,7 +680,7 @@ impl Default for DSynthParams {
             filter1_type: EnumParam::new("Filter 1 Type", FilterType::Lowpass),
             filter1_cutoff: FloatParam::new(
                 "Filter 1 Cutoff",
-                8000.0,
+                1000.0,
                 FloatRange::Skewed {
                     min: 20.0,
                     max: 20000.0,
@@ -711,7 +711,7 @@ impl Default for DSynthParams {
             filter2_type: EnumParam::new("Filter 2 Type", FilterType::Lowpass),
             filter2_cutoff: FloatParam::new(
                 "Filter 2 Cutoff",
-                8000.0,
+                1000.0,
                 FloatRange::Skewed {
                     min: 20.0,
                     max: 20000.0,
@@ -742,7 +742,7 @@ impl Default for DSynthParams {
             filter3_type: EnumParam::new("Filter 3 Type", FilterType::Lowpass),
             filter3_cutoff: FloatParam::new(
                 "Filter 3 Cutoff",
-                8000.0,
+                1000.0,
                 FloatRange::Skewed {
                     min: 20.0,
                     max: 20000.0,
@@ -807,7 +807,7 @@ impl Default for DSynthParams {
             .with_unit(" s"),
             fenv1_amount: FloatParam::new(
                 "Filter Env 1 Amount",
-                2000.0,
+                0.0,
                 FloatRange::Linear {
                     min: -10000.0,
                     max: 10000.0,
@@ -853,7 +853,7 @@ impl Default for DSynthParams {
             .with_unit(" s"),
             fenv2_amount: FloatParam::new(
                 "Filter Env 2 Amount",
-                2000.0,
+                0.0,
                 FloatRange::Linear {
                     min: -10000.0,
                     max: 10000.0,
@@ -899,7 +899,7 @@ impl Default for DSynthParams {
             .with_unit(" s"),
             fenv3_amount: FloatParam::new(
                 "Filter Env 3 Amount",
-                2000.0,
+                0.0,
                 FloatRange::Linear {
                     min: -10000.0,
                     max: 10000.0,

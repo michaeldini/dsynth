@@ -78,7 +78,7 @@ impl Default for OscillatorParams {
             waveform: Waveform::Sine,
             pitch: 0.0,
             detune: 0.0,
-            gain: 0.25, // Reduced from 0.33 to prevent clipping with multiple oscillators
+            gain: 0.0, // Default to 0.0 (off) - individual oscillators are enabled explicitly in SynthParams::default()
             pan: 0.0,
             unison: 1,
             fm_source: None,
@@ -378,8 +378,20 @@ pub struct SynthParams {
 
 impl Default for SynthParams {
     fn default() -> Self {
+        // Create oscillator defaults with only the first oscillator enabled
+        let mut osc1 = OscillatorParams::default();
+        osc1.gain = 0.25; // Oscillator 1 is enabled
+
+        let mut osc2 = OscillatorParams::default();
+        osc2.waveform = Waveform::Saw; // Different waveform for variety
+        osc2.gain = 0.0; // Oscillator 2 is disabled by default
+
+        let mut osc3 = OscillatorParams::default();
+        osc3.waveform = Waveform::Square; // Different waveform for variety
+        osc3.gain = 0.0; // Oscillator 3 is disabled by default
+
         Self {
-            oscillators: [OscillatorParams::default(); 3],
+            oscillators: [osc1, osc2, osc3],
             filters: [FilterParams::default(); 3],
             lfos: [LFOParams::default(); 3],
             envelope: EnvelopeParams::default(),
