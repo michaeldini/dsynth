@@ -216,6 +216,15 @@ pub fn build_master_section(cx: &mut Context) {
 
         param_knob(cx, PARAM_MASTER_GAIN, "Gain", gain, gain_def);
         param_checkbox(cx, PARAM_MONOPHONIC, "Mono", mono > 0.5);
+
+        // Randomize button
+        Button::new(cx, |cx| Label::new(cx, "🎲 Randomize"))
+            .on_press(|cx| cx.emit(crate::gui::vizia_gui::GuiMessage::Randomize))
+            .width(Pixels(100.0))
+            .height(Pixels(32.0))
+            .background_color(Color::rgb(60, 60, 70))
+            .corner_radius(Pixels(4.0))
+            .cursor(CursorIcon::Hand);
     })
     .gap(Pixels(6.0));
 }

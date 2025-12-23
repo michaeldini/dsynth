@@ -41,29 +41,35 @@ pub fn randomize_synth_params<R: Rng + ?Sized>(rng: &mut R) -> SynthParams {
         // Keep solo/other toggles deterministic (default).
     }
 
-    // Filters
+    // Filters - capped resonance to avoid self-oscillation distortion
     for filter in &mut params.filters {
         filter.filter_type = filter_types[rng.gen_range(0..filter_types.len())];
         filter.cutoff = rng.gen_range(200.0..=10000.0);
-        filter.resonance = rng.gen_range(0.5..=5.0);
+        filter.resonance = rng.gen_range(0.5..=3.0);  // Reduced max from 5.0 to 3.0
         filter.bandwidth = rng.gen_range(0.5..=3.0);
         filter.key_tracking = rng.gen_range(0.0..=1.0);
     }
 
-    // LFOs
+    // LFOs - reduced filter modulation amount for less harsh sweeps
     for lfo in &mut params.lfos {
         lfo.waveform = lfo_waveforms[rng.gen_range(0..lfo_waveforms.len())];
-        lfo.rate = rng.gen_range(0.1..=10.0);
-        lfo.depth = rng.gen_range(0.0..=1.0);
-        lfo.filter_amount = rng.gen_range(0.0..=3000.0);
+        lfo.rate = rng.gen_range(0.1..=8.0);         // Slightly slower max
+        lfo.depth = rng.gen_range(0.0..=0.8);        // Reduced from 1.0
+        lfo.filter_amount = rng.gen_range(0.0..=2000.0);  // Reduced from 3000
     }
 
     // Velocity
     params.velocity.amp_sensitivity = rng.gen_range(0.3..=1.0);
     params.velocity.filter_sensitivity = rng.gen_range(0.0..=0.8);
 
-    // Master
-    params.master_gain = rng.gen_range(0.4..=0.7);
+    // ADSR Envelope - ensure reasonable attack time to prevent clicks
+    params.envelope.attack = rng.gen_range(0.005..=0.5);  // 5ms-500ms attack
+    params.envelope.decay = rng.gen_range(0.05..=1.0);    // 50ms-1s decay
+    params.envelope.sustain = rng.gen_range(0.3..=0.9);   // 30%-90% sustain
+    params.envelope.release = rng.gen_range(0.1..=2.0);   // 100ms-2s release
+
+    // Master - slightly reduced range for safety
+    params.master_gain = rng.gen_range(0.3..=0.6);
 
     params
 }

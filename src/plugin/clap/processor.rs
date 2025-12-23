@@ -7,6 +7,7 @@ use clap_sys::events::{clap_event_header, clap_event_note, clap_event_param_valu
 ///
 /// Handles audio processing callbacks from the CLAP host, integrating with SynthEngine.
 use clap_sys::process::{clap_process, clap_process_status};
+use std::sync::{Arc, RwLock};
 use triple_buffer::Input;
 use triple_buffer::Output;
 
@@ -46,6 +47,9 @@ pub struct ClapProcessor {
     /// Consumer for GUI-initiated param changes (GUI -> audio thread)
     gui_param_consumer: Option<Output<GuiParamChange>>,
 
+    /// Shared synth params for full sync (e.g., randomization)
+    synth_params: Option<Arc<RwLock<SynthParams>>>,
+
     last_gui_change: GuiParamChange,
 }
 
@@ -65,8 +69,14 @@ impl ClapProcessor {
             current_params: default_params,
             sample_rate,
             gui_param_consumer: Some(gui_param_consumer),
+            synth_params: None,
             last_gui_change: GuiParamChange::default(),
         }
+    }
+
+    /// Set the shared synth_params reference (for full sync operations like randomization)
+    pub fn set_synth_params(&mut self, synth_params: Arc<RwLock<SynthParams>>) {
+        self.synth_params = Some(synth_params);
     }
 
     #[inline]
@@ -82,6 +92,18 @@ impl ClapProcessor {
 
         self.last_gui_change = change;
         if change.param_id == 0 {
+            return;
+        }
+
+        // Special signal: 0xFFFFFFFF means "full sync" (e.g., after randomization)
+        // Copy the entire synth_params to current_params
+        if change.param_id == 0xFFFFFFFF {
+            if let Some(ref synth_params) = self.synth_params {
+                if let Ok(params) = synth_params.read() {
+                    self.current_params = *params;
+                    self.param_producer.write(self.current_params);
+                }
+            }
             return;
         }
 

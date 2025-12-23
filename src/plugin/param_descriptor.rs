@@ -419,6 +419,42 @@ impl ParamDescriptor {
         }
     }
 
+    /// Normalize a denormalized value back to 0.0-1.0 range
+    pub fn normalize_value(&self, value: f32) -> f32 {
+        match &self.param_type {
+            ParamType::Float { min, max, skew } => match skew {
+                ValueSkew::Linear => Self::normalize(value, *min, *max),
+                ValueSkew::Logarithmic => Self::normalize_log(value, *min, *max),
+                ValueSkew::Exponential { exponent } => {
+                    Self::normalize_exp(value, *min, *max, *exponent)
+                }
+            },
+            ParamType::Bool => {
+                if value > 0.5 {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            ParamType::Enum { variants } => {
+                let count = variants.len() as f32;
+                if count <= 1.0 {
+                    0.0
+                } else {
+                    (value / (count - 1.0)).clamp(0.0, 1.0)
+                }
+            }
+            ParamType::Int { min, max } => {
+                let range = (*max - *min) as f32;
+                if range <= 0.0 {
+                    0.0
+                } else {
+                    ((value - *min as f32) / range).clamp(0.0, 1.0)
+                }
+            }
+        }
+    }
+
     /// Normalize a value to 0.0-1.0 range (linear)
     fn normalize(value: f32, min: f32, max: f32) -> f32 {
         if max <= min {

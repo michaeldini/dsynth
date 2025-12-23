@@ -55,6 +55,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (gui_param_producer, _gui_param_consumer) =
         triple_buffer::TripleBuffer::new(&GuiParamChange::default()).split();
 
+    // Create the main parameter triple-buffer for sending full SynthParams to the engine.
+    // This is what the audio engine actually reads from.
+    let (params_producer, params_consumer) = dsynth::audio::create_parameter_buffer();
+
     // Create a bounded message channel for audio engine events. This channel is used to
     // send events to the audio engine from both the MIDI handler (when notes are played)
     // and the GUI (for control changes, note on/off from keyboard input, etc.). The bounded
@@ -64,11 +68,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (event_tx, event_rx) = bounded::<EngineEvent>(1024);
 
     // Initialize the synthesizer engine with the configured sample rate.
-    // For now, we pass a dummy consumer - the engine still uses the old SynthParams
-    // consumer internally. In a future update, we'll refactor the engine to consume
-    // GuiParamChange events instead (Option B - no engine changes yet).
-    let dummy_params_consumer = dsynth::audio::create_parameter_buffer().1;
-    let engine = SynthEngine::new(SAMPLE_RATE, dummy_params_consumer);
+    // The engine receives parameter updates via the params_consumer triple-buffer.
+    let engine = SynthEngine::new(SAMPLE_RATE, params_consumer);
 
     // Initialize and start the audio output handler. This component:
     // - Creates a real-time audio callback registered with CoreAudio
@@ -121,10 +122,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Start and run the VIZIA GUI on the main thread. VIZIA provides a unified interface
     // shared between standalone and plugin, with keyboard-to-MIDI conversion for desktop use.
-    // The GUI writes parameter changes to gui_param_producer and sends MIDI events via event_tx.
+    // The GUI writes parameter changes to params_producer and sends MIDI events via event_tx.
     run_standalone_gui(
         synth_params,
         Arc::new(Mutex::new(gui_param_producer)),
+        Arc::new(Mutex::new(params_producer)),
         event_tx,
     )?;
 

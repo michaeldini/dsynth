@@ -24,18 +24,24 @@ const WINDOW_HEIGHT: u32 = 800;
 pub fn run_standalone_gui(
     synth_params: Arc<RwLock<SynthParams>>,
     gui_param_producer: Arc<Mutex<Input<GuiParamChange>>>,
+    params_producer: Arc<Mutex<Input<SynthParams>>>,
     event_sender: Sender<EngineEvent>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let _ = Application::new(move |cx| {
         // Initialize GUI state with event sender for standalone features
+        // Important: GuiState must be built BEFORE the UI that emits GuiMessage events
+        // so that events can bubble up to it
         GuiState::new_standalone(
             synth_params.clone(),
             gui_param_producer.clone(),
+            params_producer.clone(),
             event_sender.clone(),
         )
         .build(cx);
 
         // Create root container that captures keyboard events
+        // The KeyboardCapture and its children (the UI) are children of the root where
+        // GuiState was built, so events will bubble up to GuiState
         KeyboardCapture::new(cx, event_sender.clone(), |cx| {
             // Build shared UI layout inside the keyboard-capturing container
             shared_ui::build_ui(cx);

@@ -140,7 +140,8 @@ impl DSynthClapPlugin {
             c
         });
 
-        let processor = ClapProcessor::new(44100.0, consumer);
+        let mut processor = ClapProcessor::new(44100.0, consumer);
+        processor.set_synth_params(instance.synth_params.clone());
         instance.processor = Some(processor);
 
         true
@@ -183,6 +184,7 @@ impl DSynthClapPlugin {
             c
         });
         let mut processor = ClapProcessor::new(sample_rate as f32, consumer);
+        processor.set_synth_params(instance.synth_params.clone());
 
         // Sync any parameters that were set during init to the processor
         processor.current_params = instance.current_params;
