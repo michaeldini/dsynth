@@ -571,6 +571,7 @@ pub mod param_get {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::params::SynthParams;
 
     #[test]
     fn test_param_update_buffer_creation() {

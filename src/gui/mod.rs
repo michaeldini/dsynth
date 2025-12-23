@@ -1,23 +1,13 @@
 pub mod controls;
 
-#[cfg(feature = "clap")]
+// VIZIA GUI - unified for both CLAP plugin and standalone
+// vizia is now a non-optional dependency, always available
 pub mod vizia_gui;
 
 #[cfg(feature = "clap")]
 #[path = "plugin_gui.rs"]
 pub mod plugin_gui;
 
-// Standalone GUI is now modularized in standalone_gui/
+// Re-export standalone entry point
 #[cfg(feature = "standalone")]
-pub mod standalone_gui;
-
-// Re-export main types for backward compatibility
-#[cfg(feature = "standalone")]
-pub use standalone_gui::{Message, SynthGui, run_gui};
-
-// Re-export message sub-types for convenience
-#[cfg(feature = "standalone")]
-pub use standalone_gui::messages::{
-    ChorusMessage, DelayMessage, DistortionMessage, EnvelopeMessage, FilterMessage, LFOMessage,
-    OscillatorMessage, ReverbMessage,
-};
+pub use vizia_gui::run_standalone_gui;

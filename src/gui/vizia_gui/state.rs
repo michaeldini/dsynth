@@ -1,8 +1,11 @@
 // GUI state for VIZIA - shared between plugin and standalone
 
+use crate::audio::output::EngineEvent;
 use crate::gui::vizia_gui::GuiMessage;
 use crate::params::SynthParams;
 use crate::plugin::gui_param_change::GuiParamChange;
+use crossbeam_channel::Sender;
+use std::collections::HashSet;
 use std::sync::{Arc, Mutex, RwLock};
 use triple_buffer::Input;
 use vizia::prelude::*;
@@ -21,10 +24,18 @@ pub struct GuiState {
 
     /// UI feedback string (e.g. last changed param/value)
     pub last_param_text: String,
+
+    /// Event sender for standalone features (MIDI, panic) - None for plugin
+    #[lens(ignore)]
+    pub event_sender: Option<Sender<EngineEvent>>,
+
+    /// Track pressed keys to prevent key-repeat note retriggering (standalone only)
+    #[lens(ignore)]
+    pub pressed_keys: HashSet<u8>,
 }
 
 impl GuiState {
-    /// Create new GUI state from synth parameters
+    /// Create new GUI state for plugin (no event sender)
     pub fn new(
         synth_params: Arc<RwLock<SynthParams>>,
         gui_param_producer: Arc<Mutex<Input<GuiParamChange>>>,
@@ -33,6 +44,23 @@ impl GuiState {
             synth_params,
             gui_param_producer,
             last_param_text: String::new(),
+            event_sender: None,
+            pressed_keys: HashSet::new(),
+        }
+    }
+
+    /// Create new GUI state for standalone (with event sender for MIDI/panic)
+    pub fn new_standalone(
+        synth_params: Arc<RwLock<SynthParams>>,
+        gui_param_producer: Arc<Mutex<Input<GuiParamChange>>>,
+        event_sender: Sender<EngineEvent>,
+    ) -> Self {
+        Self {
+            synth_params,
+            gui_param_producer,
+            last_param_text: String::new(),
+            event_sender: Some(event_sender),
+            pressed_keys: HashSet::new(),
         }
     }
     

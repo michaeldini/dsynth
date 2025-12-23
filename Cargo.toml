@@ -11,12 +11,16 @@ crate-type = ["lib", "cdylib"]
 [features]
 default = ["simd", "standalone"]
 simd = []
-standalone = ["iced", "cpal", "midir", "rfd"]
-clap = ["clap-sys", "vizia"]
+standalone = ["vizia_winit", "cpal", "midir", "rfd"]
+clap = ["vizia_baseview", "clap-sys"]
 
 [dependencies]
-iced = { version = "0.13", optional = true }
-vizia = { git = "https://github.com/vizia/vizia.git", optional = true, default-features = false, features = ["baseview", "x11"] }
+# VIZIA from git with both backends - baseview for CLAP plugin, winit for standalone
+vizia = { git = "https://github.com/vizia/vizia.git", default-features = false, features = ["baseview", "winit", "x11"] }
+# Direct access to vizia_winit for standalone Application (vizia doesn't re-export when both backends enabled)
+vizia_winit = { git = "https://github.com/vizia/vizia.git", optional = true, features = ["x11"] }
+# Direct access to vizia_baseview for CLAP plugin Application (same reason as above)
+vizia_baseview = { git = "https://github.com/vizia/vizia.git", optional = true }
 raw-window-handle = "0.5"
 cpal = { version = "0.15", optional = true }
 midir = { version = "0.10", optional = true }

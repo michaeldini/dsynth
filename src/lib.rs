@@ -133,15 +133,15 @@ pub mod preset;
 /// logic ensures parameters stay within reasonable ranges to avoid silent or broken sounds.
 pub mod randomize;
 
-/// The **plugin** module contains the CLAP plugin implementation.
+/// The **plugin** module contains parameter system and CLAP plugin implementation.
 ///
-/// This is conditionally compiled ONLY when the `clap` feature is enabled.
-/// The CLAP plugin wrapper provides:
-/// - Standard CLAP plugin interface
-/// - Parameter system with 100+ synthesizer parameters
-/// - State serialization for presets and DAW projects
-/// - Audio processing integration with SynthEngine
-#[cfg(feature = "clap")]
+/// This module is now shared between CLAP plugin and standalone (for unified VIZIA GUI).
+/// It includes:
+/// - Parameter descriptors and registry (shared by plugin and standalone)
+/// - GuiParamChange for lock-free parameter updates (shared)
+/// - CLAP plugin interface (clap feature only)
+/// - State serialization for presets and DAW projects (clap feature only)
+#[cfg(any(feature = "clap", feature = "standalone"))]
 pub mod plugin;
 
 // Re-export CLAP entry point at crate root so it's in the dylib symbol table
