@@ -128,10 +128,10 @@ impl Model for GuiState {
             GuiMessage::Randomize => {
                 self.apply_randomized_params();
                 self.last_param_text = "🎲 Randomized!".to_string();
-                
+
                 // Emit SyncKnobValue for all parameters to update knob visuals
                 self.emit_all_param_syncs(cx);
-                
+
                 cx.needs_redraw();
                 meta.consume();
             }
@@ -174,31 +174,31 @@ impl GuiState {
             }
         }
     }
-    
+
     /// Emit SyncKnobValue messages for all parameters to update UI visuals
     fn emit_all_param_syncs(&self, cx: &mut EventContext) {
         use crate::plugin::param_registry::get_registry;
         use crate::plugin::param_update::param_get;
         use vizia::prelude::Propagation;
-        
+
         let registry = get_registry();
-        
+
         if let Ok(params) = self.synth_params.read() {
             for param_id in registry.iter_ids() {
                 // Get denormalized value from params
                 let denorm = param_get::get_param(&params, param_id);
-                
+
                 // Normalize it
                 let normalized = if let Some(desc) = registry.get(param_id) {
                     desc.normalize_value(denorm)
                 } else {
                     0.0
                 };
-                
+
                 // Emit sync message with Subtree propagation to reach all knobs
                 cx.emit_custom(
                     Event::new(GuiMessage::SyncKnobValue(param_id, normalized))
-                        .propagate(Propagation::Subtree)
+                        .propagate(Propagation::Subtree),
                 );
             }
         }
