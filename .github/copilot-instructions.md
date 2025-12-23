@@ -3,10 +3,12 @@
 ## Project Overview
 DSynth is a **high-performance polyphonic synthesizer** built in Rust with three compilation targets:
 - **Standalone**: Complete app with GUI (Iced) + audio I/O (cpal) + MIDI input (midir)
-- **VST Plugin**: VST3/CLAP plugins via `nih_plug` wrapper around the same core engine
+- **CLAP Plugin**: Native CLAP plugin with custom wrapper and VIZIA GUI (baseview backend)
 - **Library**: Reusable synthesizer modules
 
 **Core principle**: The `SynthEngine` is 100% shared between all targets. Only the wrapper layer differs.
+
+**GUI Architecture**: Moving towards a **unified GUI** - one shared codebase that works identically for both plugin and standalone, reducing maintenance burden and ensuring UI consistency. CLAP plugin now uses VIZIA framework (git version) with baseview backend for native window embedding.
 
 ## Development Philosophy
 
@@ -37,6 +39,18 @@ DSynth is a **high-performance polyphonic synthesizer** built in Rust with three
 - **MIDI → Audio Thread**: `Arc<Mutex<>>` for note events (minimal contention acceptable here)
 - **Never allocate** in audio thread code - pre-allocate all buffers in constructors
 
+### CLAP Parameter System
+- **Custom parameter descriptors** in [param_descriptor.rs](src/plugin/param_descriptor.rs):
+  - Each parameter has unique ID (namespace pattern: upper 8 bits = module, lower 24 bits = index)
+  - Supports Float, Bool, Enum, Int types with ranges, units, and automation flags
+  - Logarithmic/exponential skewing for frequency/time parameters
+- **Centralized registry** in [param_registry.rs](src/plugin/param_registry.rs):
+  - Global `ParamRegistry` for parameter lookup by ID
+  - Handles normalization (internal range ↔ CLAP 0.0-1.0 range)
+- **Parameter flow**: DAW automation → `params_flush()` → `param_apply::apply_param()` → `SynthParams` → triple-buffer → audio thread
+- **Enum parameters**: Must return indices (0, 1, 2, ...) in `param_get`, CLAP normalizes to 0-1
+- **Important**: Always clamp parameter values to prevent extreme values (see pitch ±24 semitones)
+
 ### Voice Management & Polyphony
 - **16 pre-allocated voices** in `SynthEngine::voices` array
 - **Voice stealing**: When all voices are busy, steals the **quietest voice** (RMS-tracked every 128 samples)
@@ -52,11 +66,41 @@ DSynth is a **high-performance polyphonic synthesizer** built in Rust with three
 - Uses `std::simd::f32x4` for vectorized oscillator processing
 - Conditional compilation: `#[cfg(feature = "simd")]` blocks with scalar fallbacks
 
+### VIZIA GUI Architecture (CLAP Plugin)
+- **Framework**: [VIZIA](https://github.com/vizia/vizia) (git version) with baseview backend
+- **Current state**: 
+  - CLAP plugin uses VIZIA for native window embedding
+  - Standalone still uses [iced](https://github.com/iced-rs/iced) (separate implementation)
+  - VIZIA provides reactive UI with entity-component system
+- **Implementation**:
+  - Located in [gui/vizia_gui/](src/gui/vizia_gui/): VIZIA-specific plugin GUI
+  - `GuiState` with `Arc<RwLock<SynthParams>>` for shared parameter access
+  - `GuiMessage` enum for events (ParamChanged, PresetLoad, etc.)
+  - Layout-first approach: VStack/HStack with Labels, custom widgets coming
+  - `WindowHandleWrapper` for raw-window-handle 0.5 compatibility
+- **Future unification**:
+  - Extract shared components to [gui/shared/](src/gui/shared/) when both GUIs stabilize
+  - Trait-based parameter binding for consistent behavior
+- **Benefits**: Native window embedding, reactive updates, clean separation from iced standalone
+
 ### Plugin vs Standalone Separation
 - **Standalone**: [main.rs](src/main.rs) owns GUI + audio thread + MIDI thread
-- **Plugin**: [plugin.rs](src/plugin.rs) is a thin re-export; real implementation in [plugin/](src/plugin/)
-  - [plugin/params.rs](src/plugin/params.rs): Maps `nih_plug` parameters → `SynthParams`
-  - [plugin/convert.rs](src/plugin/convert.rs): Conversion utilities between plugin and core types
+- **CLAP Plugin**: [plugin/clap/](src/plugin/clap/) implements native CLAP interface
+  - [plugin/clap/plugin.rs](src/plugin/clap/plugin.rs): Main CLAP plugin instance and lifecycle
+  - [plugin/clap/processor.rs](src/plugin/clap/processor.rs): Audio processing and MIDI handling
+  - [plugin/clap/params.rs](src/plugin/clap/params.rs): CLAP parameter extension (automation, query, flush)
+  - [plugin/clap/state.rs](src/plugin/clap/state.rs): Save/load state for presets
+  - [plugin/param_descriptor.rs](src/plugin/param_descriptor.rs): Custom parameter system (IDs, ranges, units)
+  - [plugin/param_registry.rs](src/plugin/param_registry.rs): Centralized parameter lookup and normalization
+  - [plugin/param_update.rs](src/plugin/param_update.rs): Lock-free parameter updates via triple-buffer
+- **GUI**: Separate implementations (unified architecture planned)
+  - [gui/vizia_gui/](src/gui/vizia_gui/): VIZIA GUI for CLAP plugin (baseview backend)
+    - [plugin_window.rs](src/gui/vizia_gui/plugin_window.rs): Window integration and layout
+    - [state.rs](src/gui/vizia_gui/state.rs): GuiState with Arc<RwLock<SynthParams>>
+    - [messages.rs](src/gui/vizia_gui/messages.rs): GuiMessage enum for events
+    - [widgets/](src/gui/vizia_gui/widgets/): Custom parameter controls
+  - [gui/standalone_gui/](src/gui/standalone_gui/): Iced GUI for standalone app
+  - **Goal**: Extract shared components to [gui/shared/](src/gui/shared/) for code reuse
 - **Core**: [audio/engine.rs](src/audio/engine.rs) is format-agnostic, just processes samples
 
 ## Development Workflows
@@ -66,9 +110,10 @@ DSynth is a **high-performance polyphonic synthesizer** built in Rust with three
 # Standalone (default features)
 cargo build --release
 
-# VST Plugin
-cargo build --release --lib --features vst
-./bundle.sh  # macOS - creates VST3/CLAP bundles in target/bundled/
+# CLAP Plugin
+cargo build --release --lib --features clap
+./bundle_clap.sh  # macOS - creates CLAP bundle in target/bundled/
+cp -r target/bundled/DSynth.clap ~/Library/Audio/Plug-Ins/CLAP/
 
 # Without SIMD (stable Rust)
 cargo build --no-default-features --features standalone
@@ -97,10 +142,19 @@ cargo bench  # Uses Criterion, generates HTML reports in target/criterion/report
 
 ### Parameter Update Pattern
 When adding new parameters:
-1. Add field to `SynthParams` in [params.rs](src/params.rs) with `#[serde(default)]` for preset compatibility
-2. For VST: Add `nih_plug` parameter to `DSynthParams` in [plugin/params.rs](src/plugin/params.rs) with unique `#[id = "..."]`
-3. Add conversion in [plugin/convert.rs](src/plugin/convert.rs) `DSynthParams::to_synth_params()`
-4. For GUI: Add control in [gui/plugin_gui/sections.rs](src/gui/plugin_gui/sections.rs)
+1. Add CLAP Plugin:
+   - Add parameter descriptor to [plugin/param_registry.rs](src/plugin/param_registry.rs) with unique ID (< 0xFFFFFFFF)
+   - Add parameter mapping in [plugin/param_update.rs](src/plugin/param_update.rs):
+     - `param_apply::apply_param()` for host → engine updates
+     - `param_get::get_param()` for engine → host queries
+2. For VIZIA Plugin GUI:
+   - Add control in [gui/vizia_gui/plugin_window.rs](src/gui/vizia_gui/plugin_window.rs) layout sections
+   - Use `param_knob()` widget function with parameter ID, label, and initial value
+   - Widget interactions emit `GuiMessage::ParamChanged(param_id, normalized_value)`
+   - Events flow → `param_update_buffer` → audio thread via triple-buffer
+3. For Iced Standalone GUI:
+   - Add control in [gui/standalone_gui/sections.rs](src/gui/standalone_gui/sections.rs)
+   - Widget changes → `Message::ParamChanged` → `param_update_buffer` → audio thread
 
 ### DSP Module Structure
 Each DSP component ([dsp/](src/dsp/)) follows this pattern:
@@ -130,13 +184,45 @@ Each DSP component ([dsp/](src/dsp/)) follows this pattern:
 ❌ **DON'T** check parameters every sample
 ✅ **DO** throttle parameter reads (see `param_update_interval` pattern)
 
-❌ **DON'T** assume 44.1kHz sample rate in DSP code
-✅ **DO** calculate frequency/time constants from `sample_rate` parameter
+❌ **DON'T** return raw enum indices from `param_get` without considering CLAP normalization
+✅ **DO** return enum index (0, 1, 2, ...) and let `normalize_param_value()` convert to 0-1
+
+❌ **DON'T** forget to clamp parameter values in `param_apply`
+✅ **DO** add `.clamp(min, max)` for parameters with restricted ranges (pitch, detune, etc.)
 
 ## Key Files Reference
-
 - [audio/engine.rs](src/audio/engine.rs): Core synthesis engine, voice management, parameter throttling
 - [audio/voice.rs](src/audio/voice.rs): Single voice (3 oscillators + 3 filters + envelope)
+- [dsp/oscillator.rs](src/dsp/oscillator.rs): Oversampled waveform generation with anti-aliasing
+- [dsp/filter.rs](src/dsp/filter.rs): Biquad filters with stability guarantees
+- [params.rs](src/params.rs): Shared parameter definitions for all targets
+
+### CLAP Plugin System
+- [plugin/clap/plugin.rs](src/plugin/clap/plugin.rs): CLAP plugin lifecycle and extension registration
+- [plugin/clap/processor.rs](src/plugin/clap/processor.rs): Real-time audio + MIDI processing
+- [plugin/clap/params.rs](src/plugin/clap/params.rs): CLAP parameter extension (count, info, get/set, flush)
+- [plugin/clap/state.rs](src/plugin/clap/state.rs): Preset save/load via CLAP state extension
+- [plugin/param_descriptor.rs](src/plugin/param_descriptor.rs): Parameter metadata (type, range, unit, automation)
+- [plugin/param_registry.rs](src/plugin/param_registry.rs): Global parameter registry and normalization
+- [plugin/param_update.r
+  - [bundle_clap.sh](bundle_clap.sh) (macOS CLAP)
+  - [bundle_standalone.sh](bundle_standalone.sh) (macOS standalone)
+  - Platform-specific variants for Linux/Windows
+- See [BUILD_AND_DISTRIBUTE.md](BUILD_AND_DISTRIBUTE.md) for cross-compilation and GitHub Actions setup
+- CLAP plugins install to: `~/Library/Audio/Plug-Ins/CLAP/` (macOS), `%COMMONPROGRAMFILES%\CLAP\` (Windows), `~/.clap/` (Linux)
+
+### GUI System
+- [gui/vizia_gui/](src/gui/vizia_gui/): VIZIA GUI for CLAP plugin
+  - [plugin_window.rs](src/gui/vizia_gui/plugin_window.rs): Window integration, layout, ADSR envelope section
+  - [state.rs](src/gui/vizia_gui/state.rs): GuiState with Arc<RwLock<SynthParams>>
+  - [messages.rs](src/gui/vizia_gui/messages.rs): GuiMessage enum (ParamChanged, PresetLoad, etc.)
+  - [widgets/param_knob.rs](src/gui/vizia_gui/widgets/param_knob.rs): Parameter control widget
+- [gui/standalone_gui/app.rs](src/gui/standalone_gui/app.rs): Iced GUI for standalone application
+- [gui/shared/](src/gui/shared/): **Future home** of unified GUI components (sections, widgets, messages)
+
+### Entry Points
+- [main.rs](src/main.rs): Standalone app entry point (GUI + audio + MIDI threads)
+- [lib.rs](src/lib.rs): Library exports and CLAP plugin entry point envelope)
 - [dsp/oscillator.rs](src/dsp/oscillator.rs): Oversampled waveform generation with anti-aliasing
 - [dsp/filter.rs](src/dsp/filter.rs): Biquad filters with stability guarantees
 - [params.rs](src/params.rs): Shared parameter definitions for all targets

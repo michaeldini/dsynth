@@ -1,16 +1,36 @@
+#[cfg(feature = "vst")]
 use nih_plug::prelude::*;
+#[cfg(feature = "vst")]
 use nih_plug_iced::widgets as nih_widgets;
+#[cfg(feature = "vst")]
 use nih_plug_iced::*;
+#[cfg(feature = "vst")]
 use std::sync::Arc;
 
+#[cfg(feature = "vst")]
 mod helpers;
+#[cfg(feature = "vst")]
 mod randomize;
+#[cfg(feature = "vst")]
 mod sections;
 
+// Note: CLAP now uses vizia_gui module, not baseview_host
+// Commenting out old iced_baseview code
+// #[cfg(feature = "clap")]
+// pub mod baseview_host;
+// #[cfg(feature = "clap")]
+// pub mod knob;
+
+// Note: CLAP now uses vizia_gui module directly, not baseview_host
+// #[cfg(feature = "clap")]
+// pub use baseview_host::{open_editor, DSynthEditor, Message};
+
+#[cfg(feature = "vst")]
 pub(crate) fn default_state() -> Arc<IcedState> {
     IcedState::from_size(1200, 900)
 }
 
+#[cfg(feature = "vst")]
 pub(crate) fn create(
     params: Arc<crate::plugin::DSynthParams>,
     editor_state: Arc<IcedState>,
@@ -18,6 +38,7 @@ pub(crate) fn create(
     create_iced_editor::<PluginGui>(editor_state, params)
 }
 
+#[cfg(feature = "vst")]
 #[derive(Default)]
 struct OscStates {
     waveform: nih_widgets::param_slider::State,
@@ -42,6 +63,7 @@ struct OscStates {
     h8: nih_widgets::param_slider::State,
 }
 
+#[cfg(feature = "vst")]
 #[derive(Default)]
 struct FilterStates {
     filter_type: nih_widgets::param_slider::State,
@@ -51,6 +73,7 @@ struct FilterStates {
     key_tracking: nih_widgets::param_slider::State,
 }
 
+#[cfg(feature = "vst")]
 #[derive(Default)]
 struct LfoStates {
     waveform: nih_widgets::param_slider::State,
@@ -63,12 +86,14 @@ struct LfoStates {
     pwm_amount: nih_widgets::param_slider::State,
 }
 
+#[cfg(feature = "vst")]
 #[derive(Default)]
 struct VelocityStates {
     amp: nih_widgets::param_slider::State,
     filter: nih_widgets::param_slider::State,
 }
 
+#[cfg(feature = "vst")]
 #[derive(Default)]
 struct EnvelopeStates {
     attack: nih_widgets::param_slider::State,
@@ -77,6 +102,7 @@ struct EnvelopeStates {
     release: nih_widgets::param_slider::State,
 }
 
+#[cfg(feature = "vst")]
 #[derive(Default)]
 struct EffectsStates {
     // Reverb
@@ -100,6 +126,7 @@ struct EffectsStates {
     distortion_mix: nih_widgets::param_slider::State,
 }
 
+#[cfg(feature = "vst")]
 #[derive(Default)]
 struct ParamStates {
     master_gain: nih_widgets::param_slider::State,
@@ -118,9 +145,11 @@ struct ParamStates {
 
     velocity: VelocityStates,
     envelope: EnvelopeStates,
+    #[cfg(feature = "vst")]
     effects: EffectsStates,
 }
 
+#[cfg(feature = "vst")]
 pub struct PluginGui {
     params: Arc<crate::plugin::DSynthParams>,
     context: Arc<dyn GuiContext>,
@@ -130,12 +159,14 @@ pub struct PluginGui {
     param_states: ParamStates,
 }
 
+#[cfg(feature = "vst")]
 #[derive(Debug, Clone)]
 pub enum Message {
     ParamUpdate(nih_widgets::ParamMessage),
     Randomize,
 }
 
+#[cfg(feature = "vst")]
 impl IcedEditor for PluginGui {
     type Executor = executor::Default;
     type Message = Message;
@@ -261,10 +292,11 @@ impl IcedEditor for PluginGui {
 
         Scrollable::new(&mut self.scrollable_state)
             .push(content)
-            .into()
+            .into();
     }
 }
 
+#[cfg(feature = "vst")]
 impl PluginGui {
     fn handle_param_message(&mut self, message: nih_widgets::ParamMessage) {
         // Handle parameter updates from sliders and other widgets
@@ -282,3 +314,5 @@ impl PluginGui {
         }
     }
 }
+
+// End of VST-specific code

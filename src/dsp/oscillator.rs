@@ -429,8 +429,6 @@ impl Oscillator {
     /// regenerating the wavetable.
     #[cfg(feature = "simd")]
     fn apply_additive_morph(&self, samples: f32x4) -> f32x4 {
-        use std::simd::StdFloat;
-
         if self.shape > 0.0 {
             // Positive shape: Emphasize highs (high-pass characteristic)
             // Simple differentiator adds harmonics

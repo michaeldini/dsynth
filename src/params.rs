@@ -1,11 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[cfg(feature = "vst")]
-use nih_plug::prelude::Enum;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-#[cfg_attr(feature = "vst", derive(Enum))]
 pub enum Waveform {
     #[default]
     Sine,
@@ -34,7 +30,6 @@ impl fmt::Display for Waveform {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
-#[cfg_attr(feature = "vst", derive(Enum))]
 pub enum FilterType {
     #[default]
     Lowpass,
@@ -155,7 +150,6 @@ impl Default for FilterEnvelopeParams {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
-#[cfg_attr(feature = "vst", derive(Enum))]
 pub enum LFOWaveform {
     #[default]
     Sine,
@@ -176,7 +170,6 @@ impl fmt::Display for LFOWaveform {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
-#[cfg_attr(feature = "vst", derive(Enum))]
 pub enum DistortionType {
     #[default]
     Tanh,

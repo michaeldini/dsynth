@@ -1,8 +1,12 @@
-// Thin wrapper so `crate::plugin` stays stable while the implementation
-// lives in the extracted module files under src/plugin/.
+// CLAP plugin implementation module structure
 
-#[path = "plugin/mod.rs"]
-mod extracted;
+// Phase 1: Parameter System for CLAP Migration
+pub mod gui_param_change;
+pub mod param_descriptor;
+pub mod param_registry;
+pub mod param_update;
+pub mod state;
 
-#[allow(unused_imports)]
-pub use extracted::{DSynthParams, DSynthPlugin};
+// Phase 2: CLAP Plugin Implementation
+#[cfg(feature = "clap")]
+pub mod clap;

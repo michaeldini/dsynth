@@ -1,0 +1,3 @@
+# Configuration removed - linker flags interfere with build scripts
+# Symbol export will be handled differently
+

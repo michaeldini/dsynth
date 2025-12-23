@@ -1,6 +1,9 @@
 pub mod controls;
 
-#[cfg(feature = "vst")]
+#[cfg(feature = "clap")]
+pub mod vizia_gui;
+
+#[cfg(feature = "clap")]
 #[path = "plugin_gui.rs"]
 pub mod plugin_gui;
 
@@ -10,7 +13,7 @@ pub mod standalone_gui;
 
 // Re-export main types for backward compatibility
 #[cfg(feature = "standalone")]
-pub use standalone_gui::{run_gui, Message, SynthGui};
+pub use standalone_gui::{Message, SynthGui, run_gui};
 
 // Re-export message sub-types for convenience
 #[cfg(feature = "standalone")]

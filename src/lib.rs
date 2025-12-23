@@ -83,7 +83,7 @@ pub mod dsp;
 /// By keeping the GUI module conditional, plugin builds don't include unused GUI code,
 /// reducing binary size. VST/CLAP hosts provide their own GUI framework, but DSynth still
 /// uses this for its parameter controls.
-#[cfg(any(feature = "standalone", feature = "vst"))]
+#[cfg(feature = "standalone")]
 pub mod gui;
 
 /// The **midi** module handles incoming MIDI input from hardware controllers and software.
@@ -133,20 +133,17 @@ pub mod preset;
 /// logic ensures parameters stay within reasonable ranges to avoid silent or broken sounds.
 pub mod randomize;
 
-/// The **plugin** module contains the VST3/CLAP plugin wrapper code.
+/// The **plugin** module contains the CLAP plugin implementation.
 ///
-/// This is conditionally compiled ONLY when the `vst` feature is enabled. The plugin module
-/// acts as a bridge between the synthesizer library and plugin host standards:
-/// - Implements VST3/CLAP plugin interface
-/// - Handles plugin lifecycle (creation, destruction, processing)
-/// - Routes plugin parameters to DSynth's internal parameters
-/// - Manages audio processing callbacks from the host
-///
-/// The `#[path = "plugin.rs"]` attribute tells Rust to look for this module in the file
-/// `plugin.rs` instead of using a folder named `plugin/`. This keeps the source directory
-/// flatter while maintaining the same module structure. The module is gated behind the "vst"
-/// feature so it's completely absent from standalone builds, avoiding VST dependencies
-/// for users who only need the library or standalone app.
-#[cfg(feature = "vst")]
-#[path = "plugin.rs"]
-mod plugin;
+/// This is conditionally compiled ONLY when the `clap` feature is enabled.
+/// The CLAP plugin wrapper provides:
+/// - Standard CLAP plugin interface
+/// - Parameter system with 100+ synthesizer parameters
+/// - State serialization for presets and DAW projects
+/// - Audio processing integration with SynthEngine
+#[cfg(feature = "clap")]
+pub mod plugin;
+
+// Re-export CLAP entry point at crate root so it's in the dylib symbol table
+#[cfg(feature = "clap")]
+pub use plugin::clap::clap_entry;
