@@ -165,6 +165,13 @@ pub struct Voice {
     /// One-shot flag: after note_on, we need to reset oscillator/filter running state
     /// once parameters (including unison phase offsets) have been applied.
     needs_dsp_reset_on_update: bool,
+
+    /// Previous sample's oscillator outputs (for feedback FM).
+    ///
+    /// Stores the output of each oscillator from the previous sample, allowing
+    /// any oscillator to use any other as a modulation source (including later
+    /// oscillators modulating earlier ones via 1-sample delayed feedback).
+    osc_outputs_prev: [f32; 3],
 }
 
 impl Voice {
@@ -227,6 +234,7 @@ impl Voice {
             peak_amplitude: 0.0,
             last_output: 0.0,
             needs_dsp_reset_on_update: false,
+            osc_outputs_prev: [0.0; 3],
         }
     }
 
@@ -615,13 +623,15 @@ impl Voice {
             global_pwm_mod += lfo_val * lfo_params[i].pwm_amount * depth;
         }
 
-        // === STEP 5: Generate all oscillator outputs first (required for FM) ===
+        // === STEP 5: Generate all oscillator outputs (with feedback FM support) ===
         // We process oscillators in order: 0 → 1 → 2
-        // This allows FM routing where later oscillators can be modulated by earlier ones.
-        // For example: Osc 0 can modulate Osc 1, and Osc 1 can modulate Osc 2.
+        // Any oscillator can be modulated by any other oscillator, including "feedback"
+        // where a later oscillator modulates an earlier one (e.g., Osc 3 → Osc 1).
+        // Feedback uses the previous sample's output (1-sample delay), which is how
+        // classic FM synthesizers like the Yamaha DX7 implemented feedback.
         //
         // Store raw oscillator outputs before filtering (needed for FM sources).
-        let mut osc_outputs = [0.0; 3];
+        let mut osc_outputs = self.osc_outputs_prev; // Start with previous sample's outputs
 
         for i in 0..3 {
             // Skip this oscillator if:
@@ -683,10 +693,10 @@ impl Voice {
             // Determine if we should use FM synthesis for this oscillator
             let use_fm = if let Some(source_idx) = fm_config {
                 // Only use FM if:
-                // 1. Source oscillator index is valid (0-2) and different from current
-                // 2. Source oscillator comes before this one (prevent feedback)
-                // 3. FM amount is non-zero
-                source_idx < i && fm_amount.abs() > 0.001
+                // 1. Source oscillator index is valid (0-2)
+                // 2. FM amount is non-zero
+                // Note: We allow source_idx >= i (feedback) using previous sample's output
+                source_idx < 3 && fm_amount.abs() > 0.001
             } else {
                 false
             };
@@ -721,6 +731,9 @@ impl Voice {
             // Store the raw oscillator output (needed for FM routing)
             osc_outputs[i] = osc_out;
         }
+
+        // Store outputs for next sample (enables feedback FM)
+        self.osc_outputs_prev = osc_outputs;
 
         // === STEP 6: Apply filters and generate stereo output ===
         // Now that all oscillators have been processed (and their outputs stored),

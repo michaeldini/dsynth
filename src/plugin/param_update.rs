@@ -116,11 +116,16 @@ pub mod param_apply {
             PARAM_OSC1_PHASE => params.oscillators[0].phase = denorm,
             PARAM_OSC1_SHAPE => params.oscillators[0].shape = denorm,
             PARAM_OSC1_FM_SOURCE => {
-                params.oscillators[0].fm_source = if denorm > 0.5 {
-                    Some((denorm as usize).min(2))
-                } else {
-                    None
-                }
+                // Integer param: 0 = None (no FM), 1 = Some(0) (Osc 1 self-mod),
+                // 2 = Some(1) (Osc 2 → Osc 1 feedback), 3 = Some(2) (Osc 3 → Osc 1 feedback)
+                let val = denorm.round() as i32;
+                params.oscillators[0].fm_source = match val {
+                    0 => None,    // No FM
+                    1 => Some(0), // Osc 1 self-modulation (1-sample feedback)
+                    2 => Some(1), // Osc 2 modulates Osc 1 (feedback)
+                    3 => Some(2), // Osc 3 modulates Osc 1 (feedback)
+                    _ => None,
+                };
             }
             PARAM_OSC1_FM_AMOUNT => params.oscillators[0].fm_amount = denorm,
             PARAM_OSC1_H1..=PARAM_OSC1_H8 => {
@@ -129,6 +134,7 @@ pub mod param_apply {
                     params.oscillators[0].additive_harmonics[idx] = denorm;
                 }
             }
+            PARAM_OSC1_SOLO => params.oscillators[0].solo = denorm > 0.5,
 
             // Oscillator 2
             PARAM_OSC2_WAVEFORM => {
@@ -145,11 +151,16 @@ pub mod param_apply {
             PARAM_OSC2_PHASE => params.oscillators[1].phase = denorm,
             PARAM_OSC2_SHAPE => params.oscillators[1].shape = denorm,
             PARAM_OSC2_FM_SOURCE => {
-                params.oscillators[1].fm_source = if denorm > 0.5 {
-                    Some((denorm as usize).min(2))
-                } else {
-                    None
-                }
+                // Integer param: 0 = None (no FM), 1 = Some(0) (use Osc 1),
+                // 2 = Some(1) (Osc 2 self-mod), 3 = Some(2) (Osc 3 → Osc 2 feedback)
+                let val = denorm.round() as i32;
+                params.oscillators[1].fm_source = match val {
+                    0 => None,    // No FM
+                    1 => Some(0), // Osc 1 modulates Osc 2
+                    2 => Some(1), // Osc 2 self-modulation (1-sample feedback)
+                    3 => Some(2), // Osc 3 modulates Osc 2 (feedback)
+                    _ => None,
+                };
             }
             PARAM_OSC2_FM_AMOUNT => params.oscillators[1].fm_amount = denorm,
             PARAM_OSC2_H1..=PARAM_OSC2_H8 => {
@@ -158,6 +169,7 @@ pub mod param_apply {
                     params.oscillators[1].additive_harmonics[idx] = denorm;
                 }
             }
+            PARAM_OSC2_SOLO => params.oscillators[1].solo = denorm > 0.5,
 
             // Oscillator 3
             PARAM_OSC3_WAVEFORM => {
@@ -174,11 +186,16 @@ pub mod param_apply {
             PARAM_OSC3_PHASE => params.oscillators[2].phase = denorm,
             PARAM_OSC3_SHAPE => params.oscillators[2].shape = denorm,
             PARAM_OSC3_FM_SOURCE => {
-                params.oscillators[2].fm_source = if denorm > 0.5 {
-                    Some((denorm as usize).min(2))
-                } else {
-                    None
-                }
+                // Integer param: 0 = None (no FM), 1 = Some(0) (use Osc 1),
+                // 2 = Some(1) (use Osc 2), 3 = Some(2) (Osc 3 self-mod)
+                let val = denorm.round() as i32;
+                params.oscillators[2].fm_source = match val {
+                    0 => None,    // No FM
+                    1 => Some(0), // Osc 1 modulates Osc 3
+                    2 => Some(1), // Osc 2 modulates Osc 3
+                    3 => Some(2), // Osc 3 self-modulation (1-sample feedback)
+                    _ => None,
+                };
             }
             PARAM_OSC3_FM_AMOUNT => params.oscillators[2].fm_amount = denorm,
             PARAM_OSC3_H1..=PARAM_OSC3_H8 => {
@@ -187,6 +204,7 @@ pub mod param_apply {
                     params.oscillators[2].additive_harmonics[idx] = denorm;
                 }
             }
+            PARAM_OSC3_SOLO => params.oscillators[2].solo = denorm > 0.5,
 
             // Filters
             PARAM_FILTER1_TYPE => {
@@ -375,15 +393,25 @@ pub mod param_get {
             PARAM_OSC1_UNISON_DETUNE => params.oscillators[0].unison_detune,
             PARAM_OSC1_PHASE => params.oscillators[0].phase,
             PARAM_OSC1_SHAPE => params.oscillators[0].shape,
-            PARAM_OSC1_FM_SOURCE => params.oscillators[0]
-                .fm_source
-                .map(|s| s as f32)
-                .unwrap_or(0.0),
+            PARAM_OSC1_FM_SOURCE => match params.oscillators[0].fm_source {
+                None => 0.0,    // No FM
+                Some(0) => 1.0, // Osc 1 self-modulation
+                Some(1) => 2.0, // Osc 2 → Osc 1 (feedback)
+                Some(2) => 3.0, // Osc 3 → Osc 1 (feedback)
+                _ => 0.0,
+            },
             PARAM_OSC1_FM_AMOUNT => params.oscillators[0].fm_amount,
             PARAM_OSC1_H1..=PARAM_OSC1_H8 => {
                 let idx = (param_id - PARAM_OSC1_H1) as usize;
                 if idx < 8 {
                     params.oscillators[0].additive_harmonics[idx]
+                } else {
+                    0.0
+                }
+            }
+            PARAM_OSC1_SOLO => {
+                if params.oscillators[0].solo {
+                    1.0
                 } else {
                     0.0
                 }
@@ -399,15 +427,25 @@ pub mod param_get {
             PARAM_OSC2_UNISON_DETUNE => params.oscillators[1].unison_detune,
             PARAM_OSC2_PHASE => params.oscillators[1].phase,
             PARAM_OSC2_SHAPE => params.oscillators[1].shape,
-            PARAM_OSC2_FM_SOURCE => params.oscillators[1]
-                .fm_source
-                .map(|s| s as f32)
-                .unwrap_or(0.0),
+            PARAM_OSC2_FM_SOURCE => match params.oscillators[1].fm_source {
+                None => 0.0,    // No FM
+                Some(0) => 1.0, // Osc 1 → Osc 2
+                Some(1) => 2.0, // Osc 2 self-modulation
+                Some(2) => 3.0, // Osc 3 → Osc 2 (feedback)
+                _ => 0.0,
+            },
             PARAM_OSC2_FM_AMOUNT => params.oscillators[1].fm_amount,
             PARAM_OSC2_H1..=PARAM_OSC2_H8 => {
                 let idx = (param_id - PARAM_OSC2_H1) as usize;
                 if idx < 8 {
                     params.oscillators[1].additive_harmonics[idx]
+                } else {
+                    0.0
+                }
+            }
+            PARAM_OSC2_SOLO => {
+                if params.oscillators[1].solo {
+                    1.0
                 } else {
                     0.0
                 }
@@ -423,15 +461,25 @@ pub mod param_get {
             PARAM_OSC3_UNISON_DETUNE => params.oscillators[2].unison_detune,
             PARAM_OSC3_PHASE => params.oscillators[2].phase,
             PARAM_OSC3_SHAPE => params.oscillators[2].shape,
-            PARAM_OSC3_FM_SOURCE => params.oscillators[2]
-                .fm_source
-                .map(|s| s as f32)
-                .unwrap_or(0.0),
+            PARAM_OSC3_FM_SOURCE => match params.oscillators[2].fm_source {
+                None => 0.0,    // No FM
+                Some(0) => 1.0, // Osc 1 → Osc 3
+                Some(1) => 2.0, // Osc 2 → Osc 3
+                Some(2) => 3.0, // Osc 3 self-modulation
+                _ => 0.0,
+            },
             PARAM_OSC3_FM_AMOUNT => params.oscillators[2].fm_amount,
             PARAM_OSC3_H1..=PARAM_OSC3_H8 => {
                 let idx = (param_id - PARAM_OSC3_H1) as usize;
                 if idx < 8 {
                     params.oscillators[2].additive_harmonics[idx]
+                } else {
+                    0.0
+                }
+            }
+            PARAM_OSC3_SOLO => {
+                if params.oscillators[2].solo {
+                    1.0
                 } else {
                     0.0
                 }

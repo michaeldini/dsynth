@@ -61,6 +61,7 @@ pub const PARAM_OSC1_H5: ParamId = make_param_id(MODULE_OSC1, 15);
 pub const PARAM_OSC1_H6: ParamId = make_param_id(MODULE_OSC1, 16);
 pub const PARAM_OSC1_H7: ParamId = make_param_id(MODULE_OSC1, 17);
 pub const PARAM_OSC1_H8: ParamId = make_param_id(MODULE_OSC1, 18);
+pub const PARAM_OSC1_SOLO: ParamId = make_param_id(MODULE_OSC1, 19);
 
 // Oscillator 2 (same structure)
 pub const PARAM_OSC2_WAVEFORM: ParamId = make_param_id(MODULE_OSC2, 0);
@@ -82,6 +83,7 @@ pub const PARAM_OSC2_H5: ParamId = make_param_id(MODULE_OSC2, 15);
 pub const PARAM_OSC2_H6: ParamId = make_param_id(MODULE_OSC2, 16);
 pub const PARAM_OSC2_H7: ParamId = make_param_id(MODULE_OSC2, 17);
 pub const PARAM_OSC2_H8: ParamId = make_param_id(MODULE_OSC2, 18);
+pub const PARAM_OSC2_SOLO: ParamId = make_param_id(MODULE_OSC2, 19);
 
 // Oscillator 3 (same structure)
 pub const PARAM_OSC3_WAVEFORM: ParamId = make_param_id(MODULE_OSC3, 0);
@@ -103,6 +105,7 @@ pub const PARAM_OSC3_H5: ParamId = make_param_id(MODULE_OSC3, 15);
 pub const PARAM_OSC3_H6: ParamId = make_param_id(MODULE_OSC3, 16);
 pub const PARAM_OSC3_H7: ParamId = make_param_id(MODULE_OSC3, 17);
 pub const PARAM_OSC3_H8: ParamId = make_param_id(MODULE_OSC3, 18);
+pub const PARAM_OSC3_SOLO: ParamId = make_param_id(MODULE_OSC3, 19);
 
 // Filter 1
 pub const PARAM_FILTER1_TYPE: ParamId = make_param_id(MODULE_FILTER1, 0);
@@ -481,6 +484,55 @@ impl ParamDescriptor {
             let normalized = Self::normalize(value, min, max);
             // Invert the exponential curve: if denormalize is v^exp, then normalize is v^(1/exp)
             normalized.powf(1.0 / exponent).clamp(0.0, 1.0)
+        }
+    }
+
+    /// Format a normalized value (0.0-1.0) as a human-readable string with units
+    pub fn format_value(&self, normalized: f32) -> String {
+        match &self.param_type {
+            ParamType::Float { .. } => {
+                let value = self.denormalize(normalized);
+
+                // Format based on unit type
+                match self.unit.as_deref() {
+                    Some("Hz") => {
+                        // Frequency: 1 decimal for <100, no decimals for >=100
+                        if value < 100.0 {
+                            format!("{:.1} Hz", value)
+                        } else {
+                            format!("{:.0} Hz", value)
+                        }
+                    }
+                    Some("ms") => format!("{:.2} ms", value),
+                    Some("s") => format!("{:.2} s", value),
+                    Some("semitones") => format!("{:.1} semitones", value),
+                    Some("cents") => format!("{:.1} cents", value),
+                    Some("%") => format!("{:.0}%", value * 100.0),
+                    Some("dB") => format!("{:.1} dB", value),
+                    Some("lin") => format!("{:.2}", value),
+                    Some("") | None => format!("{:.2}", value),
+                    Some(unit) => format!("{:.2} {}", value, unit),
+                }
+            }
+            ParamType::Bool => {
+                if normalized > 0.5 {
+                    "On".to_string()
+                } else {
+                    "Off".to_string()
+                }
+            }
+            ParamType::Enum { variants } => {
+                let index = (normalized * (variants.len() - 1) as f32).round() as usize;
+                let index = index.min(variants.len().saturating_sub(1));
+                variants
+                    .get(index)
+                    .cloned()
+                    .unwrap_or_else(|| "Unknown".to_string())
+            }
+            ParamType::Int { .. } => {
+                let value = self.denormalize(normalized) as i32;
+                format!("{}", value)
+            }
         }
     }
 }

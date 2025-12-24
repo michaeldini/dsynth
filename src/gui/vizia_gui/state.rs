@@ -106,14 +106,11 @@ impl Model for GuiState {
             GuiMessage::ParamChanged(param_id, normalized) => {
                 self.update_param(*param_id, *normalized);
 
-                // Provide immediate visual feedback in the UI.
+                // Provide immediate visual feedback in the UI with formatted values
                 let registry = crate::plugin::param_registry::get_registry();
                 if let Some(desc) = registry.get(*param_id) {
-                    self.last_param_text = format!(
-                        "{}: {:.0}%",
-                        desc.name,
-                        (normalized.clamp(0.0, 1.0) * 100.0)
-                    );
+                    let formatted_value = desc.format_value(*normalized);
+                    self.last_param_text = format!("{}: {}", desc.name, formatted_value);
                 } else {
                     self.last_param_text = format!(
                         "Param 0x{:08X}: {:.0}%",

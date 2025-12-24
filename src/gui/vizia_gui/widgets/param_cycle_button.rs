@@ -101,7 +101,7 @@ pub fn filter_type_button(cx: &mut Context, param_id: u32, _filter_index: usize)
 
 // Helper function for FM source
 pub fn fm_source_button(cx: &mut Context, param_id: u32, _osc_index: usize) {
-    const OPTIONS: &[&str] = &["None", "Osc1", "Osc2"];
+    const OPTIONS: &[&str] = &["None", "Osc1", "Osc2", "Osc3"];
     param_cycle_button(cx, param_id, "FM Source", OPTIONS);
 }
 

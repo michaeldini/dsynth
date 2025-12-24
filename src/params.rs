@@ -50,20 +50,17 @@ impl fmt::Display for FilterType {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct OscillatorParams {
     pub waveform: Waveform,
-    pub pitch: f32,         // In semitones, ±24
-    pub detune: f32,        // In cents, ±50
-    pub gain: f32,          // 0.0 to 1.0
-    pub pan: f32,           // -1.0 (left) to 1.0 (right), 0.0 = center
-    pub unison: usize,      // Number of unison voices (1-7)
-    pub unison_detune: f32, // Unison spread in cents (0-50)
-    pub phase: f32,         // Initial phase offset (0.0 to 1.0)
-    pub shape: f32,         // Wave shaping amount (-1.0 to 1.0)
-    pub solo: bool,         // Solo mode - when any osc is soloed, only soloed oscs are heard
-    #[serde(default)]
+    pub pitch: f32,                   // In semitones, ±24
+    pub detune: f32,                  // In cents, ±50
+    pub gain: f32,                    // 0.0 to 1.0
+    pub pan: f32,                     // -1.0 (left) to 1.0 (right), 0.0 = center
+    pub unison: usize,                // Number of unison voices (1-7)
+    pub unison_detune: f32,           // Unison spread in cents (0-50)
+    pub phase: f32,                   // Initial phase offset (0.0 to 1.0)
+    pub shape: f32,                   // Wave shaping amount (-1.0 to 1.0)
+    pub solo: bool, // Solo mode - when any osc is soloed, only soloed oscs are heard
     pub fm_source: Option<usize>, // FM source oscillator index (0-2), None = no FM
-    #[serde(default)]
     pub fm_amount: f32, // FM modulation depth (0.0 to 10.0)
-    #[serde(default)]
     pub additive_harmonics: [f32; 8], // Harmonic amplitudes for additive synthesis (0.0 to 1.0)
 }
 

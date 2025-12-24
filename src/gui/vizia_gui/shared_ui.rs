@@ -25,7 +25,7 @@ pub fn build_ui(cx: &mut Context) {
                 .color(Color::rgb(220, 220, 230));
 
             Label::new(cx, GuiState::last_param_text)
-                .font_size(12.0)
+                .font_size(24.0)
                 .color(Color::rgb(180, 180, 190))
                 .width(Stretch(1.0))
                 .text_align(TextAlign::Right)
@@ -86,24 +86,18 @@ pub fn build_ui(cx: &mut Context) {
                     HStack::new(cx, |cx| {
                         VStack::new(cx, |cx| build_osc_section(cx, 1))
                             .width(Pixels(OSC_COL_WIDTH))
-                            .height(Pixels(0.0))
-                            .padding(Pixels(12.0))
-                            .gap(Pixels(12.0));
+                            .height(Pixels(0.0));
                         VStack::new(cx, |cx| build_osc_section(cx, 2))
                             .width(Pixels(OSC_COL_WIDTH))
-                            .height(Pixels(0.0))
-                            .padding(Pixels(12.0))
-                            .gap(Pixels(12.0));
+                            .height(Pixels(0.0));
                         VStack::new(cx, |cx| build_osc_section(cx, 3))
                             .width(Pixels(OSC_COL_WIDTH))
-                            .height(Pixels(0.0))
-                            .padding(Pixels(12.0))
-                            .gap(Pixels(12.0));
+                            .height(Pixels(0.0));
                     })
                     .height(Pixels(0.0))
                     .gap(Pixels(COL_GAP));
                 })
-                .padding(Pixels(10.0))
+                .background_color(Color::rgb(35, 35, 40))
                 .gap(Pixels(10.0))
                 .height(Pixels(250.0));
 
@@ -112,80 +106,55 @@ pub fn build_ui(cx: &mut Context) {
                     HStack::new(cx, |cx| {
                         VStack::new(cx, |cx| build_additive_osc_section(cx, 1))
                             .width(Pixels(OSC_COL_WIDTH))
-                            .height(Units::Auto)
-                            .padding(Pixels(12.0))
-                            .gap(Pixels(12.0));
+                            .height(Units::Auto);
+                        // .gap(Pixels(12.0));
                         VStack::new(cx, |cx| build_additive_osc_section(cx, 2))
                             .width(Pixels(OSC_COL_WIDTH))
-                            .height(Units::Auto)
-                            .padding(Pixels(12.0))
-                            .gap(Pixels(12.0));
+                            .height(Units::Auto);
                         VStack::new(cx, |cx| build_additive_osc_section(cx, 3))
                             .width(Pixels(OSC_COL_WIDTH))
-                            .height(Units::Auto)
-                            .padding(Pixels(12.0))
-                            .gap(Pixels(12.0));
+                            .height(Units::Auto);
                     })
                     .height(Units::Auto)
                     .gap(Pixels(COL_GAP));
                 })
-                .padding(Pixels(10.0))
-                .gap(Pixels(10.0))
-                .background_color(Color::rgb(35, 35, 40))
-                .height(Pixels(250.0));
+                .height(Pixels(200.0));
 
                 // Row 4: Filters
                 VStack::new(cx, |cx| {
                     HStack::new(cx, |cx| {
                         VStack::new(cx, |cx| build_filter_section(cx, 1))
                             .width(Pixels(OSC_COL_WIDTH))
-                            .height(Units::Auto)
-                            .padding(Pixels(12.0))
-                            .gap(Pixels(12.0));
+                            .height(Units::Auto);
                         VStack::new(cx, |cx| build_filter_section(cx, 2))
                             .width(Pixels(OSC_COL_WIDTH))
-                            .height(Units::Auto)
-                            .padding(Pixels(12.0))
-                            .gap(Pixels(12.0));
+                            .height(Units::Auto);
                         VStack::new(cx, |cx| build_filter_section(cx, 3))
                             .width(Pixels(OSC_COL_WIDTH))
-                            .height(Units::Auto)
-                            .padding(Pixels(12.0))
-                            .gap(Pixels(12.0));
+                            .height(Units::Auto);
                     })
                     .height(Units::Auto)
                     .gap(Pixels(COL_GAP));
                 })
-                .padding(Pixels(10.0))
-                .gap(Pixels(10.0))
                 .background_color(Color::rgb(35, 35, 40))
-                .height(Pixels(150.0));
+                .height(Pixels(175.0));
 
                 // Row 5: LFOs
                 VStack::new(cx, |cx| {
                     HStack::new(cx, |cx| {
                         VStack::new(cx, |cx| build_lfo_section(cx, 1))
                             .width(Pixels(OSC_COL_WIDTH))
-                            .height(Units::Auto)
-                            .padding(Pixels(12.0))
-                            .gap(Pixels(12.0));
+                            .height(Units::Auto);
                         VStack::new(cx, |cx| build_lfo_section(cx, 2))
                             .width(Pixels(OSC_COL_WIDTH))
-                            .height(Units::Auto)
-                            .padding(Pixels(12.0))
-                            .gap(Pixels(12.0));
+                            .height(Units::Auto);
                         VStack::new(cx, |cx| build_lfo_section(cx, 3))
                             .width(Pixels(OSC_COL_WIDTH))
-                            .height(Units::Auto)
-                            .padding(Pixels(12.0))
-                            .gap(Pixels(12.0));
+                            .height(Units::Auto);
                     })
                     .height(Units::Auto)
                     .gap(Pixels(COL_GAP));
                 })
-                .padding(Pixels(10.0))
-                .gap(Pixels(10.0))
-                .background_color(Color::rgb(35, 35, 40))
                 .height(Pixels(250.0));
 
                 // Row 6: Effects
@@ -275,7 +244,7 @@ pub fn build_velocity_section(cx: &mut Context) {
 }
 
 pub fn build_osc_section(cx: &mut Context, osc_index: usize) {
-    let (wf, pitch, detune, gain, pan, unison, unison_detune, phase, shape, fm_src, fm_amt) =
+    let (wf, pitch, detune, gain, pan, unison, unison_detune, phase, shape, fm_src, fm_amt, solo) =
         match osc_index {
             1 => (
                 PARAM_OSC1_WAVEFORM,
@@ -289,6 +258,7 @@ pub fn build_osc_section(cx: &mut Context, osc_index: usize) {
                 PARAM_OSC1_SHAPE,
                 PARAM_OSC1_FM_SOURCE,
                 PARAM_OSC1_FM_AMOUNT,
+                PARAM_OSC1_SOLO,
             ),
             2 => (
                 PARAM_OSC2_WAVEFORM,
@@ -302,6 +272,7 @@ pub fn build_osc_section(cx: &mut Context, osc_index: usize) {
                 PARAM_OSC2_SHAPE,
                 PARAM_OSC2_FM_SOURCE,
                 PARAM_OSC2_FM_AMOUNT,
+                PARAM_OSC2_SOLO,
             ),
             _ => (
                 PARAM_OSC3_WAVEFORM,
@@ -315,21 +286,29 @@ pub fn build_osc_section(cx: &mut Context, osc_index: usize) {
                 PARAM_OSC3_SHAPE,
                 PARAM_OSC3_FM_SOURCE,
                 PARAM_OSC3_FM_AMOUNT,
+                PARAM_OSC3_SOLO,
             ),
         };
 
     VStack::new(cx, |cx| {
-        Label::new(cx, &format!("Osc {}", osc_index))
-            .font_size(14.0)
-            .color(Color::rgb(200, 200, 210));
+        HStack::new(cx, |cx| {
+            Label::new(cx, &format!("Osc {}", osc_index))
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210));
+            oscillator_waveform_button(cx, wf, osc_index - 1);
+            fm_source_button(cx, fm_src, osc_index - 1);
 
+            let solo_v = current_normalized(cx, solo);
+            param_checkbox(cx, solo, "Solo", solo_v > 0.5);
+        })
+        .height(Units::Auto)
+        .gap(Pixels(10.0));
         HStack::new(cx, |cx| {
             let pitch_v = current_normalized(cx, pitch);
             let detune_v = current_normalized(cx, detune);
             let gain_v = current_normalized(cx, gain);
             let pan_v = current_normalized(cx, pan);
 
-            oscillator_waveform_button(cx, wf, osc_index - 1);
             param_knob(cx, pitch, "Pitch", pitch_v, default_normalized(pitch));
             param_knob(cx, detune, "Detune", detune_v, default_normalized(detune));
             param_knob(cx, gain, "Gain", gain_v, default_normalized(gain));
@@ -345,7 +324,6 @@ pub fn build_osc_section(cx: &mut Context, osc_index: usize) {
             let shape_v = current_normalized(cx, shape);
             let fm_amt_v = current_normalized(cx, fm_amt);
 
-            fm_source_button(cx, fm_src, osc_index - 1);
             param_knob(cx, fm_amt, "FM Amt", fm_amt_v, default_normalized(fm_amt));
             param_knob(cx, unison, "Unison", unison_v, default_normalized(unison));
             param_knob(
@@ -360,6 +338,7 @@ pub fn build_osc_section(cx: &mut Context, osc_index: usize) {
         .height(Units::Auto)
         .gap(Pixels(6.0));
     })
+    .height(Units::Auto)
     .gap(Pixels(10.0));
 }
 
@@ -460,18 +439,21 @@ pub fn build_filter_section(cx: &mut Context, filter_index: usize) {
     };
 
     VStack::new(cx, |cx| {
-        Label::new(cx, &format!("Filter {}", filter_index))
-            .font_size(14.0)
-            .color(Color::rgb(200, 200, 210))
-            .height(Pixels(22.0));
-
+        HStack::new(cx, |cx| {
+            Label::new(cx, &format!("Filter {}", filter_index))
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210));
+            filter_type_button(cx, ft, filter_index - 1);
+        })
+        .height(Units::Auto)
+        .gap(Pixels(6.0));
         HStack::new(cx, |cx| {
             let cutoff_v = current_normalized(cx, cutoff);
             let res_v = current_normalized(cx, res);
             let bw_v = current_normalized(cx, bw);
             let kt_v = current_normalized(cx, kt);
 
-            filter_type_button(cx, ft, filter_index - 1);
+            // filter_type_button(cx, ft, filter_index - 1);
             param_knob(cx, cutoff, "Cutoff", cutoff_v, default_normalized(cutoff));
             param_knob(cx, res, "Res", res_v, default_normalized(res));
             param_knob(cx, bw, "BW", bw_v, default_normalized(bw));
@@ -518,23 +500,27 @@ pub fn build_lfo_section(cx: &mut Context, lfo_index: usize) {
     };
 
     VStack::new(cx, move |cx| {
-        Label::new(cx, &format!("LFO {}", lfo_index))
-            .font_size(14.0)
-            .color(Color::rgb(200, 200, 210))
-            .height(Pixels(22.0));
+        HStack::new(cx, move |cx| {
+            Label::new(cx, &format!("LFO {}", lfo_index))
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210));
+            lfo_waveform_button(cx, wf, lfo_index - 1);
+        })
+        .height(Units::Auto)
+        .gap(Pixels(10.0));
 
         HStack::new(cx, move |cx| {
             let rate_v = current_normalized(cx, rate);
             let depth_v = current_normalized(cx, depth);
             let filt_v = current_normalized(cx, filt);
 
-            lfo_waveform_button(cx, wf, lfo_index - 1);
+            // lfo_waveform_button(cx, wf, lfo_index - 1);
             param_knob(cx, rate, "Rate", rate_v, default_normalized(rate));
             param_knob(cx, depth, "Depth", depth_v, default_normalized(depth));
             param_knob(cx, filt, "Filter", filt_v, default_normalized(filt));
         })
         .height(Units::Auto)
-        .gap(Pixels(18.0));
+        .gap(Pixels(6.0));
 
         HStack::new(cx, move |cx| {
             let pitch_v = current_normalized(cx, pitch);
@@ -550,7 +536,8 @@ pub fn build_lfo_section(cx: &mut Context, lfo_index: usize) {
         .height(Units::Auto)
         .gap(Pixels(6.0));
     })
-    .gap(Pixels(18.0));
+    .height(Pixels(350.0))
+    .gap(Pixels(10.0));
 }
 
 pub fn build_effects_section(cx: &mut Context) {

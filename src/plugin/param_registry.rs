@@ -170,7 +170,7 @@ impl ParamRegistry {
         );
         add_param!(
             PARAM_OSC1_FM_SOURCE,
-            ParamDescriptor::int(PARAM_OSC1_FM_SOURCE, "FM Source", "Oscillator 1", 0, 2, 0)
+            ParamDescriptor::int(PARAM_OSC1_FM_SOURCE, "FM Source", "Oscillator 1", 0, 3, 0)
         );
         add_param!(
             PARAM_OSC1_FM_AMOUNT,
@@ -201,6 +201,11 @@ impl ParamRegistry {
                 )
             );
         }
+
+        add_param!(
+            PARAM_OSC1_SOLO,
+            ParamDescriptor::bool(PARAM_OSC1_SOLO, "Solo", "Oscillator 1", false)
+        );
 
         // Oscillator 2 (same structure as Osc1)
         add_param!(
@@ -312,7 +317,7 @@ impl ParamRegistry {
         );
         add_param!(
             PARAM_OSC2_FM_SOURCE,
-            ParamDescriptor::int(PARAM_OSC2_FM_SOURCE, "FM Source", "Oscillator 2", 0, 2, 0)
+            ParamDescriptor::int(PARAM_OSC2_FM_SOURCE, "FM Source", "Oscillator 2", 0, 3, 0)
         );
         add_param!(
             PARAM_OSC2_FM_AMOUNT,
@@ -343,6 +348,11 @@ impl ParamRegistry {
                 )
             );
         }
+
+        add_param!(
+            PARAM_OSC2_SOLO,
+            ParamDescriptor::bool(PARAM_OSC2_SOLO, "Solo", "Oscillator 2", false)
+        );
 
         // Oscillator 3 (same structure)
         add_param!(
@@ -454,7 +464,7 @@ impl ParamRegistry {
         );
         add_param!(
             PARAM_OSC3_FM_SOURCE,
-            ParamDescriptor::int(PARAM_OSC3_FM_SOURCE, "FM Source", "Oscillator 3", 0, 2, 0)
+            ParamDescriptor::int(PARAM_OSC3_FM_SOURCE, "FM Source", "Oscillator 3", 0, 3, 0)
         );
         add_param!(
             PARAM_OSC3_FM_AMOUNT,
@@ -485,6 +495,11 @@ impl ParamRegistry {
                 )
             );
         }
+
+        add_param!(
+            PARAM_OSC3_SOLO,
+            ParamDescriptor::bool(PARAM_OSC3_SOLO, "Solo", "Oscillator 3", false)
+        );
 
         // Filters (Lowpass, Highpass, Bandpass)
         for filter_idx in 0..3 {
