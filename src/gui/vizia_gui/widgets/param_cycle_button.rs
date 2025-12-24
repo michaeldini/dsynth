@@ -5,7 +5,7 @@ use vizia::prelude::*;
 /// IMPORTANT: The parameter system uses DENORMALIZED values for enums.
 /// get_param() returns the enum index directly (0, 1, 2, ...) NOT normalized 0.0-1.0
 /// We need to apply the parameter and receive denormalized values as indices.
-pub fn param_dropdown_widget(
+pub fn param_cycle_button(
     cx: &mut Context,
     param_id: u32,
     label: &str,
@@ -86,33 +86,33 @@ pub fn param_dropdown_widget(
 }
 
 // Helper function for oscillator waveforms (8 options in registry)
-pub fn oscillator_waveform_dropdown(cx: &mut Context, param_id: u32, _osc_index: usize) {
+pub fn oscillator_waveform_button(cx: &mut Context, param_id: u32, _osc_index: usize) {
     const OPTIONS: &[&str] = &[
         "Sine", "Saw", "Square", "Triangle", "Pulse", "White", "Pink", "Add",
     ];
-    param_dropdown_widget(cx, param_id, "Waveform", OPTIONS);
+    param_cycle_button(cx, param_id, "Waveform", OPTIONS);
 }
 
 // Helper function for filter types
-pub fn filter_type_dropdown(cx: &mut Context, param_id: u32, _filter_index: usize) {
+pub fn filter_type_button(cx: &mut Context, param_id: u32, _filter_index: usize) {
     const OPTIONS: &[&str] = &["Lowpass", "Highpass", "Bandpass"];
-    param_dropdown_widget(cx, param_id, "Filter Type", OPTIONS);
+    param_cycle_button(cx, param_id, "Filter Type", OPTIONS);
 }
 
 // Helper function for FM source
-pub fn fm_source_dropdown(cx: &mut Context, param_id: u32, _osc_index: usize) {
+pub fn fm_source_button(cx: &mut Context, param_id: u32, _osc_index: usize) {
     const OPTIONS: &[&str] = &["None", "Osc1", "Osc2"];
-    param_dropdown_widget(cx, param_id, "FM Source", OPTIONS);
+    param_cycle_button(cx, param_id, "FM Source", OPTIONS);
 }
 
 // Helper function for LFO waveforms (order from denorm_to_lfo_waveform)
-pub fn lfo_waveform_dropdown(cx: &mut Context, param_id: u32, _lfo_index: usize) {
+pub fn lfo_waveform_button(cx: &mut Context, param_id: u32, _lfo_index: usize) {
     const OPTIONS: &[&str] = &["Sine", "Triangle", "Square", "Saw"];
-    param_dropdown_widget(cx, param_id, "LFO Wave", OPTIONS);
+    param_cycle_button(cx, param_id, "LFO Wave", OPTIONS);
 }
 
 // Helper function for distortion types (order from DistortionType enum)
-pub fn distortion_type_dropdown(cx: &mut Context, param_id: u32) {
+pub fn distortion_type_button(cx: &mut Context, param_id: u32) {
     const OPTIONS: &[&str] = &["Tanh", "SoftClip", "HardClip", "Cubic"];
-    param_dropdown_widget(cx, param_id, "Type", OPTIONS);
+    param_cycle_button(cx, param_id, "Type", OPTIONS);
 }

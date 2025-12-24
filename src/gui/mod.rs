@@ -1,5 +1,3 @@
-pub mod controls;
-
 // VIZIA GUI - unified for both CLAP plugin and standalone
 // vizia is now a non-optional dependency, always available
 pub mod vizia_gui;

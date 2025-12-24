@@ -2,8 +2,8 @@
 
 use crate::gui::vizia_gui::GuiState;
 use crate::gui::vizia_gui::widgets::{
-    distortion_type_dropdown, filter_type_dropdown, fm_source_dropdown, lfo_waveform_dropdown,
-    oscillator_waveform_dropdown, param_checkbox, param_knob,
+    distortion_type_button, filter_type_button, fm_source_button, lfo_waveform_button,
+    oscillator_waveform_button, param_checkbox, param_knob,
 };
 use crate::plugin::param_descriptor::*;
 use crate::plugin::param_registry;
@@ -329,7 +329,7 @@ pub fn build_osc_section(cx: &mut Context, osc_index: usize) {
             let gain_v = current_normalized(cx, gain);
             let pan_v = current_normalized(cx, pan);
 
-            oscillator_waveform_dropdown(cx, wf, osc_index - 1);
+            oscillator_waveform_button(cx, wf, osc_index - 1);
             param_knob(cx, pitch, "Pitch", pitch_v, default_normalized(pitch));
             param_knob(cx, detune, "Detune", detune_v, default_normalized(detune));
             param_knob(cx, gain, "Gain", gain_v, default_normalized(gain));
@@ -345,7 +345,7 @@ pub fn build_osc_section(cx: &mut Context, osc_index: usize) {
             let shape_v = current_normalized(cx, shape);
             let fm_amt_v = current_normalized(cx, fm_amt);
 
-            fm_source_dropdown(cx, fm_src, osc_index - 1);
+            fm_source_button(cx, fm_src, osc_index - 1);
             param_knob(cx, fm_amt, "FM Amt", fm_amt_v, default_normalized(fm_amt));
             param_knob(cx, unison, "Unison", unison_v, default_normalized(unison));
             param_knob(
@@ -471,7 +471,7 @@ pub fn build_filter_section(cx: &mut Context, filter_index: usize) {
             let bw_v = current_normalized(cx, bw);
             let kt_v = current_normalized(cx, kt);
 
-            filter_type_dropdown(cx, ft, filter_index - 1);
+            filter_type_button(cx, ft, filter_index - 1);
             param_knob(cx, cutoff, "Cutoff", cutoff_v, default_normalized(cutoff));
             param_knob(cx, res, "Res", res_v, default_normalized(res));
             param_knob(cx, bw, "BW", bw_v, default_normalized(bw));
@@ -528,7 +528,7 @@ pub fn build_lfo_section(cx: &mut Context, lfo_index: usize) {
             let depth_v = current_normalized(cx, depth);
             let filt_v = current_normalized(cx, filt);
 
-            lfo_waveform_dropdown(cx, wf, lfo_index - 1);
+            lfo_waveform_button(cx, wf, lfo_index - 1);
             param_knob(cx, rate, "Rate", rate_v, default_normalized(rate));
             param_knob(cx, depth, "Depth", depth_v, default_normalized(depth));
             param_knob(cx, filt, "Filter", filt_v, default_normalized(filt));
@@ -597,7 +597,7 @@ pub fn build_distortion_section(cx: &mut Context) {
             let drive_v = current_normalized(cx, PARAM_DISTORTION_DRIVE);
             let mix_v = current_normalized(cx, PARAM_DISTORTION_MIX);
 
-            distortion_type_dropdown(cx, PARAM_DISTORTION_TYPE);
+            distortion_type_button(cx, PARAM_DISTORTION_TYPE);
             param_knob(
                 cx,
                 PARAM_DISTORTION_DRIVE,
