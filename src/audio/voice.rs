@@ -643,7 +643,7 @@ impl Voice {
                 let base_freq = Self::midi_note_to_freq(self.note);
                 let pitch_mult = 2.0_f32.powf(osc_params[i].pitch / 12.0);
                 let detune_mult = 2.0_f32.powf(osc_params[i].detune / 1200.0);
-                
+
                 // Apply LFO pitch modulation (in cents)
                 let lfo_pitch_mult = 2.0_f32.powf(global_pitch_mod_cents / 1200.0);
                 let base_osc_freq = base_freq * pitch_mult * detune_mult * lfo_pitch_mult;
@@ -795,7 +795,7 @@ impl Voice {
             //
             // Apply LFO pan modulation first
             let modulated_pan = (osc_params[i].pan + global_pan_mod).clamp(-1.0, 1.0);
-            
+
             // Equal-power panning law ensures constant perceived loudness as we pan.
             // We map pan to an angle (0 to π/2) and use sin/cos for the gain curves:
             //   pan = -1.0 → angle = 0       → left = 1.0, right = 0.0 (full left)
@@ -1324,7 +1324,7 @@ mod tests {
 
         let filter_params = default_filter_params();
         let mut lfo_params = default_lfo_params();
-        
+
         // Set LFO1 to full depth, max rate, with 100 cents pitch amount
         lfo_params[0].depth = 1.0;
         lfo_params[0].rate = 20.0;
@@ -1339,17 +1339,20 @@ mod tests {
         // Process several samples and verify pitch modulation occurs
         // (frequency changes over time due to LFO)
         let sample1 = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
-        
+
         // Advance LFO by 1/4 period (should be near different LFO value)
         for _ in 0..(sample_rate as usize / (lfo_params[0].rate as usize * 4)) {
             let _ = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
         }
-        
+
         let sample2 = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
 
         // With pitch modulation, the samples should differ significantly
         // (Note: exact values are hard to predict, but they shouldn't be identical)
-        assert_ne!(sample1.0, sample2.0, "Pitch modulation should change output over time");
+        assert_ne!(
+            sample1.0, sample2.0,
+            "Pitch modulation should change output over time"
+        );
     }
 
     #[test]
@@ -1365,7 +1368,7 @@ mod tests {
 
         let filter_params = default_filter_params();
         let mut lfo_params = default_lfo_params();
-        
+
         // Set LFO1 to full depth with maximum gain modulation
         lfo_params[0].depth = 1.0;
         lfo_params[0].rate = 10.0;
@@ -1380,7 +1383,7 @@ mod tests {
         // Collect samples over one LFO period
         let num_samples = (sample_rate / lfo_params[0].rate) as usize;
         let mut samples = Vec::new();
-        
+
         for _ in 0..num_samples {
             let sample = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
             samples.push(sample.0.abs() + sample.1.abs()); // Sum L+R for amplitude
@@ -1389,10 +1392,15 @@ mod tests {
         // With tremolo, amplitude should vary significantly
         let max_amp = samples.iter().cloned().fold(0.0f32, f32::max);
         let min_amp = samples.iter().cloned().fold(f32::INFINITY, f32::min);
-        
+
         // With gain_amount=1.0 and depth=1.0, we should see amplitude variation
         // (min should be noticeably less than max)
-        assert!(max_amp > min_amp * 1.5, "Tremolo should create amplitude variation (max={}, min={})", max_amp, min_amp);
+        assert!(
+            max_amp > min_amp * 1.5,
+            "Tremolo should create amplitude variation (max={}, min={})",
+            max_amp,
+            min_amp
+        );
     }
 
     #[test]
@@ -1409,7 +1417,7 @@ mod tests {
 
         let filter_params = default_filter_params();
         let mut lfo_params = default_lfo_params();
-        
+
         // Set LFO1 to full depth with maximum pan modulation
         lfo_params[0].depth = 1.0;
         lfo_params[0].rate = 5.0;
@@ -1427,10 +1435,10 @@ mod tests {
 
         for _ in 0..(sample_rate as usize) {
             let sample = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
-            
+
             let left = sample.0.abs();
             let right = sample.1.abs();
-            
+
             // Check for significant left bias
             if left > right * 1.2 {
                 found_left_bias = true;
@@ -1439,14 +1447,16 @@ mod tests {
             if right > left * 1.2 {
                 found_right_bias = true;
             }
-            
+
             if found_left_bias && found_right_bias {
                 break;
             }
         }
 
-        assert!(found_left_bias && found_right_bias, 
-            "Auto-pan should create both left and right biased stereo positions");
+        assert!(
+            found_left_bias && found_right_bias,
+            "Auto-pan should create both left and right biased stereo positions"
+        );
     }
 
     #[test]
@@ -1463,7 +1473,7 @@ mod tests {
 
         let filter_params = default_filter_params();
         let mut lfo_params = default_lfo_params();
-        
+
         // Set LFO1 to full depth with PWM modulation
         lfo_params[0].depth = 1.0;
         lfo_params[0].rate = 10.0;
@@ -1495,11 +1505,17 @@ mod tests {
         }
 
         // Compare sample sets - they should differ due to PWM modulation
-        let diff: f32 = samples1.iter().zip(samples2.iter())
+        let diff: f32 = samples1
+            .iter()
+            .zip(samples2.iter())
             .map(|(a, b)| (a - b).abs())
             .sum();
-        
-        assert!(diff > 1.0, "PWM modulation should change waveform shape over time (diff={})", diff);
+
+        assert!(
+            diff > 1.0,
+            "PWM modulation should change waveform shape over time (diff={})",
+            diff
+        );
     }
 
     #[test]
@@ -1515,7 +1531,7 @@ mod tests {
 
         let filter_params = default_filter_params();
         let mut lfo_params = default_lfo_params();
-        
+
         // Enable pitch routing on all 3 LFOs with different rates
         lfo_params[0].depth = 1.0;
         lfo_params[0].rate = 5.0;
@@ -1546,10 +1562,12 @@ mod tests {
         // (not just a simple sine wave pattern)
         let max_val = samples.iter().cloned().fold(0.0f32, f32::max);
         let min_val = samples.iter().cloned().fold(0.0f32, f32::min);
-        
+
         // Verify we have both positive and negative values (complex waveform)
-        assert!(max_val > 0.1 && min_val < -0.1, 
-            "Multiple LFO routing should create complex modulation pattern");
+        assert!(
+            max_val > 0.1 && min_val < -0.1,
+            "Multiple LFO routing should create complex modulation pattern"
+        );
     }
 
     #[test]
@@ -1565,15 +1583,15 @@ mod tests {
         osc_params[0].gain = 1.0;
 
         let filter_params = default_filter_params();
-        
+
         // Voice 1: LFO enabled but routing amount = 0.0
         let mut lfo_params1 = default_lfo_params();
         lfo_params1[0].depth = 1.0;
         lfo_params1[0].rate = 10.0;
         lfo_params1[0].pitch_amount = 0.0; // Disabled
-        lfo_params1[0].gain_amount = 0.0;  // Disabled
-        lfo_params1[0].pan_amount = 0.0;   // Disabled
-        lfo_params1[0].pwm_amount = 0.0;   // Disabled
+        lfo_params1[0].gain_amount = 0.0; // Disabled
+        lfo_params1[0].pan_amount = 0.0; // Disabled
+        lfo_params1[0].pwm_amount = 0.0; // Disabled
 
         // Voice 2: LFO completely disabled
         let lfo_params2 = default_lfo_params();
@@ -1583,14 +1601,16 @@ mod tests {
 
         voice1.note_on(60, 1.0);
         voice2.note_on(60, 1.0);
-        
+
         voice1.update_parameters(&osc_params, &filter_params, &lfo_params1, &envelope_params);
         voice2.update_parameters(&osc_params, &filter_params, &lfo_params2, &envelope_params);
 
         // Process same number of samples on both voices
         for _ in 0..100 {
-            let sample1 = voice1.process(&osc_params, &filter_params, &lfo_params1, &velocity_params);
-            let sample2 = voice2.process(&osc_params, &filter_params, &lfo_params2, &velocity_params);
+            let sample1 =
+                voice1.process(&osc_params, &filter_params, &lfo_params1, &velocity_params);
+            let sample2 =
+                voice2.process(&osc_params, &filter_params, &lfo_params2, &velocity_params);
 
             // With routing amounts at 0.0, both voices should produce identical output
             assert_relative_eq!(sample1.0, sample2.0, epsilon = 0.001);
