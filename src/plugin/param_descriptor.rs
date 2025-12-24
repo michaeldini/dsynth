@@ -185,6 +185,29 @@ pub const PARAM_DISTORTION_TYPE: ParamId = make_param_id(MODULE_EFFECTS, 12);
 pub const PARAM_DISTORTION_DRIVE: ParamId = make_param_id(MODULE_EFFECTS, 13);
 pub const PARAM_DISTORTION_MIX: ParamId = make_param_id(MODULE_EFFECTS, 14);
 
+// Multiband Distortion
+pub const PARAM_MB_DIST_LOW_MID_FREQ: ParamId = make_param_id(MODULE_EFFECTS, 15);
+pub const PARAM_MB_DIST_MID_HIGH_FREQ: ParamId = make_param_id(MODULE_EFFECTS, 16);
+pub const PARAM_MB_DIST_DRIVE_LOW: ParamId = make_param_id(MODULE_EFFECTS, 17);
+pub const PARAM_MB_DIST_DRIVE_MID: ParamId = make_param_id(MODULE_EFFECTS, 18);
+pub const PARAM_MB_DIST_DRIVE_HIGH: ParamId = make_param_id(MODULE_EFFECTS, 19);
+pub const PARAM_MB_DIST_GAIN_LOW: ParamId = make_param_id(MODULE_EFFECTS, 20);
+pub const PARAM_MB_DIST_GAIN_MID: ParamId = make_param_id(MODULE_EFFECTS, 21);
+pub const PARAM_MB_DIST_GAIN_HIGH: ParamId = make_param_id(MODULE_EFFECTS, 22);
+pub const PARAM_MB_DIST_MIX: ParamId = make_param_id(MODULE_EFFECTS, 23);
+
+// Stereo Widener
+pub const PARAM_WIDENER_HAAS_DELAY: ParamId = make_param_id(MODULE_EFFECTS, 24);
+pub const PARAM_WIDENER_HAAS_MIX: ParamId = make_param_id(MODULE_EFFECTS, 25);
+pub const PARAM_WIDENER_WIDTH: ParamId = make_param_id(MODULE_EFFECTS, 26);
+pub const PARAM_WIDENER_MID_GAIN: ParamId = make_param_id(MODULE_EFFECTS, 27);
+pub const PARAM_WIDENER_SIDE_GAIN: ParamId = make_param_id(MODULE_EFFECTS, 28);
+
+// Unison normalization toggles (per oscillator)
+pub const PARAM_OSC1_UNISON_NORMALIZE: ParamId = make_param_id(MODULE_OSC1, 20);
+pub const PARAM_OSC2_UNISON_NORMALIZE: ParamId = make_param_id(MODULE_OSC2, 20);
+pub const PARAM_OSC3_UNISON_NORMALIZE: ParamId = make_param_id(MODULE_OSC3, 20);
+
 /// Value skewing for logarithmic/exponential parameter curves
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ValueSkew {

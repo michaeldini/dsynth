@@ -1,5 +1,5 @@
 use crate::audio::voice::Voice;
-use crate::dsp::effects::{Reverb, StereoDelay, Chorus, Distortion};
+use crate::dsp::effects::{Reverb, StereoDelay, Chorus, Distortion, MultibandDistortion, StereoWidener};
 use crate::params::SynthParams;
 use triple_buffer::{Input, Output, TripleBuffer};
 
@@ -98,6 +98,8 @@ pub struct SynthEngine {
     delay: StereoDelay,
     chorus: Chorus,
     distortion: Distortion,
+    multiband_distortion: MultibandDistortion,
+    stereo_widener: StereoWidener,
 }
 
 impl SynthEngine {
@@ -146,6 +148,8 @@ impl SynthEngine {
             delay: StereoDelay::new(sample_rate),
             chorus: Chorus::new(sample_rate),
             distortion: Distortion::new(sample_rate),
+            multiband_distortion: MultibandDistortion::new(sample_rate),
+            stereo_widener: StereoWidener::new(sample_rate),
         }
     }
 
@@ -209,6 +213,24 @@ impl SynthEngine {
         self.distortion.set_drive(effects.distortion.drive);
         self.distortion.set_mix(effects.distortion.mix);
         self.distortion.set_type(effects.distortion.dist_type.into());
+
+        // Update multiband distortion
+        self.multiband_distortion.set_low_mid_freq(effects.multiband_distortion.low_mid_freq);
+        self.multiband_distortion.set_mid_high_freq(effects.multiband_distortion.mid_high_freq);
+        self.multiband_distortion.set_drive_low(effects.multiband_distortion.drive_low);
+        self.multiband_distortion.set_drive_mid(effects.multiband_distortion.drive_mid);
+        self.multiband_distortion.set_drive_high(effects.multiband_distortion.drive_high);
+        self.multiband_distortion.set_gain_low(effects.multiband_distortion.gain_low);
+        self.multiband_distortion.set_gain_mid(effects.multiband_distortion.gain_mid);
+        self.multiband_distortion.set_gain_high(effects.multiband_distortion.gain_high);
+        self.multiband_distortion.set_mix(effects.multiband_distortion.mix);
+
+        // Update stereo widener
+        self.stereo_widener.set_haas_delay(effects.stereo_widener.haas_delay_ms);
+        self.stereo_widener.set_haas_mix(effects.stereo_widener.haas_mix);
+        self.stereo_widener.set_width(effects.stereo_widener.width);
+        self.stereo_widener.set_mid_gain(effects.stereo_widener.mid_gain);
+        self.stereo_widener.set_side_gain(effects.stereo_widener.side_gain);
     }
 
     #[inline]
@@ -268,15 +290,19 @@ impl SynthEngine {
         output_left *= master;
         output_right *= master;
 
-        // Effects chain (processed in series: distortion → chorus → delay → reverb)
+        // Effects chain (processed in series: distortion → multiband distortion → chorus → delay → stereo widener → reverb)
         // This order is intentional:
         // 1. Distortion first (adds harmonics to dry signal)
-        // 2. Chorus (adds width before spatial effects)
-        // 3. Delay (rhythmic repeats before reverb)
-        // 4. Reverb last (natural space/ambience)
+        // 2. Multiband distortion (frequency-specific saturation)
+        // 3. Chorus (adds width before spatial effects)
+        // 4. Delay (rhythmic repeats before reverb)
+        // 5. Stereo widener (Haas/M-S processing before final ambience)
+        // 6. Reverb last (natural space/ambience)
         let (mut out_l, mut out_r) = self.distortion.process_stereo(output_left, output_right);
+        (out_l, out_r) = self.multiband_distortion.process_stereo(out_l, out_r);
         (out_l, out_r) = self.chorus.process(out_l, out_r);
         (out_l, out_r) = self.delay.process(out_l, out_r);
+        (out_l, out_r) = self.stereo_widener.process(out_l, out_r);
         (out_l, out_r) = self.reverb.process(out_l, out_r);
 
         // Transparent limiter to prevent clipping without harmonic distortion.

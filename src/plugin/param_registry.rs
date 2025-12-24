@@ -893,6 +893,207 @@ impl ParamRegistry {
             )
         );
 
+        // Multiband Distortion parameters
+        add_param!(
+            PARAM_MB_DIST_LOW_MID_FREQ,
+            ParamDescriptor::float_log(
+                PARAM_MB_DIST_LOW_MID_FREQ,
+                "Low-Mid Freq",
+                "Multiband Dist",
+                50.0,
+                500.0,
+                200.0,
+                Some("Hz")
+            )
+        );
+        add_param!(
+            PARAM_MB_DIST_MID_HIGH_FREQ,
+            ParamDescriptor::float_log(
+                PARAM_MB_DIST_MID_HIGH_FREQ,
+                "Mid-High Freq",
+                "Multiband Dist",
+                1000.0,
+                8000.0,
+                2000.0,
+                Some("Hz")
+            )
+        );
+        add_param!(
+            PARAM_MB_DIST_DRIVE_LOW,
+            ParamDescriptor::float(
+                PARAM_MB_DIST_DRIVE_LOW,
+                "Bass Drive",
+                "Multiband Dist",
+                0.0,
+                1.0,
+                0.0,
+                Some("")
+            )
+        );
+        add_param!(
+            PARAM_MB_DIST_DRIVE_MID,
+            ParamDescriptor::float(
+                PARAM_MB_DIST_DRIVE_MID,
+                "Mid Drive",
+                "Multiband Dist",
+                0.0,
+                1.0,
+                0.0,
+                Some("")
+            )
+        );
+        add_param!(
+            PARAM_MB_DIST_DRIVE_HIGH,
+            ParamDescriptor::float(
+                PARAM_MB_DIST_DRIVE_HIGH,
+                "High Drive",
+                "Multiband Dist",
+                0.0,
+                1.0,
+                0.0,
+                Some("")
+            )
+        );
+        add_param!(
+            PARAM_MB_DIST_GAIN_LOW,
+            ParamDescriptor::float(
+                PARAM_MB_DIST_GAIN_LOW,
+                "Bass Gain",
+                "Multiband Dist",
+                0.0,
+                2.0,
+                1.0,
+                Some("")
+            )
+        );
+        add_param!(
+            PARAM_MB_DIST_GAIN_MID,
+            ParamDescriptor::float(
+                PARAM_MB_DIST_GAIN_MID,
+                "Mid Gain",
+                "Multiband Dist",
+                0.0,
+                2.0,
+                1.0,
+                Some("")
+            )
+        );
+        add_param!(
+            PARAM_MB_DIST_GAIN_HIGH,
+            ParamDescriptor::float(
+                PARAM_MB_DIST_GAIN_HIGH,
+                "High Gain",
+                "Multiband Dist",
+                0.0,
+                2.0,
+                1.0,
+                Some("")
+            )
+        );
+        add_param!(
+            PARAM_MB_DIST_MIX,
+            ParamDescriptor::float(
+                PARAM_MB_DIST_MIX,
+                "Mix",
+                "Multiband Dist",
+                0.0,
+                1.0,
+                0.0,
+                Some("")
+            )
+        );
+
+        // Stereo Widener parameters
+        add_param!(
+            PARAM_WIDENER_HAAS_DELAY,
+            ParamDescriptor::float(
+                PARAM_WIDENER_HAAS_DELAY,
+                "Haas Delay",
+                "Stereo Widener",
+                0.0,
+                30.0,
+                0.0,
+                Some("ms")
+            )
+        );
+        add_param!(
+            PARAM_WIDENER_HAAS_MIX,
+            ParamDescriptor::float(
+                PARAM_WIDENER_HAAS_MIX,
+                "Haas Mix",
+                "Stereo Widener",
+                0.0,
+                1.0,
+                0.0,
+                Some("")
+            )
+        );
+        add_param!(
+            PARAM_WIDENER_WIDTH,
+            ParamDescriptor::float(
+                PARAM_WIDENER_WIDTH,
+                "Width",
+                "Stereo Widener",
+                0.0,
+                2.0,
+                1.0,
+                Some("")
+            )
+        );
+        add_param!(
+            PARAM_WIDENER_MID_GAIN,
+            ParamDescriptor::float(
+                PARAM_WIDENER_MID_GAIN,
+                "Mid Gain",
+                "Stereo Widener",
+                0.0,
+                2.0,
+                1.0,
+                Some("")
+            )
+        );
+        add_param!(
+            PARAM_WIDENER_SIDE_GAIN,
+            ParamDescriptor::float(
+                PARAM_WIDENER_SIDE_GAIN,
+                "Side Gain",
+                "Stereo Widener",
+                0.0,
+                2.0,
+                1.0,
+                Some("")
+            )
+        );
+
+        // Unison normalization toggles
+        add_param!(
+            PARAM_OSC1_UNISON_NORMALIZE,
+            ParamDescriptor::bool(
+                PARAM_OSC1_UNISON_NORMALIZE,
+                "Unison Norm",
+                "Oscillator 1",
+                true
+            )
+        );
+        add_param!(
+            PARAM_OSC2_UNISON_NORMALIZE,
+            ParamDescriptor::bool(
+                PARAM_OSC2_UNISON_NORMALIZE,
+                "Unison Norm",
+                "Oscillator 2",
+                true
+            )
+        );
+        add_param!(
+            PARAM_OSC3_UNISON_NORMALIZE,
+            ParamDescriptor::bool(
+                PARAM_OSC3_UNISON_NORMALIZE,
+                "Unison Norm",
+                "Oscillator 3",
+                true
+            )
+        );
+
         // Sort parameter IDs for consistent iteration
         param_ids.sort();
 

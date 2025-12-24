@@ -308,6 +308,29 @@ pub mod param_apply {
             PARAM_DISTORTION_DRIVE => params.effects.distortion.drive = denorm,
             PARAM_DISTORTION_MIX => params.effects.distortion.mix = denorm,
 
+            // Multiband Distortion
+            PARAM_MB_DIST_LOW_MID_FREQ => params.effects.multiband_distortion.low_mid_freq = denorm,
+            PARAM_MB_DIST_MID_HIGH_FREQ => params.effects.multiband_distortion.mid_high_freq = denorm,
+            PARAM_MB_DIST_DRIVE_LOW => params.effects.multiband_distortion.drive_low = denorm,
+            PARAM_MB_DIST_DRIVE_MID => params.effects.multiband_distortion.drive_mid = denorm,
+            PARAM_MB_DIST_DRIVE_HIGH => params.effects.multiband_distortion.drive_high = denorm,
+            PARAM_MB_DIST_GAIN_LOW => params.effects.multiband_distortion.gain_low = denorm,
+            PARAM_MB_DIST_GAIN_MID => params.effects.multiband_distortion.gain_mid = denorm,
+            PARAM_MB_DIST_GAIN_HIGH => params.effects.multiband_distortion.gain_high = denorm,
+            PARAM_MB_DIST_MIX => params.effects.multiband_distortion.mix = denorm,
+
+            // Stereo Widener
+            PARAM_WIDENER_HAAS_DELAY => params.effects.stereo_widener.haas_delay_ms = denorm,
+            PARAM_WIDENER_HAAS_MIX => params.effects.stereo_widener.haas_mix = denorm,
+            PARAM_WIDENER_WIDTH => params.effects.stereo_widener.width = denorm,
+            PARAM_WIDENER_MID_GAIN => params.effects.stereo_widener.mid_gain = denorm,
+            PARAM_WIDENER_SIDE_GAIN => params.effects.stereo_widener.side_gain = denorm,
+
+            // Unison Normalization toggles
+            PARAM_OSC1_UNISON_NORMALIZE => params.oscillators[0].unison_normalize = denorm > 0.5,
+            PARAM_OSC2_UNISON_NORMALIZE => params.oscillators[1].unison_normalize = denorm > 0.5,
+            PARAM_OSC3_UNISON_NORMALIZE => params.oscillators[2].unison_normalize = denorm > 0.5,
+
             _ => {} // Unknown parameter, ignore
         }
     }
@@ -564,6 +587,29 @@ pub mod param_get {
             PARAM_DISTORTION_TYPE => distortion_type_to_denorm(params.effects.distortion.dist_type),
             PARAM_DISTORTION_DRIVE => params.effects.distortion.drive,
             PARAM_DISTORTION_MIX => params.effects.distortion.mix,
+
+            // Effects - Multiband Distortion
+            PARAM_MB_DIST_LOW_MID_FREQ => params.effects.multiband_distortion.low_mid_freq,
+            PARAM_MB_DIST_MID_HIGH_FREQ => params.effects.multiband_distortion.mid_high_freq,
+            PARAM_MB_DIST_DRIVE_LOW => params.effects.multiband_distortion.drive_low,
+            PARAM_MB_DIST_DRIVE_MID => params.effects.multiband_distortion.drive_mid,
+            PARAM_MB_DIST_DRIVE_HIGH => params.effects.multiband_distortion.drive_high,
+            PARAM_MB_DIST_GAIN_LOW => params.effects.multiband_distortion.gain_low,
+            PARAM_MB_DIST_GAIN_MID => params.effects.multiband_distortion.gain_mid,
+            PARAM_MB_DIST_GAIN_HIGH => params.effects.multiband_distortion.gain_high,
+            PARAM_MB_DIST_MIX => params.effects.multiband_distortion.mix,
+
+            // Effects - Stereo Widener
+            PARAM_WIDENER_HAAS_DELAY => params.effects.stereo_widener.haas_delay_ms,
+            PARAM_WIDENER_HAAS_MIX => params.effects.stereo_widener.haas_mix,
+            PARAM_WIDENER_WIDTH => params.effects.stereo_widener.width,
+            PARAM_WIDENER_MID_GAIN => params.effects.stereo_widener.mid_gain,
+            PARAM_WIDENER_SIDE_GAIN => params.effects.stereo_widener.side_gain,
+
+            // Unison Normalization
+            PARAM_OSC1_UNISON_NORMALIZE => if params.oscillators[0].unison_normalize { 1.0 } else { 0.0 },
+            PARAM_OSC2_UNISON_NORMALIZE => if params.oscillators[1].unison_normalize { 1.0 } else { 0.0 },
+            PARAM_OSC3_UNISON_NORMALIZE => if params.oscillators[2].unison_normalize { 1.0 } else { 0.0 },
 
             _ => 0.0,
         }

@@ -725,8 +725,18 @@ impl Voice {
             // With small detune amounts, unison voices can align in phase and produce
             // large instantaneous peaks; power normalization (sqrt(N)) would then drive
             // the master limiter frequently, which is perceived as distortion/pumping.
-            let unison_count_f32 = unison_count as f32;
-            let osc_out = osc_sum / unison_count_f32;
+            //
+            // If unison_normalize is disabled, we skip normalization for a thicker,
+            // louder sound that intentionally drives the limiter/distortion.
+            let osc_out = if osc_params[i].unison_normalize {
+                let unison_count_f32 = unison_count as f32;
+                osc_sum / unison_count_f32
+            } else {
+                // No normalization - raw sum for maximum thickness
+                // Apply a small sqrt(N) compensation to prevent extreme levels
+                let unison_count_f32 = unison_count as f32;
+                osc_sum / unison_count_f32.sqrt()
+            };
 
             // Store the raw oscillator output (needed for FM routing)
             osc_outputs[i] = osc_out;

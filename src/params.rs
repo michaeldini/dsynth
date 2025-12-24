@@ -56,11 +56,12 @@ pub struct OscillatorParams {
     pub pan: f32,                     // -1.0 (left) to 1.0 (right), 0.0 = center
     pub unison: usize,                // Number of unison voices (1-7)
     pub unison_detune: f32,           // Unison spread in cents (0-100)
-    pub phase: f32,                   // Initial phase offset (0.0 to 1.0)
-    pub shape: f32,                   // Wave shaping amount (-1.0 to 1.0)
-    pub solo: bool, // Solo mode - when any osc is soloed, only soloed oscs are heard
+    pub unison_normalize: bool, // Whether to normalize gain for unison (true = prevent clipping, false = thick)
+    pub phase: f32,             // Initial phase offset (0.0 to 1.0)
+    pub shape: f32,             // Wave shaping amount (-1.0 to 1.0)
+    pub solo: bool,             // Solo mode - when any osc is soloed, only soloed oscs are heard
     pub fm_source: Option<usize>, // FM source oscillator index (0-2), None = no FM
-    pub fm_amount: f32, // FM modulation depth (0.0 to 10.0)
+    pub fm_amount: f32,         // FM modulation depth (0.0 to 10.0)
     pub additive_harmonics: [f32; 8], // Harmonic amplitudes for additive synthesis (0.0 to 1.0)
 }
 
@@ -76,6 +77,7 @@ impl Default for OscillatorParams {
             fm_source: None,
             fm_amount: 0.0,
             unison_detune: 10.0,
+            unison_normalize: true, // Default: normalize to prevent clipping
             phase: 0.0,
             shape: 0.0,
             solo: false,
@@ -333,12 +335,70 @@ impl Default for DistortionParams {
     }
 }
 
+/// Multi-band distortion parameters
+/// Allows independent saturation of bass, mid, and high frequency bands
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct MultibandDistortionParams {
+    pub low_mid_freq: f32,  // Crossover frequency (50-500 Hz)
+    pub mid_high_freq: f32, // Crossover frequency (1000-8000 Hz)
+    pub drive_low: f32,     // Bass drive (0.0 to 1.0)
+    pub drive_mid: f32,     // Mid drive (0.0 to 1.0)
+    pub drive_high: f32,    // High drive (0.0 to 1.0)
+    pub gain_low: f32,      // Bass output gain (0.0 to 2.0)
+    pub gain_mid: f32,      // Mid output gain (0.0 to 2.0)
+    pub gain_high: f32,     // High output gain (0.0 to 2.0)
+    pub mix: f32,           // Wet/dry mix (0.0 to 1.0)
+}
+
+impl Default for MultibandDistortionParams {
+    fn default() -> Self {
+        Self {
+            low_mid_freq: 200.0,
+            mid_high_freq: 2000.0,
+            drive_low: 0.0,
+            drive_mid: 0.0,
+            drive_high: 0.0,
+            gain_low: 1.0,
+            gain_mid: 1.0,
+            gain_high: 1.0,
+            mix: 0.0, // Disabled by default
+        }
+    }
+}
+
+/// Stereo widener parameters
+/// Uses Haas delay and mid/side processing for stereo enhancement
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct StereoWidenerParams {
+    pub haas_delay_ms: f32, // Haas delay time (0.0 to 30.0 ms)
+    pub haas_mix: f32,      // Haas effect amount (0.0 to 1.0)
+    pub width: f32,         // Stereo width (0.0 = mono, 1.0 = normal, 2.0 = extra wide)
+    pub mid_gain: f32,      // Mid channel gain (0.0 to 2.0)
+    pub side_gain: f32,     // Side channel gain (0.0 to 2.0)
+}
+
+impl Default for StereoWidenerParams {
+    fn default() -> Self {
+        Self {
+            haas_delay_ms: 0.0,
+            haas_mix: 0.0,
+            width: 1.0, // Normal stereo width
+            mid_gain: 1.0,
+            side_gain: 1.0,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct EffectsParams {
     pub reverb: ReverbParams,
     pub delay: DelayParams,
     pub chorus: ChorusParams,
     pub distortion: DistortionParams,
+    #[serde(default)]
+    pub multiband_distortion: MultibandDistortionParams,
+    #[serde(default)]
+    pub stereo_widener: StereoWidenerParams,
 }
 
 impl Default for EffectsParams {
@@ -348,6 +408,8 @@ impl Default for EffectsParams {
             delay: DelayParams::default(),
             chorus: ChorusParams::default(),
             distortion: DistortionParams::default(),
+            multiband_distortion: MultibandDistortionParams::default(),
+            stereo_widener: StereoWidenerParams::default(),
         }
     }
 }

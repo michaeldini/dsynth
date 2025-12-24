@@ -61,6 +61,36 @@ The synthesizer now supports playing notes via computer keyboard!
 - Fixed velocity (0.8) for keyboard notes
 - Use PANIC button to stop all notes if needed
 
+## Phase 2: Modern Electronic Music Features
+
+### Multiband Distortion
+Separate saturation for bass, mid, and high frequencies. Essential for:
+- **Bass music**: Destroy the lows while keeping highs clean
+- **EDM leads**: Add presence to mids without muddying bass
+- **Parameters**:
+  - Low-Mid Freq: Crossover point (50-500 Hz)
+  - Mid-High Freq: Crossover point (1000-8000 Hz)
+  - Bass/Mid/High Drive: 0-100x gain per band
+  - Bass/Mid/High Gain: Output level per band
+  - Mix: Wet/dry blend
+
+### Stereo Widener
+Makes your sounds WIDE using two techniques:
+- **Haas Delay**: Subtle timing difference between L/R (0-30ms)
+- **Mid/Side Processing**: Boost stereo content while preserving mono
+- **Parameters**:
+  - Haas Delay: Timing offset in ms
+  - Haas Mix: How much Haas effect
+  - Width: 0=mono, 1=normal, 2=extra wide
+  - Mid/Side Gains: Balance center vs stereo
+
+### Unison Normalization Toggle
+Each oscillator now has a **Unison Norm** toggle:
+- **ON (default)**: Gain compensated to prevent clipping
+- **OFF**: Raw unison stacking for THICK, aggressive sounds
+  - Intentionally drives the limiter/distortion
+  - Perfect for dubstep/riddim basses
+
 ## Tips
 
 ### Getting Started Sounds
@@ -83,6 +113,38 @@ The synthesizer now supports playing notes via computer keyboard!
 - Oscillator 2: Square wave, -12 pitch, 0 detune, gain 0.8
 - Oscillator 3: Off
 - Filters: Lowpass, 400 Hz, resonance 1.0
+
+### Electronic Music Presets (Phase 2 Features)
+
+**EDM Supersaw Lead:**
+- Oscillator 1: Saw wave, Unison 7, Unison Detune 80, gain 0.8
+- Oscillator 2: Saw wave, +12 pitch, Unison 5, Unison Detune 60, gain 0.5
+- Filter: Lowpass, 3000 Hz, resonance 5.0
+- Stereo Widener: Width 1.5, Side Gain 1.3
+- Distortion: Drive 30%, Tanh
+
+**Acid Bassline (303-style):**
+- Oscillator 1: Saw wave, -12 pitch, gain 1.0
+- Filter: Lowpass, cutoff 800 Hz, **resonance 30-40** (high!)
+- Filter Envelope: Fast attack, medium decay, amount +8000 Hz
+- Distortion: Drive 40%, Tanh
+
+**Dubstep Growl Bass:**
+- Oscillator 1: Saw wave, -12 pitch, Unison 5, Detune 40, **Unison Norm OFF**
+- Oscillator 2: Square wave, -24 pitch, gain 0.7
+- Multiband Distortion:
+  - Bass Drive: 80%
+  - Mid Drive: 50%
+  - High Drive: 20%
+  - Mix: 100%
+- Filter: Lowpass, 1200 Hz, resonance 8.0
+
+**Wide Pad:**
+- Oscillator 1: Sine wave, Unison 3, Detune 20, gain 0.6
+- Oscillator 2: Saw wave, +7 pitch, Unison 3, Detune 30, gain 0.4
+- Filter: Lowpass, 2000 Hz, resonance 2.0
+- Stereo Widener: Haas Delay 15ms, Haas Mix 0.5, Width 1.8
+- Reverb: Room 0.7, Wet 0.4
 
 ### Performance Tips
 

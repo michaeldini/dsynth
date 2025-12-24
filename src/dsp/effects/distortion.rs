@@ -20,7 +20,6 @@
 /// - **Soft Clip**: Gentle compression then hard limit
 /// - **Hard Clip**: Brick-wall limiting (harsh, digital)
 /// - **Cubic**: Subtle harmonic enhancement (adds 3rd harmonic)
-
 use std::f32::consts::PI;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -228,12 +227,19 @@ mod tests {
 
         // Low amplitude signal should pass relatively clean
         let low_out = dist.process(0.1);
-        assert!(low_out.abs() < 1.0, "Low amplitude output should be reasonable: {}", low_out);
+        assert!(
+            low_out.abs() < 1.0,
+            "Low amplitude output should be reasonable: {}",
+            low_out
+        );
 
         // High amplitude signal should be compressed/clipped
         dist.clear();
         let high_out = dist.process(2.0);
-        assert!(high_out.abs() < 1.5, "Distortion should compress/limit signal");
+        assert!(
+            high_out.abs() < 1.5,
+            "Distortion should compress/limit signal"
+        );
     }
 
     #[test]
@@ -250,14 +256,18 @@ mod tests {
         // Use apply_distortion directly to avoid DC blocker differences
         let gain = 10.0; // High gain to show clear difference
         let input = 0.5;
-        
+
         let out_tanh = dist_tanh.apply_distortion(input, gain);
         let out_hard = dist_hard.apply_distortion(input, gain);
 
         // Different algorithms should produce different results (even tiny differences count)
-        assert!((out_tanh - out_hard).abs() > 0.00001, 
-            "Different distortion types should produce different outputs: tanh={}, hard={}, diff={}", 
-            out_tanh, out_hard, (out_tanh - out_hard).abs());
+        assert!(
+            (out_tanh - out_hard).abs() > 0.00001,
+            "Different distortion types should produce different outputs: tanh={}, hard={}, diff={}",
+            out_tanh,
+            out_hard,
+            (out_tanh - out_hard).abs()
+        );
     }
 
     #[test]
@@ -306,7 +316,7 @@ mod tests {
         // Cubic adds subtle distortion
         let input = 0.5;
         let output = dist.process(input);
-        
+
         // Output should be non-linear but not radically different
         assert!((output - input).abs() < 0.5);
     }

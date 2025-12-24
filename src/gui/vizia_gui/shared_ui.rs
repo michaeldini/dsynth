@@ -244,51 +244,67 @@ pub fn build_velocity_section(cx: &mut Context) {
 }
 
 pub fn build_osc_section(cx: &mut Context, osc_index: usize) {
-    let (wf, pitch, detune, gain, pan, unison, unison_detune, phase, shape, fm_src, fm_amt, solo) =
-        match osc_index {
-            1 => (
-                PARAM_OSC1_WAVEFORM,
-                PARAM_OSC1_PITCH,
-                PARAM_OSC1_DETUNE,
-                PARAM_OSC1_GAIN,
-                PARAM_OSC1_PAN,
-                PARAM_OSC1_UNISON,
-                PARAM_OSC1_UNISON_DETUNE,
-                PARAM_OSC1_PHASE,
-                PARAM_OSC1_SHAPE,
-                PARAM_OSC1_FM_SOURCE,
-                PARAM_OSC1_FM_AMOUNT,
-                PARAM_OSC1_SOLO,
-            ),
-            2 => (
-                PARAM_OSC2_WAVEFORM,
-                PARAM_OSC2_PITCH,
-                PARAM_OSC2_DETUNE,
-                PARAM_OSC2_GAIN,
-                PARAM_OSC2_PAN,
-                PARAM_OSC2_UNISON,
-                PARAM_OSC2_UNISON_DETUNE,
-                PARAM_OSC2_PHASE,
-                PARAM_OSC2_SHAPE,
-                PARAM_OSC2_FM_SOURCE,
-                PARAM_OSC2_FM_AMOUNT,
-                PARAM_OSC2_SOLO,
-            ),
-            _ => (
-                PARAM_OSC3_WAVEFORM,
-                PARAM_OSC3_PITCH,
-                PARAM_OSC3_DETUNE,
-                PARAM_OSC3_GAIN,
-                PARAM_OSC3_PAN,
-                PARAM_OSC3_UNISON,
-                PARAM_OSC3_UNISON_DETUNE,
-                PARAM_OSC3_PHASE,
-                PARAM_OSC3_SHAPE,
-                PARAM_OSC3_FM_SOURCE,
-                PARAM_OSC3_FM_AMOUNT,
-                PARAM_OSC3_SOLO,
-            ),
-        };
+    let (
+        wf,
+        pitch,
+        detune,
+        gain,
+        pan,
+        unison,
+        unison_detune,
+        phase,
+        shape,
+        fm_src,
+        fm_amt,
+        solo,
+        unison_norm,
+    ) = match osc_index {
+        1 => (
+            PARAM_OSC1_WAVEFORM,
+            PARAM_OSC1_PITCH,
+            PARAM_OSC1_DETUNE,
+            PARAM_OSC1_GAIN,
+            PARAM_OSC1_PAN,
+            PARAM_OSC1_UNISON,
+            PARAM_OSC1_UNISON_DETUNE,
+            PARAM_OSC1_PHASE,
+            PARAM_OSC1_SHAPE,
+            PARAM_OSC1_FM_SOURCE,
+            PARAM_OSC1_FM_AMOUNT,
+            PARAM_OSC1_SOLO,
+            PARAM_OSC1_UNISON_NORMALIZE,
+        ),
+        2 => (
+            PARAM_OSC2_WAVEFORM,
+            PARAM_OSC2_PITCH,
+            PARAM_OSC2_DETUNE,
+            PARAM_OSC2_GAIN,
+            PARAM_OSC2_PAN,
+            PARAM_OSC2_UNISON,
+            PARAM_OSC2_UNISON_DETUNE,
+            PARAM_OSC2_PHASE,
+            PARAM_OSC2_SHAPE,
+            PARAM_OSC2_FM_SOURCE,
+            PARAM_OSC2_FM_AMOUNT,
+            PARAM_OSC2_SOLO,
+            PARAM_OSC2_UNISON_NORMALIZE,
+        ),
+        _ => (
+            PARAM_OSC3_WAVEFORM,
+            PARAM_OSC3_PITCH,
+            PARAM_OSC3_DETUNE,
+            PARAM_OSC3_GAIN,
+            PARAM_OSC3_PAN,
+            PARAM_OSC3_UNISON,
+            PARAM_OSC3_UNISON_DETUNE,
+            PARAM_OSC3_PHASE,
+            PARAM_OSC3_SHAPE,
+            PARAM_OSC3_FM_SOURCE,
+            PARAM_OSC3_FM_AMOUNT,
+            PARAM_OSC3_SOLO,
+            PARAM_OSC3_UNISON_NORMALIZE,
+        ),
+    };
 
     VStack::new(cx, |cx| {
         HStack::new(cx, |cx| {
@@ -323,6 +339,7 @@ pub fn build_osc_section(cx: &mut Context, osc_index: usize) {
             let _phase_v = current_normalized(cx, phase);
             let shape_v = current_normalized(cx, shape);
             let fm_amt_v = current_normalized(cx, fm_amt);
+            let unison_norm_v = current_normalized(cx, unison_norm);
 
             param_knob(cx, fm_amt, "FM Amt", fm_amt_v, default_normalized(fm_amt));
             param_knob(cx, unison, "Unison", unison_v, default_normalized(unison));
@@ -334,6 +351,7 @@ pub fn build_osc_section(cx: &mut Context, osc_index: usize) {
                 default_normalized(unison_detune),
             );
             param_knob(cx, shape, "Shape", shape_v, default_normalized(shape));
+            param_checkbox(cx, unison_norm, "UNorm", unison_norm_v > 0.5);
         })
         .height(Units::Auto)
         .gap(Pixels(6.0));
@@ -549,6 +567,7 @@ pub fn build_effects_section(cx: &mut Context) {
             .color(Color::rgb(200, 200, 210))
             .height(Pixels(24.0));
 
+        // Row 1: Standard distortion, chorus, delay
         HStack::new(cx, |cx| {
             VStack::new(cx, |cx| build_distortion_section(cx))
                 .width(Pixels(EFFECT_COL_WIDTH))
@@ -559,15 +578,27 @@ pub fn build_effects_section(cx: &mut Context) {
             VStack::new(cx, |cx| build_delay_section(cx))
                 .width(Pixels(EFFECT_COL_WIDTH))
                 .gap(Pixels(6.0));
+        })
+        .height(Pixels(150.0))
+        .gap(Pixels(12.0));
+
+        // Row 2: Multiband distortion, stereo widener, reverb
+        HStack::new(cx, |cx| {
+            VStack::new(cx, |cx| build_multiband_distortion_section(cx))
+                .width(Pixels(EFFECT_COL_WIDTH + 100.0))
+                .gap(Pixels(6.0));
+            VStack::new(cx, |cx| build_stereo_widener_section(cx))
+                .width(Pixels(EFFECT_COL_WIDTH + 20.0))
+                .gap(Pixels(6.0));
             VStack::new(cx, |cx| build_reverb_section(cx))
                 .width(Pixels(EFFECT_COL_WIDTH))
                 .gap(Pixels(6.0));
         })
-        .height(Units::Auto)
+        .height(Pixels(200.0))
         .gap(Pixels(12.0));
     })
     .width(Stretch(1.0))
-    .height(Pixels(150.0))
+    .height(Units::Auto)
     .background_color(Color::rgb(35, 35, 40))
     .padding(Pixels(10.0))
     .gap(Pixels(6.0));
@@ -742,6 +773,158 @@ pub fn build_reverb_section(cx: &mut Context) {
                 "Width",
                 width_v,
                 default_normalized(PARAM_REVERB_WIDTH),
+            );
+        })
+        .height(Units::Auto)
+        .gap(Pixels(6.0));
+    })
+    .gap(Pixels(6.0));
+}
+
+pub fn build_multiband_distortion_section(cx: &mut Context) {
+    VStack::new(cx, |cx| {
+        Label::new(cx, "Multiband Distortion")
+            .font_size(14.0)
+            .color(Color::rgb(200, 200, 210))
+            .height(Pixels(22.0));
+
+        // Crossover frequencies
+        HStack::new(cx, |cx| {
+            let low_mid_v = current_normalized(cx, PARAM_MB_DIST_LOW_MID_FREQ);
+            let mid_high_v = current_normalized(cx, PARAM_MB_DIST_MID_HIGH_FREQ);
+            let mix_v = current_normalized(cx, PARAM_MB_DIST_MIX);
+
+            param_knob(
+                cx,
+                PARAM_MB_DIST_LOW_MID_FREQ,
+                "Lo/Mid",
+                low_mid_v,
+                default_normalized(PARAM_MB_DIST_LOW_MID_FREQ),
+            );
+            param_knob(
+                cx,
+                PARAM_MB_DIST_MID_HIGH_FREQ,
+                "Mid/Hi",
+                mid_high_v,
+                default_normalized(PARAM_MB_DIST_MID_HIGH_FREQ),
+            );
+            param_knob(
+                cx,
+                PARAM_MB_DIST_MIX,
+                "Mix",
+                mix_v,
+                default_normalized(PARAM_MB_DIST_MIX),
+            );
+        })
+        .height(Units::Auto)
+        .gap(Pixels(6.0));
+
+        // Per-band drive and gain
+        HStack::new(cx, |cx| {
+            let drive_low_v = current_normalized(cx, PARAM_MB_DIST_DRIVE_LOW);
+            let drive_mid_v = current_normalized(cx, PARAM_MB_DIST_DRIVE_MID);
+            let drive_high_v = current_normalized(cx, PARAM_MB_DIST_DRIVE_HIGH);
+            let gain_low_v = current_normalized(cx, PARAM_MB_DIST_GAIN_LOW);
+            let gain_mid_v = current_normalized(cx, PARAM_MB_DIST_GAIN_MID);
+            let gain_high_v = current_normalized(cx, PARAM_MB_DIST_GAIN_HIGH);
+
+            param_knob(
+                cx,
+                PARAM_MB_DIST_DRIVE_LOW,
+                "DrLo",
+                drive_low_v,
+                default_normalized(PARAM_MB_DIST_DRIVE_LOW),
+            );
+            param_knob(
+                cx,
+                PARAM_MB_DIST_DRIVE_MID,
+                "DrMid",
+                drive_mid_v,
+                default_normalized(PARAM_MB_DIST_DRIVE_MID),
+            );
+            param_knob(
+                cx,
+                PARAM_MB_DIST_DRIVE_HIGH,
+                "DrHi",
+                drive_high_v,
+                default_normalized(PARAM_MB_DIST_DRIVE_HIGH),
+            );
+            param_knob(
+                cx,
+                PARAM_MB_DIST_GAIN_LOW,
+                "GnLo",
+                gain_low_v,
+                default_normalized(PARAM_MB_DIST_GAIN_LOW),
+            );
+            param_knob(
+                cx,
+                PARAM_MB_DIST_GAIN_MID,
+                "GnMid",
+                gain_mid_v,
+                default_normalized(PARAM_MB_DIST_GAIN_MID),
+            );
+            param_knob(
+                cx,
+                PARAM_MB_DIST_GAIN_HIGH,
+                "GnHi",
+                gain_high_v,
+                default_normalized(PARAM_MB_DIST_GAIN_HIGH),
+            );
+        })
+        .height(Units::Auto)
+        .gap(Pixels(6.0));
+    })
+    .gap(Pixels(6.0));
+}
+
+pub fn build_stereo_widener_section(cx: &mut Context) {
+    VStack::new(cx, |cx| {
+        Label::new(cx, "Stereo Widener")
+            .font_size(14.0)
+            .color(Color::rgb(200, 200, 210))
+            .height(Pixels(22.0));
+
+        HStack::new(cx, |cx| {
+            let haas_delay_v = current_normalized(cx, PARAM_WIDENER_HAAS_DELAY);
+            let haas_mix_v = current_normalized(cx, PARAM_WIDENER_HAAS_MIX);
+            let width_v = current_normalized(cx, PARAM_WIDENER_WIDTH);
+            let mid_gain_v = current_normalized(cx, PARAM_WIDENER_MID_GAIN);
+            let side_gain_v = current_normalized(cx, PARAM_WIDENER_SIDE_GAIN);
+
+            param_knob(
+                cx,
+                PARAM_WIDENER_HAAS_DELAY,
+                "Haas",
+                haas_delay_v,
+                default_normalized(PARAM_WIDENER_HAAS_DELAY),
+            );
+            param_knob(
+                cx,
+                PARAM_WIDENER_HAAS_MIX,
+                "HMix",
+                haas_mix_v,
+                default_normalized(PARAM_WIDENER_HAAS_MIX),
+            );
+            param_knob(
+                cx,
+                PARAM_WIDENER_WIDTH,
+                "Width",
+                width_v,
+                default_normalized(PARAM_WIDENER_WIDTH),
+            );
+            param_knob(
+                cx,
+                PARAM_WIDENER_MID_GAIN,
+                "Mid",
+                mid_gain_v,
+                default_normalized(PARAM_WIDENER_MID_GAIN),
+            );
+            param_knob(
+                cx,
+                PARAM_WIDENER_SIDE_GAIN,
+                "Side",
+                side_gain_v,
+                default_normalized(PARAM_WIDENER_SIDE_GAIN),
             );
         })
         .height(Units::Auto)
