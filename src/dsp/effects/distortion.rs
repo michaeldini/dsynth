@@ -11,7 +11,7 @@
 /// - DC blocking filter prevents DC offset from asymmetric distortion
 ///
 /// # Parameters
-/// - **drive**: Input gain before distortion (0.0 to 1.0 maps to 1x to 20x)
+/// - **drive**: Input gain before distortion (0.0 to 1.0 maps to 1x to 100x)
 /// - **mix**: Wet/dry balance (0.0 = dry, 1.0 = full wet)
 /// - **algorithm**: Choice of distortion curve (tanh, soft clip, hard clip, cubic)
 ///
@@ -67,7 +67,7 @@ impl Distortion {
     }
 
     /// Set drive amount (0.0 to 1.0)
-    /// Maps to 1x to 20x gain internally
+    /// Maps to 1x to 100x gain internally
     pub fn set_drive(&mut self, drive: f32) {
         self.drive = drive.clamp(0.0, 1.0);
     }
@@ -132,8 +132,8 @@ impl Distortion {
     /// # Returns
     /// Distorted output sample
     pub fn process(&mut self, input: f32) -> f32 {
-        // Map drive (0.0 to 1.0) to gain (1.0 to 20.0)
-        let gain = 1.0 + self.drive * 19.0;
+        // Map drive (0.0 to 1.0) to gain (1.0 to 100.0)
+        let gain = 1.0 + self.drive * 99.0;
 
         // Apply distortion
         let distorted = self.apply_distortion(input, gain);

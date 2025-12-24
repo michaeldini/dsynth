@@ -72,7 +72,7 @@ impl BiquadFilter {
 
     /// Set resonance (Q factor)
     pub fn set_resonance(&mut self, resonance: f32) {
-        let clamped = resonance.clamp(0.5, 10.0);
+        let clamped = resonance.clamp(0.5, 50.0);
         if (self.resonance - clamped).abs() > 0.01 {
             self.resonance = clamped;
             self.update_coefficients();
@@ -208,8 +208,8 @@ mod tests {
         filter.set_resonance(0.1);
         assert_eq!(filter.resonance, 0.5);
 
-        filter.set_resonance(20.0);
-        assert_eq!(filter.resonance, 10.0);
+        filter.set_resonance(100.0);
+        assert_eq!(filter.resonance, 50.0);
 
         filter.set_resonance(2.0);
         assert_eq!(filter.resonance, 2.0);
@@ -233,7 +233,7 @@ mod tests {
     fn test_coefficient_stability() {
         let mut filter = BiquadFilter::new(44100.0);
         filter.set_cutoff(20000.0);
-        filter.set_resonance(10.0);
+        filter.set_resonance(50.0);
 
         // Coefficients should be finite
         assert!(filter.a1.is_finite());

@@ -21,13 +21,15 @@ Each oscillator has:
 - **Pitch** slider: Transpose in semitones (-24 to +24)
 - **Detune** slider: Fine-tune in cents (-50 to +50)
 - **Gain** slider: Volume level (0.0 to 1.0)
+- **Unison** slider: Number of stacked voices (1-7)
+- **Unison Detune** slider: Spread amount in cents (0-100) for massive width
 
 ### Filter Sections (one per oscillator)
 
 Each filter has:
 - **Filter Type** dropdown: Lowpass, Highpass, or Bandpass
 - **Cutoff** slider: Cutoff frequency (20 Hz to 20,000 Hz)
-- **Resonance** slider: Q factor (0.5 to 10.0)
+- **Resonance** slider: Q factor (0.5 to 50.0) - higher values for screaming acid sounds
 
 ### Master Controls
 

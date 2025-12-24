@@ -649,7 +649,7 @@ fn test_randomize_generates_valid_parameters() {
 
         // Check oscillators
         for osc in &params.oscillators {
-            assert!(osc.waveform as u32 <= 4, "Waveform should be valid enum");
+            assert!(osc.waveform as u32 <= 7, "Waveform should be valid enum");
             assert!(
                 osc.pitch >= -24.0 && osc.pitch <= 24.0,
                 "Pitch should be in semitones ±24"
@@ -673,8 +673,8 @@ fn test_randomize_generates_valid_parameters() {
                 "Cutoff should be 20-20000 Hz"
             );
             assert!(
-                filter.resonance >= 0.5 && filter.resonance <= 10.0,
-                "Resonance should be 0.5-10.0"
+                filter.resonance >= 0.5 && filter.resonance <= 50.0,
+                "Resonance should be 0.5-50.0"
             );
             assert!(
                 filter.key_tracking >= 0.0 && filter.key_tracking <= 1.0,

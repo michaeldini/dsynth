@@ -139,7 +139,7 @@ impl ParamRegistry {
                 "Unison Detune",
                 "Oscillator 1",
                 0.0,
-                50.0,
+                100.0,
                 10.0,
                 Some("cents")
             )
@@ -286,7 +286,7 @@ impl ParamRegistry {
                 "Unison Detune",
                 "Oscillator 2",
                 0.0,
-                50.0,
+                100.0,
                 10.0,
                 Some("cents")
             )
@@ -433,7 +433,7 @@ impl ParamRegistry {
                 "Unison Detune",
                 "Oscillator 3",
                 0.0,
-                50.0,
+                100.0,
                 10.0,
                 Some("cents")
             )
@@ -542,7 +542,7 @@ impl ParamRegistry {
                     "Resonance",
                     &module,
                     0.5,
-                    10.0,
+                    50.0,
                     0.707,
                     Some("")
                 )

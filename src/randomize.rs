@@ -46,7 +46,7 @@ pub fn randomize_synth_params<R: Rng + ?Sized>(rng: &mut R) -> SynthParams {
         osc.gain = rng.gen_range(0.2..=0.8);
         osc.pan = rng.gen_range(-1.0..=1.0);
         osc.unison = rng.gen_range(1..=7);
-        osc.unison_detune = rng.gen_range(0.0..=50.0);
+        osc.unison_detune = rng.gen_range(0.0..=100.0);
         osc.phase = rng.gen_range(0.0..=1.0);
         osc.shape = rng.gen_range(-0.8..=0.8);
 

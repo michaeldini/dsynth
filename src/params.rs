@@ -55,7 +55,7 @@ pub struct OscillatorParams {
     pub gain: f32,                    // 0.0 to 1.0
     pub pan: f32,                     // -1.0 (left) to 1.0 (right), 0.0 = center
     pub unison: usize,                // Number of unison voices (1-7)
-    pub unison_detune: f32,           // Unison spread in cents (0-50)
+    pub unison_detune: f32,           // Unison spread in cents (0-100)
     pub phase: f32,                   // Initial phase offset (0.0 to 1.0)
     pub shape: f32,                   // Wave shaping amount (-1.0 to 1.0)
     pub solo: bool, // Solo mode - when any osc is soloed, only soloed oscs are heard
@@ -88,7 +88,7 @@ impl Default for OscillatorParams {
 pub struct FilterParams {
     pub filter_type: FilterType,
     pub cutoff: f32,       // Hz, 20.0 to 20000.0
-    pub resonance: f32,    // Q factor, 0.5 to 10.0
+    pub resonance: f32,    // Q factor, 0.5 to 50.0
     pub bandwidth: f32,    // Bandwidth in octaves for bandpass (0.1 to 4.0)
     pub key_tracking: f32, // Key tracking amount (0.0 to 1.0)
 }

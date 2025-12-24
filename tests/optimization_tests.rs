@@ -394,7 +394,7 @@ mod optimization_tests {
         filter.set_filter_type(FilterType::Lowpass);
 
         // Test with various resonance values
-        for resonance in [0.5, 1.0, 2.0, 5.0, 10.0] {
+        for resonance in [0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 30.0, 50.0] {
             filter.set_resonance(resonance);
             filter.set_cutoff(1000.0);
 
