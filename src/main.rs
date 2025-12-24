@@ -1,7 +1,7 @@
 /*! DSynth Standalone Application Entry Point
 
  This module is the main entry point for DSynth when compiled as a standalone synthesizer
- application (as opposed to a VST3/CLAP plugin). It orchestrates the initialization and
+ application (as opposed to a CLAP plugin). It orchestrates the initialization and
  interconnection of four main components:
 
  1. **Parameter Buffer**: A lock-free triple-buffer for real-time safe parameter updates
@@ -9,7 +9,7 @@
  2. **Audio Engine**: The core DSP synthesizer that generates sound samples
  3. **Audio Output**: Handles real-time audio I/O with CoreAudio (on macOS)
  4. **MIDI Input**: Receives MIDI note events from hardware/software controllers
- 5. **GUI**: Interactive controls for the synthesizer parameters
+ 5. **GUI**: Interactive controls for the synthesizer parameters (VIZIA framework)
 
  The application uses thread-safe message passing and lock-free data structures to ensure
  audio thread safety without blocking the real-time audio callback. This prevents audio
@@ -48,8 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // receives parameter changes via a lock-free triple-buffer (GuiParamChange).
     let synth_params = Arc::new(RwLock::new(SynthParams::default()));
 
-    // Create a lock-free triple-buffer for GUI parameter changes. Unlike the old
-    // Iced approach (which sent the entire SynthParams struct), VIZIA sends individual
+    // Create a lock-free triple-buffer for GUI parameter changes. VIZIA sends individual
     // parameter changes (param_id + normalized value) for efficiency. The audio thread
     // reads these changes and applies them to its local SynthParams copy.
     let (gui_param_producer, _gui_param_consumer) =
@@ -138,9 +137,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 // can be compiled in two modes:
 //
 // 1. Standalone binary (this file): With "standalone" feature, produces a complete
-//    synthesizer application
-// 2. Plugin (plugin.rs): Without "standalone" feature, produces a VST3/CLAP plugin
-//    that runs inside a DAW
+//    synthesizer application with VIZIA GUI (winit backend)
+// 2. Plugin (lib.rs): Without "standalone" feature, produces a CLAP plugin
+//    that runs inside a DAW with VIZIA GUI (baseview backend)
 //
 // This fallback ensures users who try to run "cargo run" without the proper feature flag
 // get helpful guidance instead of a confusing build error. The build will succeed but will

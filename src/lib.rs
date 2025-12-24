@@ -3,7 +3,7 @@
 //! DSynth is a polyphonic synthesizer library written in Rust that can be used in two ways:
 //!
 //! 1. **As a library**: Import and use the synthesizer modules directly in your own Rust code
-//! 2. **As a plugin**: Compiled as a VST3/CLAP plugin that runs inside a DAW (Digital Audio Workstation)
+//! 2. **As a plugin**: Compiled as a CLAP plugin that runs inside a DAW (Digital Audio Workstation)
 //! 3. **As a standalone app**: A complete synthesizer application with GUI and audio I/O
 //!
 //! ## Architecture Overview
@@ -11,7 +11,7 @@
 //! The library is organized into several core modules:
 //! - **audio**: Real-time audio engine and sample generation
 //! - **dsp**: Digital Signal Processing algorithms (oscillators, filters, envelopes, LFOs)
-//! - **gui**: User interface for controlling parameters (shared by standalone and plugin)
+//! - **gui**: User interface for controlling parameters (VIZIA framework, shared by standalone and plugin)
 //! - **midi**: MIDI input handling for receiving note events
 //! - **params**: Parameter definitions and management
 //! - **preset**: Preset loading/saving functionality
@@ -19,8 +19,8 @@
 //! ## Compilation Modes
 //!
 //! The codebase supports multiple compilation targets through Cargo features:
-//! - `standalone`: Builds a complete app with audio I/O and GUI
-//! - `vst`: Builds VST3/CLAP plugins for DAWs
+//! - `standalone`: Builds a complete app with audio I/O and GUI (VIZIA with winit)
+//! - `clap`: Builds CLAP plugin for DAWs (VIZIA with baseview)
 //! - `simd`: Enables portable SIMD optimizations for DSP algorithms
 //!
 //! Different features enable/disable different modules and dependencies to keep builds
@@ -67,22 +67,20 @@ pub mod dsp;
 
 /// The **gui** module provides the user interface for controlling the synthesizer.
 ///
-/// This module is conditionally compiled when either `standalone` or `vst` features are enabled,
-/// since both the standalone app and VST plugin need a GUI for users to control parameters.
+/// This module uses VIZIA framework with dual backends:
+/// - Standalone mode: VIZIA with winit backend for desktop windows
+/// - Plugin mode: VIZIA with baseview backend for DAW embedding
 ///
 /// Key components:
-/// - `run_gui()`: The main GUI loop that handles user interactions
-/// - Interactive controls for all synthesizer parameters (cutoff, resonance, envelope, etc.)
+/// - `shared_ui.rs`: Shared UI layout used by both standalone and plugin
+/// - `GuiState`: Manages parameter state with Arc<RwLock<SynthParams>>
+/// - Interactive controls for all synthesizer parameters
 /// - Keyboard input handling for playing notes (in standalone mode)
 /// - Real-time visualization and feedback
 ///
 /// The GUI communicates with the audio engine through:
 /// 1. **Parameter producer**: Sends parameter updates (filter cutoff, volume, etc.)
 /// 2. **Event channel**: Sends user-triggered events (note on/off from keyboard)
-///
-/// By keeping the GUI module conditional, plugin builds don't include unused GUI code,
-/// reducing binary size. VST/CLAP hosts provide their own GUI framework, but DSynth still
-/// uses this for its parameter controls.
 #[cfg(feature = "standalone")]
 pub mod gui;
 

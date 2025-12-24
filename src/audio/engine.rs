@@ -1,5 +1,7 @@
 use crate::audio::voice::Voice;
-use crate::dsp::effects::{Reverb, StereoDelay, Chorus, Distortion, MultibandDistortion, StereoWidener};
+use crate::dsp::effects::{
+    Chorus, Distortion, MultibandDistortion, Reverb, StereoDelay, StereoWidener,
+};
 use crate::params::SynthParams;
 use triple_buffer::{Input, Output, TripleBuffer};
 
@@ -212,25 +214,39 @@ impl SynthEngine {
         // Update distortion
         self.distortion.set_drive(effects.distortion.drive);
         self.distortion.set_mix(effects.distortion.mix);
-        self.distortion.set_type(effects.distortion.dist_type.into());
+        self.distortion
+            .set_type(effects.distortion.dist_type.into());
 
         // Update multiband distortion
-        self.multiband_distortion.set_low_mid_freq(effects.multiband_distortion.low_mid_freq);
-        self.multiband_distortion.set_mid_high_freq(effects.multiband_distortion.mid_high_freq);
-        self.multiband_distortion.set_drive_low(effects.multiband_distortion.drive_low);
-        self.multiband_distortion.set_drive_mid(effects.multiband_distortion.drive_mid);
-        self.multiband_distortion.set_drive_high(effects.multiband_distortion.drive_high);
-        self.multiband_distortion.set_gain_low(effects.multiband_distortion.gain_low);
-        self.multiband_distortion.set_gain_mid(effects.multiband_distortion.gain_mid);
-        self.multiband_distortion.set_gain_high(effects.multiband_distortion.gain_high);
-        self.multiband_distortion.set_mix(effects.multiband_distortion.mix);
+        self.multiband_distortion
+            .set_low_mid_freq(effects.multiband_distortion.low_mid_freq);
+        self.multiband_distortion
+            .set_mid_high_freq(effects.multiband_distortion.mid_high_freq);
+        self.multiband_distortion
+            .set_drive_low(effects.multiband_distortion.drive_low);
+        self.multiband_distortion
+            .set_drive_mid(effects.multiband_distortion.drive_mid);
+        self.multiband_distortion
+            .set_drive_high(effects.multiband_distortion.drive_high);
+        self.multiband_distortion
+            .set_gain_low(effects.multiband_distortion.gain_low);
+        self.multiband_distortion
+            .set_gain_mid(effects.multiband_distortion.gain_mid);
+        self.multiband_distortion
+            .set_gain_high(effects.multiband_distortion.gain_high);
+        self.multiband_distortion
+            .set_mix(effects.multiband_distortion.mix);
 
         // Update stereo widener
-        self.stereo_widener.set_haas_delay(effects.stereo_widener.haas_delay_ms);
-        self.stereo_widener.set_haas_mix(effects.stereo_widener.haas_mix);
+        self.stereo_widener
+            .set_haas_delay(effects.stereo_widener.haas_delay_ms);
+        self.stereo_widener
+            .set_haas_mix(effects.stereo_widener.haas_mix);
         self.stereo_widener.set_width(effects.stereo_widener.width);
-        self.stereo_widener.set_mid_gain(effects.stereo_widener.mid_gain);
-        self.stereo_widener.set_side_gain(effects.stereo_widener.side_gain);
+        self.stereo_widener
+            .set_mid_gain(effects.stereo_widener.mid_gain);
+        self.stereo_widener
+            .set_side_gain(effects.stereo_widener.side_gain);
     }
 
     #[inline]
@@ -623,7 +639,7 @@ impl SynthEngine {
     /// - Parameter throttling (every 32 samples) is amortized across many samples
     /// - Can be optimized more aggressively by the compiler (SIMD vectorization, etc.)
     ///
-    /// This is the preferred method for VST/CLAP plugins, which receive audio in blocks
+    /// This is the preferred method for CLAP plugins, which receive audio in blocks
     /// (typically 256-4096 samples) rather than one at a time. DAW hosts call this once
     /// per buffer, so it's critical that it's fast.
     ///

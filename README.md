@@ -30,7 +30,8 @@ A high-performance, cross-platform digital synthesizer built in Rust using test-
 - Real-time parameter control through GUI
 
 ### GUI
-- **Cross-platform** GUI using Iced 0.13
+- **Cross-platform** GUI using VIZIA
+- **Dual backends**: winit (standalone) and baseview (plugin)
 - **Real-time controls** for all synthesis parameters:
   - 3 oscillator panels (waveform, pitch, detune, gain, pan, unison, phase)
   - 3 filter sections (type, cutoff, resonance, drive)
@@ -57,7 +58,7 @@ MIDI Input → SynthEngine → Voice (16×) → Audio Output
 ```
 
 ### Threading Model
-- **Main thread**: Iced GUI runtime
+- **Main thread**: VIZIA GUI runtime
 - **Audio thread**: cpal audio callback (lock-free reads from triple-buffer)
 - **MIDI thread**: MIDI event processing and engine control
 
@@ -107,13 +108,12 @@ cargo build --release
 cargo build --release --no-default-features
 ```
 
-### Build VST3/CLAP Plugin
+### Build CLAP Plugin
 
 **Local builds** (for testing):
 ```bash
-./bundle.sh     # macOS
-bundle.bat      # Windows  
-./bundle-linux.sh  # Linux
+./bundle_clap.sh    # macOS
+./bundle_standalone.sh  # macOS standalone app
 ```
 
 **Automated builds** (recommended for releases):
@@ -122,16 +122,16 @@ bundle.bat      # Windows
 git tag v0.1.1 && git push --tags
 
 # Downloads available in GitHub Releases tab
-# Includes: Standalone + VST3 + CLAP for macOS/Windows/Linux
+# Includes: Standalone + CLAP for macOS/Windows/Linux
 ```
 
 See [GITHUB_ACTIONS_GUIDE.md](GITHUB_ACTIONS_GUIDE.md) for the automated workflow details.
 
 ### Installing the Plugin
 Copy the plugin to your DAW's plugin folder:
-- **macOS**: `~/Library/Audio/Plug-Ins/VST3/`
-- **Windows**: `C:\Program Files\Common Files\VST3\`
-- **Linux**: `~/.vst3/`
+- **macOS**: `~/Library/Audio/Plug-Ins/CLAP/`
+- **Windows**: `C:\Program Files\Common Files\CLAP\`
+- **Linux**: `~/.clap/`
 
 ### Run
 ```bash
@@ -149,16 +149,16 @@ cargo bench
 
 ### Standalone Mode
 1. Launch the application: `cargo run --release`
-2. The GUI will appear with 3 oscillator/filter sections
+2. The VIZIA GUI will appear with 3 oscillator/filter sections
 3. Connect a MIDI controller (optional) or use computer keyboard
 4. Adjust oscillator waveforms, pitch, detune, and gain
 5. Configure filters (type, cutoff, resonance) for each oscillator
 6. Adjust master gain
 7. Press "PANIC" to stop all notes
 
-### VST Plugin Mode
-1. Build and install the plugin (see "Build VST3 Plugin" above)
-2. Open your DAW (Ableton, FL Studio, Reaper, etc.)
+### CLAP Plugin Mode
+1. Build and install the plugin (see "Build CLAP Plugin" above)
+2. Open your DAW (Bitwig, Reaper, etc. - any CLAP-compatible host)
 3. Scan for new plugins
 4. Load DSynth as an instrument track
 5. Send MIDI notes from your DAW or MIDI controller
@@ -193,7 +193,14 @@ src/
 ├── midi/
 │   └── handler.rs      # MIDI input handling
 └── gui/
-    └── mod.rs          # Iced GUI implementation
+    └── vizia_gui/
+        ├── mod.rs              # VIZIA module exports
+        ├── plugin_window.rs    # CLAP plugin window (baseview)
+        ├── standalone_window.rs # Standalone window (winit)
+        ├── shared_ui.rs        # Shared UI layout
+        ├── state.rs            # GUI state management
+        ├── messages.rs         # Event messages
+        └── widgets/            # Custom parameter controls
 
 tests/
 └── integration_tests.rs # End-to-end integration tests
@@ -205,12 +212,13 @@ benches/
 ## Dependencies
 
 ### Core
-- `iced` 0.13 - Cross-platform GUI framework
+- `vizia` (git) - Cross-platform GUI framework with dual backends
 - `cpal` 0.15 - Cross-platform audio I/O
 - `midir` 0.10 - Cross-platform MIDI input
 - `triple_buffer` 6.0 - Lock-free triple buffering
 - `crossbeam-channel` 0.5 - MPSC channels for MIDI events
 - `serde` 1.0 - Serialization for presets
+- `clap-sys` 0.3 - CLAP plugin API
 - `rfd` 0.15 - Native file dialogs
 
 ### Development
@@ -273,12 +281,11 @@ cargo bench -- --baseline main
 - [ ] Effects (reverb, delay, chorus)
 - [ ] Preset browser with categories
 - [ ] Automation recording
-- [x] **VST3/CLAP plugin wrapper** ✅
+- [x] **CLAP plugin wrapper** ✅
 - [ ] Additional filter types (notch, allpass)
 - [ ] Polyphonic aftertouch support
 - [ ] Preset search and tagging
 - [ ] MIDI CC mapping
-- [ ] Custom plugin GUI using nih_plug_iced
 
 ## License
 

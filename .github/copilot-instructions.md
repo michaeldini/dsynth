@@ -2,13 +2,13 @@
 
 ## Project Overview
 DSynth is a **high-performance polyphonic synthesizer** built in Rust with three compilation targets:
-- **Standalone**: Complete app with GUI (Iced) + audio I/O (cpal) + MIDI input (midir)
+- **Standalone**: Complete app with VIZIA GUI (winit backend) + audio I/O (cpal) + MIDI input (midir)
 - **CLAP Plugin**: Native CLAP plugin with custom wrapper and VIZIA GUI (baseview backend)
 - **Library**: Reusable synthesizer modules
 
 **Core principle**: The `SynthEngine` is 100% shared between all targets. Only the wrapper layer differs.
 
-**GUI Architecture**: Moving towards a **unified GUI** - one shared codebase that works identically for both plugin and standalone, reducing maintenance burden and ensuring UI consistency. CLAP plugin now uses VIZIA framework (git version) with baseview backend for native window embedding.
+**GUI Architecture**: **Unified VIZIA GUI** - one shared codebase that works identically for both plugin and standalone, using different backends (baseview for CLAP, winit for standalone). This ensures UI consistency and reduces maintenance burden.
 
 ## Development Philosophy
 
@@ -66,22 +66,19 @@ DSynth is a **high-performance polyphonic synthesizer** built in Rust with three
 - Uses `std::simd::f32x4` for vectorized oscillator processing
 - Conditional compilation: `#[cfg(feature = "simd")]` blocks with scalar fallbacks
 
-### VIZIA GUI Architecture (CLAP Plugin)
-- **Framework**: [VIZIA](https://github.com/vizia/vizia) (git version) with baseview backend
-- **Current state**: 
-  - CLAP plugin uses VIZIA for native window embedding
-  - Standalone still uses [iced](https://github.com/iced-rs/iced) (separate implementation)
-  - VIZIA provides reactive UI with entity-component system
+### VIZIA GUI Architecture
+- **Framework**: [VIZIA](https://github.com/vizia/vizia) (git version) with dual backends
+- **Unified implementation**: 
+  - CLAP plugin uses baseview backend for native window embedding
+  - Standalone uses winit backend for desktop application window
+  - Both share the same VIZIA UI code for consistency
 - **Implementation**:
-  - Located in [gui/vizia_gui/](src/gui/vizia_gui/): VIZIA-specific plugin GUI
+  - Located in [gui/vizia_gui/](src/gui/vizia_gui/): Unified VIZIA GUI
   - `GuiState` with `Arc<RwLock<SynthParams>>` for shared parameter access
   - `GuiMessage` enum for events (ParamChanged, PresetLoad, etc.)
-  - Layout-first approach: VStack/HStack with Labels, custom widgets coming
-  - `WindowHandleWrapper` for raw-window-handle 0.5 compatibility
-- **Future unification**:
-  - Extract shared components to [gui/shared/](src/gui/shared/) when both GUIs stabilize
-  - Trait-based parameter binding for consistent behavior
-- **Benefits**: Native window embedding, reactive updates, clean separation from iced standalone
+  - Layout-first approach: VStack/HStack with Labels and custom widgets
+  - `shared_ui.rs` contains the shared UI layout used by both targets
+- **Benefits**: Native window embedding, reactive updates, consistent UI across targets
 
 ### Plugin vs Standalone Separation
 - **Standalone**: [main.rs](src/main.rs) owns GUI + audio thread + MIDI thread
@@ -93,14 +90,14 @@ DSynth is a **high-performance polyphonic synthesizer** built in Rust with three
   - [plugin/param_descriptor.rs](src/plugin/param_descriptor.rs): Custom parameter system (IDs, ranges, units)
   - [plugin/param_registry.rs](src/plugin/param_registry.rs): Centralized parameter lookup and normalization
   - [plugin/param_update.rs](src/plugin/param_update.rs): Lock-free parameter updates via triple-buffer
-- **GUI**: Separate implementations (unified architecture planned)
-  - [gui/vizia_gui/](src/gui/vizia_gui/): VIZIA GUI for CLAP plugin (baseview backend)
-    - [plugin_window.rs](src/gui/vizia_gui/plugin_window.rs): Window integration and layout
+- **GUI**: Unified VIZIA implementation
+  - [gui/vizia_gui/](src/gui/vizia_gui/): Shared VIZIA GUI for both targets
+    - [plugin_window.rs](src/gui/vizia_gui/plugin_window.rs): CLAP plugin window (baseview)
+    - [standalone_window.rs](src/gui/vizia_gui/standalone_window.rs): Standalone window (winit)
+    - [shared_ui.rs](src/gui/vizia_gui/shared_ui.rs): Shared UI layout used by both
     - [state.rs](src/gui/vizia_gui/state.rs): GuiState with Arc<RwLock<SynthParams>>
     - [messages.rs](src/gui/vizia_gui/messages.rs): GuiMessage enum for events
     - [widgets/](src/gui/vizia_gui/widgets/): Custom parameter controls
-  - [gui/standalone_gui/](src/gui/standalone_gui/): Iced GUI for standalone app
-  - **Goal**: Extract shared components to [gui/shared/](src/gui/shared/) for code reuse
 - **Core**: [audio/engine.rs](src/audio/engine.rs) is format-agnostic, just processes samples
 
 ## Development Workflows
@@ -147,14 +144,11 @@ When adding new parameters:
    - Add parameter mapping in [plugin/param_update.rs](src/plugin/param_update.rs):
      - `param_apply::apply_param()` for host → engine updates
      - `param_get::get_param()` for engine → host queries
-2. For VIZIA Plugin GUI:
-   - Add control in [gui/vizia_gui/plugin_window.rs](src/gui/vizia_gui/plugin_window.rs) layout sections
+2. For VIZIA GUI (both plugin and standalone):
+   - Add control in [gui/vizia_gui/shared_ui.rs](src/gui/vizia_gui/shared_ui.rs) layout sections
    - Use `param_knob()` widget function with parameter ID, label, and initial value
    - Widget interactions emit `GuiMessage::ParamChanged(param_id, normalized_value)`
    - Events flow → `param_update_buffer` → audio thread via triple-buffer
-3. For Iced Standalone GUI:
-   - Add control in [gui/standalone_gui/sections.rs](src/gui/standalone_gui/sections.rs)
-   - Widget changes → `Message::ParamChanged` → `param_update_buffer` → audio thread
 
 ### DSP Module Structure
 Each DSP component ([dsp/](src/dsp/)) follows this pattern:
@@ -204,7 +198,10 @@ Each DSP component ([dsp/](src/dsp/)) follows this pattern:
 - [plugin/clap/state.rs](src/plugin/clap/state.rs): Preset save/load via CLAP state extension
 - [plugin/param_descriptor.rs](src/plugin/param_descriptor.rs): Parameter metadata (type, range, unit, automation)
 - [plugin/param_registry.rs](src/plugin/param_registry.rs): Global parameter registry and normalization
-- [plugin/param_update.r
+- [plugin/param_update.rs](src/plugin/param_update.rs): Lock-free parameter updates via triple-buffer
+
+### Bundling Scripts
+- **CLAP Plugin**:
   - [bundle_clap.sh](bundle_clap.sh) (macOS CLAP)
   - [bundle_standalone.sh](bundle_standalone.sh) (macOS standalone)
   - Platform-specific variants for Linux/Windows
@@ -212,24 +209,25 @@ Each DSP component ([dsp/](src/dsp/)) follows this pattern:
 - CLAP plugins install to: `~/Library/Audio/Plug-Ins/CLAP/` (macOS), `%COMMONPROGRAMFILES%\CLAP\` (Windows), `~/.clap/` (Linux)
 
 ### GUI System
-- [gui/vizia_gui/](src/gui/vizia_gui/): VIZIA GUI for CLAP plugin
-  - [plugin_window.rs](src/gui/vizia_gui/plugin_window.rs): Window integration, layout, ADSR envelope section
+- [gui/vizia_gui/](src/gui/vizia_gui/): Unified VIZIA GUI for both targets
+  - [plugin_window.rs](src/gui/vizia_gui/plugin_window.rs): CLAP plugin window integration (baseview)
+  - [standalone_window.rs](src/gui/vizia_gui/standalone_window.rs): Standalone window integration (winit)
+  - [shared_ui.rs](src/gui/vizia_gui/shared_ui.rs): **Shared UI layout** - oscillators, filters, ADSR, effects
   - [state.rs](src/gui/vizia_gui/state.rs): GuiState with Arc<RwLock<SynthParams>>
   - [messages.rs](src/gui/vizia_gui/messages.rs): GuiMessage enum (ParamChanged, PresetLoad, etc.)
   - [widgets/param_knob.rs](src/gui/vizia_gui/widgets/param_knob.rs): Parameter control widget
-- [gui/standalone_gui/app.rs](src/gui/standalone_gui/app.rs): Iced GUI for standalone application
-- [gui/shared/](src/gui/shared/): **Future home** of unified GUI components (sections, widgets, messages)
 
 ### Entry Points
 - [main.rs](src/main.rs): Standalone app entry point (GUI + audio + MIDI threads)
-- [lib.rs](src/lib.rs): Library exports and CLAP plugin entry point envelope)
-- [dsp/oscillator.rs](src/dsp/oscillator.rs): Oversampled waveform generation with anti-aliasing
-- [dsp/filter.rs](src/dsp/filter.rs): Biquad filters with stability guarantees
-- [params.rs](src/params.rs): Shared parameter definitions for all targets
-- [plugin/params.rs](src/plugin/params.rs): VST parameter mapping (`nih_plug` → core params)
-- [main.rs](src/main.rs): Standalone app entry point (GUI + audio + MIDI threads)
+- [lib.rs](src/lib.rs): Library exports and CLAP plugin entry point
 
 ## Distribution
-- Use bundling scripts: [bundle.sh](bundle.sh) (macOS), [bundle.bat](bundle.bat) (Windows), [bundle-linux.sh](bundle-linux.sh) (Linux)
+- Use bundling scripts:
+  - [bundle_clap.sh](bundle_clap.sh) (macOS CLAP plugin)
+  - [bundle_standalone.sh](bundle_standalone.sh) (macOS standalone app)
+  - Platform-specific variants: [bundle.bat](bundle.bat) (Windows), [bundle-linux.sh](bundle-linux.sh) (Linux)
 - See [BUILD_AND_DISTRIBUTE.md](BUILD_AND_DISTRIBUTE.md) for cross-compilation and GitHub Actions setup
-- Plugins install to standard locations: `~/Library/Audio/Plug-Ins/VST3/` (macOS), `%COMMONPROGRAMFILES%\VST3\` (Windows)
+- CLAP plugins install to standard locations:
+  - macOS: `~/Library/Audio/Plug-Ins/CLAP/`
+  - Windows: `%COMMONPROGRAMFILES%\CLAP\`
+  - Linux: `~/.clap/`
