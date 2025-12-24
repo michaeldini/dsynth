@@ -235,7 +235,7 @@ fn test_attack_transients() {
 
     let sample_rate = 44100.0;
     let (mut param_producer, param_consumer) = create_parameter_buffer();
-    let mut engine = SynthEngine::new(sample_rate, param_consumer);
+    let _engine = SynthEngine::new(sample_rate, param_consumer);
 
     let mut params = SynthParams::default();
 
@@ -456,7 +456,7 @@ fn definitive_output_level_test() {
 
     let sample_rate = 44100.0;
     let (mut param_producer, param_consumer) = create_parameter_buffer();
-    let mut engine = SynthEngine::new(sample_rate, param_consumer);
+    let _engine = SynthEngine::new(sample_rate, param_consumer);
 
     let mut params = SynthParams::default();
 

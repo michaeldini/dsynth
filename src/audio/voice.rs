@@ -1146,7 +1146,8 @@ mod tests {
     #[test]
     fn test_voice_produces_output() {
         let mut voice = Voice::new(44100.0);
-        let osc_params = default_osc_params();
+        let mut osc_params = default_osc_params();
+        osc_params[0].gain = 0.25; // Enable oscillator 1 to produce sound
         let filter_params = default_filter_params();
         let lfo_params = default_lfo_params();
         let envelope_params = default_envelope_params();
@@ -1254,7 +1255,8 @@ mod tests {
     #[test]
     fn test_rms_tracking() {
         let mut voice = Voice::new(44100.0);
-        let osc_params = default_osc_params();
+        let mut osc_params = default_osc_params();
+        osc_params[0].gain = 0.25; // Enable oscillator 1 to produce sound
         let filter_params = default_filter_params();
         let lfo_params = default_lfo_params();
         let envelope_params = default_envelope_params();
