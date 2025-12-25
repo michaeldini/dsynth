@@ -25,32 +25,29 @@ DSynth is a **100% cross-platform** synthesizer plugin. The same Rust code build
 ### macOS
 ```bash
 ./bundle.sh
-# Creates VST3 and CLAP plugins in target/bundled/
+# Creates CLAP plugin in target/bundled/
 
 # Install
-cp -r target/bundled/DSynth.vst3 ~/Library/Audio/Plug-Ins/VST3/
 cp -r target/bundled/DSynth.clap ~/Library/Audio/Plug-Ins/CLAP/
 ```
 
 ### Windows
 ```batch
 bundle.bat
-REM Creates VST3 and CLAP plugins in target\bundled\
+REM Creates CLAP plugin in target\bundled\
 
 REM Install
-xcopy /E /I target\bundled\DSynth.vst3 "%COMMONPROGRAMFILES%\VST3\DSynth.vst3"
-xcopy /E /I target\bundled\DSynth.clap "%COMMONPROGRAMFILES%\CLAP\DSynth.clap"
+copy target\bundled\DSynth.clap\DSynth.clap "%COMMONPROGRAMFILES%\CLAP\"
 ```
 
 ### Linux
 ```bash
 chmod +x bundle-linux.sh
 ./bundle-linux.sh
-# Creates VST3 and CLAP plugins in target/bundled/
+# Creates CLAP plugin in target/bundled/
 
 # Install
-cp -r target/bundled/DSynth.vst3 ~/.vst3/
-cp -r target/bundled/DSynth.clap ~/.clap/
+cp target/bundled/DSynth.clap/DSynth.clap ~/.clap/
 ```
 
 ---
@@ -97,7 +94,7 @@ cargo build --release
 ### Plugin Library
 ```bash
 # Build plugin library (not a standalone executable)
-cargo build --release --lib --features vst
+cargo build --release --lib --features clap
 
 # Output:
 # macOS: target/release/libdsynth.dylib
@@ -108,9 +105,9 @@ cargo build --release --lib --features vst
 ### Using Build Scripts
 Each platform has a ready-to-use build script:
 
-- **macOS**: `./bundle.sh` - Creates both VST3 and CLAP bundles
-- **Windows**: `bundle.bat` - Creates both VST3 and CLAP bundles
-- **Linux**: `bundle-linux.sh` - Creates both VST3 and CLAP bundles
+- **macOS**: `./bundle.sh` - Creates CLAP bundle
+- **Windows**: `bundle.bat` - Creates CLAP bundle
+- **Linux**: `bundle-linux.sh` - Creates CLAP bundle
 
 ---
 
@@ -167,9 +164,9 @@ cargo build --release --target x86_64-pc-windows-gnu --lib
 
 ## Plugin Bundle Creation
 
-### macOS VST3 Bundle Structure
+### macOS CLAP Bundle Structure
 ```
-DSynth.vst3/
+DSynth.clap/
 ├── Contents/
 │   ├── MacOS/
 │   │   └── DSynth (executable)
@@ -179,55 +176,18 @@ DSynth.vst3/
 
 **Created by**: `./bundle.sh`
 
-### macOS CLAP Bundle Structure
-```
-DSynth.clap/
-├── Contents/
-│   ├── MacOS/
-│   │   └── DSynth (executable)
-│   └── Info.plist
-```
-
-**Created by**: `./bundle.sh`
-
-### Windows VST3 Bundle Structure
-```
-DSynth.vst3/
-├── Contents/
-│   └── x86_64-win/
-│       ├── DSynth.vst3 (DLL)
-│       └── moduleinfo.json
-```
-
-**Created by**: `bundle.bat`
-
 ### Windows CLAP Bundle Structure
 ```
 DSynth.clap/
-├── Contents/
-│   └── x86_64-win/
-│       └── DSynth.clap (DLL)
+└── DSynth.clap (DLL)
 ```
 
 **Created by**: `bundle.bat`
-
-### Linux VST3 Bundle Structure
-```
-DSynth.vst3/
-├── Contents/
-│   └── x86_64-linux/
-│       ├── DSynth.so (shared object)
-│       └── moduleinfo.json
-```
-
-**Created by**: `bundle-linux.sh`
 
 ### Linux CLAP Bundle Structure
 ```
 DSynth.clap/
-├── Contents/
-│   └── x86_64-linux/
-│       └── DSynth.clap (shared object)
+└── DSynth.clap (shared object)
 ```
 
 **Created by**: `bundle-linux.sh`
@@ -370,14 +330,12 @@ git push --tags
 
 # GitHub Actions automatically:
 # 1. Builds all platforms
-# 2. Creates a GitHub Release
-# 3. Uploads all files as release assets
-```
+# 2. Creates a GitHub ReleCLAP Plugin |
+|----------|-----------|-------------|
+| macOS ARM64 | ✅ | ✅ |
+| Windows x64 | ✅ | ✅ |
 
-### Release Assets
-
-When you push a tag, GitHub creates a release with downloadable files:
-
+**Total: 4 artifacts** (2 formats × 2
 **Standalone Binaries:**
 - `dsynth-macos-x86_64`
 - `dsynth-macos-arm64`
@@ -418,22 +376,12 @@ When you push a tag, GitHub creates a release with downloadable files:
 3. Create VST3 bundle (`.vst3/Contents/x86_64-linux/`)
 4. Create CLAP bundle
 5. Archive as `.tar.gz`
+arm64`
+- `dsynth-windows-x86_64.exe`
 
-### Build Time
-
-Expect **5-10 minutes** for complete build:
-- Platforms build in parallel
-- Individual platform ~2-3 minutes each
-
----
-
-## Testing
-
-### Verify Binary Dependencies
-
-Check that binaries aren't dependent on local paths:
-
-```bash
+**CLAP Plugins:**
+- `DSynth-aarch64-apple-darwin-clap.tar.gz`
+- `DSynth-x86_64-pc-windows-msvc-clap.zip
 # Linux
 ldd target/release/dsynth
 
@@ -449,24 +397,15 @@ otool -L target/release/dsynth
 ### Test Plugin Installation
 
 **macOS:**
-```bash
-cp -r target/bundled/DSynth.vst3 ~/Library/Audio/Plug-Ins/VST3/
-# Test in Logic Pro, Ableton, Studio One, etc.
-```
+```bashclap`
+3. Create CLAP bundle (`.clap/Contents/MacOS/`)
+4. Archive as `.tar.gz`
 
 **Windows:**
-```batch
-xcopy /E /I target\bundled\DSynth.vst3 "%COMMONPROGRAMFILES%\VST3\DSynth.vst3"
-REM Test in FL Studio, Ableton, Reaper, etc.
-```
-
-**Linux:**
-```bash
-cp -r target/bundled/DSynth.vst3 ~/.vst3/
-# Test in Reaper, Bitwig, Ardour, etc.
-```
-
-### Test on Clean System
+1. Build standalone: `cargo build --release --features standalone`
+2. Build plugin DLL: `cargo build --release --lib --features clap`
+3. Create CLAP bundle
+4. Archive as `.zipem
 
 Before releasing, test on a clean system with no Rust installed:
 - Verify audio output works
@@ -508,19 +447,19 @@ Before releasing, test on a clean system with no Rust installed:
 - [ ] Include README and license
 - [ ] Document system requirements
 - [ ] Provide quick start guide
-- [ ] Test plugin on multiple DAWs
-- [ ] Verify plugin appears in DAW's plugin menu
+- [ ] Test plugin on multiplclap ~/Library/Audio/Plug-Ins/CLAP/
+# Test in Bitwig Studio, Reaper, etc.
+```
 
----
+**Windows:**
+```batch
+copy target\bundled\DSynth.clap\DSynth.clap "%COMMONPROGRAMFILES%\CLAP\"
+REM Test in Bitwig Studio, Reaper, FL Studio, etc.
+```
 
-## System Requirements
-
-### Minimum
-- **CPU**: Dual-core 2.0 GHz or faster
-- **RAM**: 256 MB
-- **OS**:
-  - macOS 10.15+ (Catalina or later)
-  - Windows 10 or later
+**Linux:**
+```bash
+cp target/bundled/DSynth.clap/DSynth.clap ~/.clap
   - Linux with ALSA or PulseAudio
 - **Audio**: Any audio output device
 
@@ -529,7 +468,7 @@ Before releasing, test on a clean system with no Rust installed:
 - **RAM**: 512 MB or more
 - **Audio**: Low-latency audio interface
 
-### Platform-Specific Notes
+### PlatforCLAP plugin on multiple DAWs (Bitwig Studio, Reaper, FL Studio)
 
 **macOS:**
 - Universal binary supports both Intel and Apple Silicon
@@ -540,9 +479,8 @@ Before releasing, test on a clean system with no Rust installed:
 - Works with ASIO, DirectSound, WASAPI
 
 **Linux:**
-- Requires ALSA libraries: `sudo apt-get install libasound2`
-- Fedora/RHEL: `sudo dnf install alsa-lib`
-- Works with ALSA, PulseAudio, JACK
+- Requires ALaarch64-apple-darwin-clap.tar.gz` (macOS ARM64)
+   - `DSynth-x86_64-pc-windows-msvc-clap.zip` (Windows)JACK
 
 ---
 
@@ -554,18 +492,18 @@ Before releasing, test on a clean system with no Rust installed:
 | Windows | `.dll` | Directory or flat file |
 | Linux | `.so` | Directory bundle (`DSynth.vst3/`) |
 
-**Important:** Compiled binaries are NOT cross-platform. A `.dylib` only works on macOS, `.dll` only on Windows, `.so` only on Linux. But the Rust source code is 100% cross-platform!
+- ARM64 (Apple Silicon) builds available
+- Code signing and notarization required for distribution
 
----
+**Windows:**
+- No additional runtime dependencies (self-contained)
+- Works with ASIO, DirectSound, WASAPIag to trigger builds |
+| ✅ Plugin bundles | Ready | Scripts create autclap/Contents/MacOS/`) |
+| Windows | `.dll` | Flat file (`DSynth.clap`) |
 
-## Summary
-
-| What | Status | Next Step |
-|------|--------|-----------|
-| ✅ Cross-platform code | Ready | No changes needed |
-| ✅ Build scripts | Ready | Run `./bundle.sh` on macOS |
-| ✅ GitHub Actions | Ready | Push tag to trigger builds |
-| ✅ Plugin bundles | Ready | Scripts create automatically |
+**Important:** Compiled binaries are NOT cross-platform. A `.dylib` only works on macOS, `.dll` only on Windows(CLAP-only) | Ready | Run `./bundle.sh` on macOS |
+| ✅ GitHub Actions (CLAP-only) | Ready | Push tag to trigger builds |
+| ✅ CLAP bundles | Ready | Scripts create automatically |
 | ✅ Distribution ready | Ready | Use GitHub Releases for distribution |
 
-Push to GitHub and use GitHub Actions for automated builds on all platforms!
+**Note:** DSynth is now CLAP-only. All VST3 support has been removed.

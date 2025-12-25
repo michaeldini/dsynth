@@ -35,16 +35,16 @@ DSynth is a **high-performance polyphonic synthesizer** built in Rust with three
 ### Lock-Free Real-Time Communication
 - **GUI → Audio Thread**: Triple-buffer (`triple_buffer` crate) for parameter updates
   - Updated every 32 samples (~0.7ms at 44.1kHz) to balance CPU efficiency and responsiveness
-  - See [engine.rs](src/audio/engine.rs) `sample_counter` and `param_update_interval`
+  - See [engine.rs](../src/audio/engine.rs) `sample_counter` and `param_update_interval`
 - **MIDI → Audio Thread**: `Arc<Mutex<>>` for note events (minimal contention acceptable here)
 - **Never allocate** in audio thread code - pre-allocate all buffers in constructors
 
 ### CLAP Parameter System
-- **Custom parameter descriptors** in [param_descriptor.rs](src/plugin/param_descriptor.rs):
+- **Custom parameter descriptors** in [param_descriptor.rs](../src/plugin/param_descriptor.rs):
   - Each parameter has unique ID (namespace pattern: upper 8 bits = module, lower 24 bits = index)
   - Supports Float, Bool, Enum, Int types with ranges, units, and automation flags
   - Logarithmic/exponential skewing for frequency/time parameters
-- **Centralized registry** in [param_registry.rs](src/plugin/param_registry.rs):
+- **Centralized registry** in [param_registry.rs](../src/plugin/param_registry.rs):
   - Global `ParamRegistry` for parameter lookup by ID
   - Handles normalization (internal range ↔ CLAP 0.0-1.0 range)
 - **Parameter flow**: DAW automation → `params_flush()` → `param_apply::apply_param()` → `SynthParams` → triple-buffer → audio thread
@@ -59,10 +59,10 @@ DSynth is a **high-performance polyphonic synthesizer** built in Rust with three
 ### 4× Oversampling Anti-Aliasing
 - All oscillators generate at 4× sample rate internally (176.4kHz for 44.1kHz output)
 - **20-tap Kaiser-windowed FIR filter** (β=8.5) downsamples back to target rate
-- This prevents aliasing artifacts at high frequencies - see [oscillator.rs](src/dsp/oscillator.rs) and [downsampler.rs](src/dsp/downsampler.rs)
+- This prevents aliasing artifacts at high frequencies - see [oscillator.rs](../src/dsp/oscillator.rs) and [downsampler.rs](../src/dsp/downsampler.rs)
 
 ### SIMD Optimizations
-- Enabled via `simd` feature flag → requires **Rust nightly** (see [rust-toolchain.toml](rust-toolchain.toml))
+- Enabled via `simd` feature flag → requires **Rust nightly** (see [rust-toolchain.toml](../rust-toolchain.toml))
 - Uses `std::simd::f32x4` for vectorized oscillator processing
 - Conditional compilation: `#[cfg(feature = "simd")]` blocks with scalar fallbacks
 
@@ -73,7 +73,7 @@ DSynth is a **high-performance polyphonic synthesizer** built in Rust with three
   - Standalone uses winit backend for desktop application window
   - Both share the same VIZIA UI code for consistency
 - **Implementation**:
-  - Located in [gui/vizia_gui/](src/gui/vizia_gui/): Unified VIZIA GUI
+  - Located in [gui/vizia_gui/](../src/gui/vizia_gui/): Unified VIZIA GUI
   - `GuiState` with `Arc<RwLock<SynthParams>>` for shared parameter access
   - `GuiMessage` enum for events (ParamChanged, PresetLoad, etc.)
   - Layout-first approach: VStack/HStack with Labels and custom widgets
@@ -81,24 +81,24 @@ DSynth is a **high-performance polyphonic synthesizer** built in Rust with three
 - **Benefits**: Native window embedding, reactive updates, consistent UI across targets
 
 ### Plugin vs Standalone Separation
-- **Standalone**: [main.rs](src/main.rs) owns GUI + audio thread + MIDI thread
-- **CLAP Plugin**: [plugin/clap/](src/plugin/clap/) implements native CLAP interface
-  - [plugin/clap/plugin.rs](src/plugin/clap/plugin.rs): Main CLAP plugin instance and lifecycle
-  - [plugin/clap/processor.rs](src/plugin/clap/processor.rs): Audio processing and MIDI handling
-  - [plugin/clap/params.rs](src/plugin/clap/params.rs): CLAP parameter extension (automation, query, flush)
-  - [plugin/clap/state.rs](src/plugin/clap/state.rs): Save/load state for presets
-  - [plugin/param_descriptor.rs](src/plugin/param_descriptor.rs): Custom parameter system (IDs, ranges, units)
-  - [plugin/param_registry.rs](src/plugin/param_registry.rs): Centralized parameter lookup and normalization
-  - [plugin/param_update.rs](src/plugin/param_update.rs): Lock-free parameter updates via triple-buffer
+- **Standalone**: [main.rs](../src/main.rs) owns GUI + audio thread + MIDI thread
+- **CLAP Plugin**: [plugin/clap/](../src/plugin/clap/) implements native CLAP interface
+  - [plugin/clap/plugin.rs](../src/plugin/clap/plugin.rs): Main CLAP plugin instance and lifecycle
+  - [plugin/clap/processor.rs](../src/plugin/clap/processor.rs): Audio processing and MIDI handling
+  - [plugin/clap/params.rs](../src/plugin/clap/params.rs): CLAP parameter extension (automation, query, flush)
+  - [plugin/clap/state.rs](../src/plugin/clap/state.rs): Save/load state for presets
+  - [plugin/param_descriptor.rs](../src/plugin/param_descriptor.rs): Custom parameter system (IDs, ranges, units)
+  - [plugin/param_registry.rs](../src/plugin/param_registry.rs): Centralized parameter lookup and normalization
+  - [plugin/param_update.rs](../src/plugin/param_update.rs): Lock-free parameter updates via triple-buffer
 - **GUI**: Unified VIZIA implementation
-  - [gui/vizia_gui/](src/gui/vizia_gui/): Shared VIZIA GUI for both targets
-    - [plugin_window.rs](src/gui/vizia_gui/plugin_window.rs): CLAP plugin window (baseview)
-    - [standalone_window.rs](src/gui/vizia_gui/standalone_window.rs): Standalone window (winit)
-    - [shared_ui.rs](src/gui/vizia_gui/shared_ui.rs): Shared UI layout used by both
-    - [state.rs](src/gui/vizia_gui/state.rs): GuiState with Arc<RwLock<SynthParams>>
-    - [messages.rs](src/gui/vizia_gui/messages.rs): GuiMessage enum for events
-    - [widgets/](src/gui/vizia_gui/widgets/): Custom parameter controls
-- **Core**: [audio/engine.rs](src/audio/engine.rs) is format-agnostic, just processes samples
+  - [gui/vizia_gui/](../src/gui/vizia_gui/): Shared VIZIA GUI for both targets
+    - [plugin_window.rs](../src/gui/vizia_gui/plugin_window.rs): CLAP plugin window (baseview)
+    - [standalone_window.rs](../src/gui/vizia_gui/standalone_window.rs): Standalone window (winit)
+    - [shared_ui.rs](../src/gui/vizia_gui/shared_ui.rs): Shared UI layout used by both
+    - [state.rs](../src/gui/vizia_gui/state.rs): GuiState with Arc<RwLock<SynthParams>>
+    - [messages.rs](../src/gui/vizia_gui/messages.rs): GuiMessage enum for events
+    - [widgets/](../src/gui/vizia_gui/widgets/): Custom parameter controls
+- **Core**: [audio/engine.rs](../src/audio/engine.rs) is format-agnostic, just processes samples
 
 ## Development Workflows
 
@@ -118,21 +118,21 @@ cargo build --no-default-features --features standalone
 
 ### Testing (Test-Driven Development)
 - **Write tests BEFORE implementation** - TDD is the standard workflow
-- **76 tests total**: 73 unit tests embedded in modules, 3 integration tests in [tests/](tests/)
+- **76 tests total**: 73 unit tests embedded in modules, 3 integration tests in [tests/](../tests/)
 - Run `cargo test` after every significant change
 - **Floating-point tests**: Use `approx::assert_relative_eq!` with `epsilon` for DSP accuracy
-  - Example pattern in [oscillator.rs](src/dsp/oscillator.rs): `assert_relative_eq!(sample, expected, epsilon = 0.01)`
-- **Integration tests**: Test full audio pipeline in [tests/integration_tests.rs](tests/integration_tests.rs)
+  - Example pattern in [oscillator.rs](../src/dsp/oscillator.rs): `assert_relative_eq!(sample, expected, epsilon = 0.01)`
+- **Integration tests**: Test full audio pipeline in [tests/integration_tests.rs](../tests/integration_tests.rs)
 - When fixing bu (When Appropriate)
 ```bash
 cargo bench  # Uses Criterion, generates HTML reports in target/criterion/report/
 ```
 - **Benchmark before optimizing** - measure to identify real bottlenecks, don't guess
-- Benchmarks in [benches/](benches/): `dsp_bench.rs` (individual DSP components) and `optimization_bench.rs` (full engine)
+- Benchmarks in [benches/](../benches/): `dsp_bench.rs` (individual DSP components) and `optimization_bench.rs` (full engine)
 - Target: <11% CPU for 16 voices at 44.1kHz on Apple Silicon
 - Add benchmarks for new DSP algorithms or when performance-critical changes are made
 - Remember: **sound quality > performance** - don't optimize away audio fidelity
-- Benchmarks in [benches/](benches/): `dsp_bench.rs` (individual DSP components) and `optimization_bench.rs` (full engine)
+- Benchmarks in [benches/](../benches/): `dsp_bench.rs` (individual DSP components) and `optimization_bench.rs` (full engine)
 - Target: <11% CPU for 16 voices at 44.1kHz on Apple Silicon
 
 ## Code Conventions
@@ -140,31 +140,32 @@ cargo bench  # Uses Criterion, generates HTML reports in target/criterion/report
 ### Parameter Update Pattern
 When adding new parameters:
 1. Add CLAP Plugin:
-   - Add parameter descriptor to [plugin/param_registry.rs](src/plugin/param_registry.rs) with unique ID (< 0xFFFFFFFF)
-   - Add parameter mapping in [plugin/param_update.rs](src/plugin/param_update.rs):
+   - Add parameter descriptor to [plugin/param_registry.rs](../src/plugin/param_registry.rs) with unique ID (< 0xFFFFFFFF)
+   - Add parameter mapping in [plugin/param_update.rs](../src/plugin/param_update.rs):
      - `param_apply::apply_param()` for host → engine updates
      - `param_get::get_param()` for engine → host queries
 2. For VIZIA GUI (both plugin and standalone):
-   - Add control in [gui/vizia_gui/shared_ui.rs](src/gui/vizia_gui/shared_ui.rs) layout sections
+   - Add control in [gui/vizia_gui/shared_ui.rs](../src/gui/vizia_gui/shared_ui.rs) layout sections
    - Use `param_knob()` widget function with parameter ID, label, and initial value
    - Widget interactions emit `GuiMessage::ParamChanged(param_id, normalized_value)`
    - Events flow → `param_update_buffer` → audio thread via triple-buffer
 
 ### DSP Module Structure
-Each DSP component ([dsp/](src/dsp/)) follows this pattern:
+Each DSP component ([dsp/](../src/dsp/)) follows this pattern:
 - **Phase accumulation** (not sample counting) for frequency control
-- **Inline comments** explaining the "why" behind DSP math (see extensive comments in [oscillator.rs](src/dsp/oscillator.rs))
+- **Inline comments** explaining the "why" behind DSP math (see extensive comments in [oscillator.rs](../src/dsp/oscillator.rs))
 - **Unit tests** at bottom of file in `#[cfg(test)] mod tests { ... }`
 - **Sample-rate parametric**: Pass `sample_rate` to constructor, calculate coefficients/increments there
 
 ### Filter Stability
-- Uses **Audio EQ Cookbook** formulas for biquad coefficients ([filter.rs](src/dsp/filter.rs))
+- Uses **Audio EQ Cookbook** formulas for biquad coefficients ([filter.rs](../src/dsp/filter.rs))
 - **Coefficient clamping** prevents numerical instability at extreme settings
 - **Parameter smoothing** prevents audio discontinuities when changing cutoff/resonance
 
 ### Preset System
-- Presets are JSON files serialized from `SynthParams` (see [examples/](examples/))
-- Load/save via [preset.rs](src/preset.rs)
+- Depracated for now - use DAW preset management via CLAP state extension
+- Presets are JSON files serialized from `SynthParams`
+- Load/save via [preset.rs](../src/preset.rs)
 - Include `#[serde(default)]` on new fields to maintain backward compatibility with old presets
 
 ## Common Pitfalls
@@ -185,48 +186,47 @@ Each DSP component ([dsp/](src/dsp/)) follows this pattern:
 ✅ **DO** add `.clamp(min, max)` for parameters with restricted ranges (pitch, detune, etc.)
 
 ## Key Files Reference
-- [audio/engine.rs](src/audio/engine.rs): Core synthesis engine, voice management, parameter throttling
-- [audio/voice.rs](src/audio/voice.rs): Single voice (3 oscillators + 3 filters + envelope)
-- [dsp/oscillator.rs](src/dsp/oscillator.rs): Oversampled waveform generation with anti-aliasing
-- [dsp/filter.rs](src/dsp/filter.rs): Biquad filters with stability guarantees
-- [params.rs](src/params.rs): Shared parameter definitions for all targets
-
+- [audio/engine.rs](../src/audio/engine.rs): Core synthesis engine, voice management, parameter throttling
+- [audio/voice.rs](../src/audio/voice.rs): Single voice (3 oscillators + 3 filters + envelope)
+- [dsp/oscillator.rs](../src/dsp/oscillator.rs): Oversampled waveform generation with anti-aliasing
+- [dsp/filter.rs](../src/dsp/filter.rs): Biquad filters with stability guarantees
+- [params.rs](../src/params.rs): Shared parameter definitions for all targets
 ### CLAP Plugin System
-- [plugin/clap/plugin.rs](src/plugin/clap/plugin.rs): CLAP plugin lifecycle and extension registration
-- [plugin/clap/processor.rs](src/plugin/clap/processor.rs): Real-time audio + MIDI processing
-- [plugin/clap/params.rs](src/plugin/clap/params.rs): CLAP parameter extension (count, info, get/set, flush)
-- [plugin/clap/state.rs](src/plugin/clap/state.rs): Preset save/load via CLAP state extension
-- [plugin/param_descriptor.rs](src/plugin/param_descriptor.rs): Parameter metadata (type, range, unit, automation)
-- [plugin/param_registry.rs](src/plugin/param_registry.rs): Global parameter registry and normalization
-- [plugin/param_update.rs](src/plugin/param_update.rs): Lock-free parameter updates via triple-buffer
+- [plugin/clap/plugin.rs](../src/plugin/clap/plugin.rs): CLAP plugin lifecycle and extension registration
+- [plugin/clap/processor.rs](../src/plugin/clap/processor.rs): Real-time audio + MIDI processing
+- [plugin/clap/params.rs](../src/plugin/clap/params.rs): CLAP parameter extension (count, info, get/set, flush)
+- [plugin/clap/state.rs](../src/plugin/clap/state.rs): Preset save/load via CLAP state extension
+- [plugin/param_descriptor.rs](../src/plugin/param_descriptor.rs): Parameter metadata (type, range, unit, automation)
+- [plugin/param_registry.rs](../src/plugin/param_registry.rs): Global parameter registry and normalization
+- [plugin/param_update.rs](../src/plugin/param_update.rs): Lock-free parameter updates via triple-buffer
 
 ### Bundling Scripts
 - **CLAP Plugin**:
-  - [bundle_clap.sh](bundle_clap.sh) (macOS CLAP)
-  - [bundle_standalone.sh](bundle_standalone.sh) (macOS standalone)
+  - [bundle.sh](../bundle.sh) (macOS CLAP)
+  - [bundle_standalone.sh](../bundle_standalone.sh) (macOS standalone)
   - Platform-specific variants for Linux/Windows
-- See [BUILD_AND_DISTRIBUTE.md](BUILD_AND_DISTRIBUTE.md) for cross-compilation and GitHub Actions setup
+- See [BUILD_AND_DISTRIBUTE.md](../BUILD_AND_DISTRIBUTE.md) for cross-compilation and GitHub Actions setup
 - CLAP plugins install to: `~/Library/Audio/Plug-Ins/CLAP/` (macOS), `%COMMONPROGRAMFILES%\CLAP\` (Windows), `~/.clap/` (Linux)
 
 ### GUI System
-- [gui/vizia_gui/](src/gui/vizia_gui/): Unified VIZIA GUI for both targets
-  - [plugin_window.rs](src/gui/vizia_gui/plugin_window.rs): CLAP plugin window integration (baseview)
-  - [standalone_window.rs](src/gui/vizia_gui/standalone_window.rs): Standalone window integration (winit)
-  - [shared_ui.rs](src/gui/vizia_gui/shared_ui.rs): **Shared UI layout** - oscillators, filters, ADSR, effects
-  - [state.rs](src/gui/vizia_gui/state.rs): GuiState with Arc<RwLock<SynthParams>>
-  - [messages.rs](src/gui/vizia_gui/messages.rs): GuiMessage enum (ParamChanged, PresetLoad, etc.)
-  - [widgets/param_knob.rs](src/gui/vizia_gui/widgets/param_knob.rs): Parameter control widget
+- [gui/vizia_gui/](../src/gui/vizia_gui/): Unified VIZIA GUI for both targets
+  - [plugin_window.rs](../src/gui/vizia_gui/plugin_window.rs): CLAP plugin window integration (baseview)
+  - [standalone_window.rs](../src/gui/vizia_gui/standalone_window.rs): Standalone window integration (winit)
+  - [shared_ui.rs](../src/gui/vizia_gui/shared_ui.rs): **Shared UI layout** - oscillators, filters, ADSR, effects
+  - [state.rs](../src/gui/vizia_gui/state.rs): GuiState with Arc<RwLock<SynthParams>>
+  - [messages.rs](../src/gui/vizia_gui/messages.rs): GuiMessage enum (ParamChanged, PresetLoad, etc.)
+  - [widgets/param_knob.rs](../src/gui/vizia_gui/widgets/param_knob.rs): Parameter control widget
 
 ### Entry Points
-- [main.rs](src/main.rs): Standalone app entry point (GUI + audio + MIDI threads)
-- [lib.rs](src/lib.rs): Library exports and CLAP plugin entry point
+- [main.rs](../src/main.rs): Standalone app entry point (GUI + audio + MIDI threads)
+- [lib.rs](../src/lib.rs): Library exports and CLAP plugin entry point
 
 ## Distribution
 - Use bundling scripts:
-  - [bundle_clap.sh](bundle_clap.sh) (macOS CLAP plugin)
-  - [bundle_standalone.sh](bundle_standalone.sh) (macOS standalone app)
-  - Platform-specific variants: [bundle.bat](bundle.bat) (Windows), [bundle-linux.sh](bundle-linux.sh) (Linux)
-- See [BUILD_AND_DISTRIBUTE.md](BUILD_AND_DISTRIBUTE.md) for cross-compilation and GitHub Actions setup
+  - [bundle.sh](../bundle.sh) (macOS CLAP plugin)
+  - [bundle_standalone.sh](../bundle_standalone.sh) (macOS standalone app)
+  - Platform-specific variants: [bundle.bat](../bundle.bat) (Windows), [bundle-linux.sh](../bundle-linux.sh) (Linux)
+- See [BUILD_AND_DISTRIBUTE.md](../BUILD_AND_DISTRIBUTE.md) for cross-compilation and GitHub Actions setup
 - CLAP plugins install to standard locations:
   - macOS: `~/Library/Audio/Plug-Ins/CLAP/`
   - Windows: `%COMMONPROGRAMFILES%\CLAP\`

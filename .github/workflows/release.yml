@@ -66,51 +66,23 @@ jobs:
           name: ${{ matrix.asset_name }}
           path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
 
-      - name: Build VST Plugin
+      - name: Build CLAP Plugin
         timeout-minutes: 90
         continue-on-error: true
-        id: vst_build
+        id: clap_build
         env:
           CARGO_INCREMENTAL: 0
           RUST_BACKTRACE: 1
           CARGO_NET_GIT_FETCH_WITH_CLI: true
           CARGO_NET_RETRY: 10
-        run: cargo build --release --lib --features vst --target ${{ matrix.target }} -v
+        run: cargo build --release --lib --features clap --target ${{ matrix.target }} -v
 
       - name: Create Plugin Bundles (macOS)
-        if: matrix.os == 'macos-latest' && steps.vst_build.outcome == 'success'
+        if: matrix.os == 'macos-latest' && steps.clap_build.outcome == 'success'
         run: |
           mkdir -p bundles
 
           VERSION="${GITHUB_REF_NAME#v}"
-          
-          # VST3 Bundle
-          VST3_BUNDLE="bundles/DSynth.vst3"
-          mkdir -p "$VST3_BUNDLE/Contents/MacOS"
-          mkdir -p "$VST3_BUNDLE/Contents/Resources"
-          cp "target/${{ matrix.target }}/release/libdsynth.dylib" "$VST3_BUNDLE/Contents/MacOS/DSynth"
-          echo "BNDL????" > "$VST3_BUNDLE/Contents/PkgInfo"
-          
-          cat > "$VST3_BUNDLE/Contents/Info.plist" << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>CFBundleExecutable</key>
-              <string>DSynth</string>
-              <key>CFBundleIdentifier</key>
-              <string>com.dsynth.vst3</string>
-              <key>CFBundleName</key>
-              <string>DSynth</string>
-              <key>CFBundlePackageType</key>
-              <string>BNDL</string>
-              <key>CFBundleShortVersionString</key>
-              <string>__VERSION__</string>
-          </dict>
-          </plist>
-          EOF
-
-          perl -pi -e "s/__VERSION__/$VERSION/g" "$VST3_BUNDLE/Contents/Info.plist"
           
           # CLAP Bundle
           CLAP_BUNDLE="bundles/DSynth.clap"
@@ -139,69 +111,34 @@ jobs:
 
           perl -pi -e "s/__VERSION__/$VERSION/g" "$CLAP_BUNDLE/Contents/Info.plist"
           
-          # Code sign the bundles (ad-hoc signing)
-          codesign --force --deep --sign - "$VST3_BUNDLE"
+          # Code sign the bundle (ad-hoc signing)
           codesign --force --deep --sign - "$CLAP_BUNDLE"
           
-          # Verify signatures
-          codesign -dv "$VST3_BUNDLE" 2>&1
+          # Verify signature
           codesign -dv "$CLAP_BUNDLE" 2>&1
           
-          # Create archives
+          # Create archive
           cd bundles
-          tar -czf DSynth-${{ matrix.target }}-vst3.tar.gz DSynth.vst3
           tar -czf DSynth-${{ matrix.target }}-clap.tar.gz DSynth.clap
 
       - name: Create Plugin Bundles (Windows)
-        if: matrix.os == 'windows-latest' && steps.vst_build.outcome == 'success'
+        if: matrix.os == 'windows-latest' && steps.clap_build.outcome == 'success'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path bundles
 
           $version = "${{ github.ref_name }}" -replace '^v',''
           
-          # VST3 Bundle
-          $vst3Bundle = "bundles\DSynth.vst3"
-          New-Item -ItemType Directory -Force -Path "$vst3Bundle\Contents\x86_64-win"
-          Copy-Item "target\${{ matrix.target }}\release\dsynth.dll" "$vst3Bundle\Contents\x86_64-win\DSynth.vst3"
-          
-          @"
-          {
-            "Name": "DSynth",
-            "Version": "$version",
-            "Factory Info": {
-              "Vendor": "DSynth",
-              "URL": "",
-              "E-Mail": ""
-            },
-            "Compatibility": {
-              "Classes": [
-                {
-                  "CID": "44535374445300000000000000000000"
-                }
-              ]
-            }
-          }
-          "@ | Out-File -Encoding utf8 "$vst3Bundle\Contents\x86_64-win\moduleinfo.json"
-          
           # CLAP Bundle
           $clapBundle = "bundles\DSynth.clap"
           New-Item -ItemType Directory -Force -Path $clapBundle
           Copy-Item "target\${{ matrix.target }}\release\dsynth.dll" "$clapBundle\DSynth.clap"
           
-          # Create archives
-          Compress-Archive -Path "$vst3Bundle" -DestinationPath "bundles\DSynth-${{ matrix.target }}-vst3.zip"
+          # Create archive
           Compress-Archive -Path "$clapBundle\DSynth.clap" -DestinationPath "bundles\DSynth-${{ matrix.target }}-clap.zip"
 
-      - name: Upload VST3 Plugin
-        if: steps.vst_build.outcome == 'success'
-        uses: actions/upload-artifact@v4
-        with:
-          name: DSynth-${{ matrix.target }}-vst3
-          path: bundles/DSynth-${{ matrix.target }}-vst3.*
-
       - name: Upload CLAP Plugin
-        if: steps.vst_build.outcome == 'success'
+        if: steps.clap_build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: DSynth-${{ matrix.target }}-clap
@@ -234,9 +171,6 @@ jobs:
             - `dsynth-macos-arm64` - macOS Apple Silicon
             - `dsynth-windows-x86_64.exe` - Windows 64-bit
             
-            ### VST3 Plugins
-            - `DSynth-*-vst3.tar.gz` / `.zip` - VST3 plugins for macOS and Windows
-            
             ### CLAP Plugins
             - `DSynth-*-clap.tar.gz` / `.zip` - CLAP plugins for macOS and Windows
             
@@ -244,8 +178,8 @@ jobs:
             
             **Standalone:** Just run the executable
             
-            **Plugins:**
-            - macOS: Extract and copy to `~/Library/Audio/Plug-Ins/VST3/` or `/CLAP/`
-            - Windows: Extract and copy to `C:\Program Files\Common Files\VST3\` or `\CLAP\`
+            **CLAP Plugins:**
+            - macOS: Extract and copy to `~/Library/Audio/Plug-Ins/CLAP/`
+            - Windows: Extract and copy to `C:\Program Files\Common Files\CLAP\`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
