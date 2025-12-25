@@ -1,7 +1,13 @@
 use clap_sys::ext::audio_ports::{
     CLAP_AUDIO_PORT_IS_MAIN, clap_audio_port_info, clap_plugin_audio_ports,
 };
-use clap_sys::ext::gui::{CLAP_WINDOW_API_COCOA, clap_plugin_gui, clap_window};
+#[cfg(target_os = "macos")]
+use clap_sys::ext::gui::CLAP_WINDOW_API_COCOA;
+#[cfg(target_os = "windows")]
+use clap_sys::ext::gui::CLAP_WINDOW_API_WIN32;
+#[cfg(target_os = "linux")]
+use clap_sys::ext::gui::CLAP_WINDOW_API_X11;
+use clap_sys::ext::gui::{clap_plugin_gui, clap_window};
 use clap_sys::ext::note_ports::{
     CLAP_NOTE_DIALECT_CLAP, clap_note_port_info, clap_plugin_note_ports,
 };
