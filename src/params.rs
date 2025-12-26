@@ -86,7 +86,7 @@ impl Default for OscillatorParams {
             shape: 0.0,
             solo: false,
             additive_harmonics: [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], // Default: fundamental only
-            wavetable_index: 0, // Default: first wavetable
+            wavetable_index: 0,      // Default: first wavetable
             wavetable_position: 0.0, // Default: no morphing
         }
     }
@@ -99,6 +99,7 @@ pub struct FilterParams {
     pub resonance: f32,    // Q factor, 0.5 to 50.0
     pub bandwidth: f32,    // Bandwidth in octaves for bandpass (0.1 to 4.0)
     pub key_tracking: f32, // Key tracking amount (0.0 to 1.0)
+    pub envelope: FilterEnvelopeParams,
 }
 
 impl Default for FilterParams {
@@ -109,6 +110,7 @@ impl Default for FilterParams {
             resonance: 0.707,
             bandwidth: 1.0, // 1 octave for bandpass
             key_tracking: 0.0,
+            envelope: FilterEnvelopeParams::default(),
         }
     }
 }

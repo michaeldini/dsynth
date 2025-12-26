@@ -134,6 +134,9 @@ pub struct Voice {
     /// The envelope value (0.0-1.0) is multiplied with the audio output.
     envelope: Envelope,
 
+    /// Per-filter ADSR envelopes.
+    filter_envelopes: [Envelope; 3],
+
     /// Three LFOs (Low Frequency Oscillators), one per filter.
     ///
     /// LFOs generate slow-moving waveforms (typically <20 Hz) that modulate filter cutoff.
@@ -225,6 +228,11 @@ impl Voice {
                 BiquadFilter::new(sample_rate),
             ],
             envelope: Envelope::new(sample_rate),
+            filter_envelopes: [
+                Envelope::new(sample_rate),
+                Envelope::new(sample_rate),
+                Envelope::new(sample_rate),
+            ],
             lfos: [
                 LFO::new(sample_rate),
                 LFO::new(sample_rate),
@@ -284,6 +292,11 @@ impl Voice {
         // The envelope will fade in from 0.0 to 1.0 over the attack time (typically 10-100ms)
         self.envelope.note_on();
 
+        // Trigger filter envelopes
+        for env in &mut self.filter_envelopes {
+            env.note_on();
+        }
+
         // Reset all LFOs to phase 0.0
         // This ensures LFO modulation starts consistently for each note.
         // Without this, LFOs would continue from their previous phase, causing
@@ -326,6 +339,11 @@ impl Voice {
         // Transition the envelope from sustain → release
         // The envelope will fade from its current level to 0.0 over the release time
         self.envelope.note_off();
+
+        // Release filter envelopes
+        for env in &mut self.filter_envelopes {
+            env.note_off();
+        }
     }
 
     /// Update all oscillator, filter, and LFO parameters for this voice.
@@ -468,6 +486,12 @@ impl Voice {
             self.filters[i].set_cutoff(filter_params[i].cutoff);
             self.filters[i].set_resonance(filter_params[i].resonance);
 
+            // Update filter envelope parameters
+            self.filter_envelopes[i].set_attack(filter_params[i].envelope.attack);
+            self.filter_envelopes[i].set_decay(filter_params[i].envelope.decay);
+            self.filter_envelopes[i].set_sustain(filter_params[i].envelope.sustain);
+            self.filter_envelopes[i].set_release(filter_params[i].envelope.release);
+
             // Step 7: Update LFO parameters (rate and waveform)
             let lfo = &lfo_params[i];
             self.lfos[i].set_rate(lfo.rate);
@@ -605,8 +629,10 @@ impl Voice {
         // These are global modulations that affect all oscillators.
         // Filter modulation is still per-oscillator (processed later in Step 6).
         let mut lfo_values = [0.0; 3];
+        let mut filter_env_values = [0.0; 3];
         for i in 0..3 {
             lfo_values[i] = self.lfos[i].process(); // Returns -1.0 to 1.0
+            filter_env_values[i] = self.filter_envelopes[i].process();
         }
 
         // Calculate global LFO modulations (sum contributions from all 3 LFOs)
@@ -812,7 +838,8 @@ impl Voice {
             let modulated_cutoff = (base_cutoff
                 + key_tracking_offset
                 + velocity_cutoff_offset
-                + lfo_value * lfo_params[i].filter_amount * lfo_params[i].depth)
+                + lfo_value * lfo_params[i].filter_amount * lfo_params[i].depth
+                + filter_env_values[i] * filter_params[i].envelope.amount)
                 .clamp(20.0, 20000.0);
 
             // === STEP 6d: Update filter and apply to oscillator output ===

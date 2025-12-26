@@ -136,7 +136,7 @@ pub fn build_ui(cx: &mut Context) {
                     .gap(Pixels(COL_GAP));
                 })
                 .background_color(Color::rgb(35, 35, 40))
-                .height(Pixels(175.0));
+                .height(Pixels(275.0));
 
                 // Row 4: LFOs
                 VStack::new(cx, |cx| {
@@ -368,7 +368,7 @@ pub fn build_waveform_specific_section(cx: &mut Context, osc_index: usize) {
             VStack::new(cx, |cx| {
                 build_additive_osc_section(cx, 1);
             })
-            .height(Pixels(220.0))
+            .height(Units::Auto)
             .visibility(GuiState::osc1_waveform.map(|wf| {
                 if *wf == 7 {
                     Visibility::Visible
@@ -382,7 +382,7 @@ pub fn build_waveform_specific_section(cx: &mut Context, osc_index: usize) {
             VStack::new(cx, |cx| {
                 build_additive_osc_section(cx, 2);
             })
-            .height(Pixels(220.0))
+            .height(Units::Auto)
             .visibility(GuiState::osc2_waveform.map(|wf| {
                 if *wf == 7 {
                     Visibility::Visible
@@ -396,7 +396,7 @@ pub fn build_waveform_specific_section(cx: &mut Context, osc_index: usize) {
             VStack::new(cx, |cx| {
                 build_additive_osc_section(cx, 3);
             })
-            .height(Pixels(220.0))
+            .height(Units::Auto)
             .visibility(GuiState::osc3_waveform.map(|wf| {
                 if *wf == 7 {
                     Visibility::Visible
@@ -439,7 +439,7 @@ pub fn build_waveform_specific_section(cx: &mut Context, osc_index: usize) {
             VStack::new(cx, |cx| {
                 build_wavetable_osc_section(cx, 3);
             })
-            .height(Pixels(220.0))
+            .height(Units::Auto)
             .visibility(GuiState::osc3_waveform.map(|wf| {
                 if *wf == 8 {
                     Visibility::Visible
@@ -566,13 +566,19 @@ pub fn build_wavetable_osc_section(cx: &mut Context, osc_index: usize) {
 }
 
 pub fn build_filter_section(cx: &mut Context, filter_index: usize) {
-    let (ft, cutoff, res, bw, kt) = match filter_index {
+    let (ft, cutoff, res, bw, kt, env_amt, env_att, env_dec, env_sus, env_rel) = match filter_index
+    {
         1 => (
             PARAM_FILTER1_TYPE,
             PARAM_FILTER1_CUTOFF,
             PARAM_FILTER1_RESONANCE,
             PARAM_FILTER1_BANDWIDTH,
             PARAM_FILTER1_KEY_TRACKING,
+            PARAM_FILTER1_ENV_AMOUNT,
+            PARAM_FILTER1_ENV_ATTACK,
+            PARAM_FILTER1_ENV_DECAY,
+            PARAM_FILTER1_ENV_SUSTAIN,
+            PARAM_FILTER1_ENV_RELEASE,
         ),
         2 => (
             PARAM_FILTER2_TYPE,
@@ -580,6 +586,11 @@ pub fn build_filter_section(cx: &mut Context, filter_index: usize) {
             PARAM_FILTER2_RESONANCE,
             PARAM_FILTER2_BANDWIDTH,
             PARAM_FILTER2_KEY_TRACKING,
+            PARAM_FILTER2_ENV_AMOUNT,
+            PARAM_FILTER2_ENV_ATTACK,
+            PARAM_FILTER2_ENV_DECAY,
+            PARAM_FILTER2_ENV_SUSTAIN,
+            PARAM_FILTER2_ENV_RELEASE,
         ),
         _ => (
             PARAM_FILTER3_TYPE,
@@ -587,6 +598,11 @@ pub fn build_filter_section(cx: &mut Context, filter_index: usize) {
             PARAM_FILTER3_RESONANCE,
             PARAM_FILTER3_BANDWIDTH,
             PARAM_FILTER3_KEY_TRACKING,
+            PARAM_FILTER3_ENV_AMOUNT,
+            PARAM_FILTER3_ENV_ATTACK,
+            PARAM_FILTER3_ENV_DECAY,
+            PARAM_FILTER3_ENV_SUSTAIN,
+            PARAM_FILTER3_ENV_RELEASE,
         ),
     };
 
@@ -599,17 +615,39 @@ pub fn build_filter_section(cx: &mut Context, filter_index: usize) {
         })
         .height(Units::Auto)
         .gap(Pixels(6.0));
+
         HStack::new(cx, |cx| {
             let cutoff_v = current_normalized(cx, cutoff);
             let res_v = current_normalized(cx, res);
             let bw_v = current_normalized(cx, bw);
             let kt_v = current_normalized(cx, kt);
 
-            // filter_type_button(cx, ft, filter_index - 1);
             param_knob(cx, cutoff, "Cutoff", cutoff_v, default_normalized(cutoff));
             param_knob(cx, res, "Res", res_v, default_normalized(res));
             param_knob(cx, bw, "BW", bw_v, default_normalized(bw));
             param_knob(cx, kt, "KeyTrk", kt_v, default_normalized(kt));
+        })
+        .height(Units::Auto)
+        .gap(Pixels(6.0));
+
+        // Filter Envelope Section
+        Label::new(cx, "Filter Envelope")
+            .font_size(12.0)
+            .color(Color::rgb(180, 180, 190))
+            .top(Pixels(4.0));
+
+        HStack::new(cx, |cx| {
+            let env_amt_v = current_normalized(cx, env_amt);
+            let env_att_v = current_normalized(cx, env_att);
+            let env_dec_v = current_normalized(cx, env_dec);
+            let env_sus_v = current_normalized(cx, env_sus);
+            let env_rel_v = current_normalized(cx, env_rel);
+
+            param_knob(cx, env_amt, "Amt", env_amt_v, default_normalized(env_amt));
+            param_knob(cx, env_att, "A", env_att_v, default_normalized(env_att));
+            param_knob(cx, env_dec, "D", env_dec_v, default_normalized(env_dec));
+            param_knob(cx, env_sus, "S", env_sus_v, default_normalized(env_sus));
+            param_knob(cx, env_rel, "R", env_rel_v, default_normalized(env_rel));
         })
         .height(Units::Auto)
         .gap(Pixels(6.0));

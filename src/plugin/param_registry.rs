@@ -576,6 +576,71 @@ impl ParamRegistry {
                     Some("")
                 )
             );
+
+            add_param!(
+                base_id + 5,
+                ParamDescriptor::float_log(
+                    base_id + 5,
+                    "Env Attack",
+                    &module,
+                    0.001,
+                    5.0,
+                    0.01,
+                    Some("s")
+                )
+            );
+
+            add_param!(
+                base_id + 6,
+                ParamDescriptor::float_log(
+                    base_id + 6,
+                    "Env Decay",
+                    &module,
+                    0.001,
+                    5.0,
+                    0.1,
+                    Some("s")
+                )
+            );
+
+            add_param!(
+                base_id + 7,
+                ParamDescriptor::float(
+                    base_id + 7,
+                    "Env Sustain",
+                    &module,
+                    0.0,
+                    1.0,
+                    0.5,
+                    Some("")
+                )
+            );
+
+            add_param!(
+                base_id + 8,
+                ParamDescriptor::float_log(
+                    base_id + 8,
+                    "Env Release",
+                    &module,
+                    0.001,
+                    5.0,
+                    0.2,
+                    Some("s")
+                )
+            );
+
+            add_param!(
+                base_id + 9,
+                ParamDescriptor::float(
+                    base_id + 9,
+                    "Env Amount",
+                    &module,
+                    -10000.0,
+                    10000.0,
+                    0.0,
+                    Some("Hz")
+                )
+            );
         }
 
         // LFOs

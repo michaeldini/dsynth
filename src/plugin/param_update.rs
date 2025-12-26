@@ -255,6 +255,27 @@ pub mod param_apply {
             PARAM_FILTER3_BANDWIDTH => params.filters[2].bandwidth = denorm,
             PARAM_FILTER3_KEY_TRACKING => params.filters[2].key_tracking = denorm,
 
+            // Filter 1 Envelope
+            PARAM_FILTER1_ENV_ATTACK => params.filters[0].envelope.attack = denorm,
+            PARAM_FILTER1_ENV_DECAY => params.filters[0].envelope.decay = denorm,
+            PARAM_FILTER1_ENV_SUSTAIN => params.filters[0].envelope.sustain = denorm,
+            PARAM_FILTER1_ENV_RELEASE => params.filters[0].envelope.release = denorm,
+            PARAM_FILTER1_ENV_AMOUNT => params.filters[0].envelope.amount = denorm,
+
+            // Filter 2 Envelope
+            PARAM_FILTER2_ENV_ATTACK => params.filters[1].envelope.attack = denorm,
+            PARAM_FILTER2_ENV_DECAY => params.filters[1].envelope.decay = denorm,
+            PARAM_FILTER2_ENV_SUSTAIN => params.filters[1].envelope.sustain = denorm,
+            PARAM_FILTER2_ENV_RELEASE => params.filters[1].envelope.release = denorm,
+            PARAM_FILTER2_ENV_AMOUNT => params.filters[1].envelope.amount = denorm,
+
+            // Filter 3 Envelope
+            PARAM_FILTER3_ENV_ATTACK => params.filters[2].envelope.attack = denorm,
+            PARAM_FILTER3_ENV_DECAY => params.filters[2].envelope.decay = denorm,
+            PARAM_FILTER3_ENV_SUSTAIN => params.filters[2].envelope.sustain = denorm,
+            PARAM_FILTER3_ENV_RELEASE => params.filters[2].envelope.release = denorm,
+            PARAM_FILTER3_ENV_AMOUNT => params.filters[2].envelope.amount = denorm,
+
             // LFOs
             PARAM_LFO1_WAVEFORM => {
                 if let Some(lw) = denorm_to_lfo_waveform(denorm) {

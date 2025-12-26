@@ -119,6 +119,11 @@ pub const PARAM_FILTER1_CUTOFF: ParamId = make_param_id(MODULE_FILTER1, 1);
 pub const PARAM_FILTER1_RESONANCE: ParamId = make_param_id(MODULE_FILTER1, 2);
 pub const PARAM_FILTER1_BANDWIDTH: ParamId = make_param_id(MODULE_FILTER1, 3);
 pub const PARAM_FILTER1_KEY_TRACKING: ParamId = make_param_id(MODULE_FILTER1, 4);
+pub const PARAM_FILTER1_ENV_ATTACK: ParamId = make_param_id(MODULE_FILTER1, 5);
+pub const PARAM_FILTER1_ENV_DECAY: ParamId = make_param_id(MODULE_FILTER1, 6);
+pub const PARAM_FILTER1_ENV_SUSTAIN: ParamId = make_param_id(MODULE_FILTER1, 7);
+pub const PARAM_FILTER1_ENV_RELEASE: ParamId = make_param_id(MODULE_FILTER1, 8);
+pub const PARAM_FILTER1_ENV_AMOUNT: ParamId = make_param_id(MODULE_FILTER1, 9);
 
 // Filter 2
 pub const PARAM_FILTER2_TYPE: ParamId = make_param_id(MODULE_FILTER2, 0);
@@ -126,6 +131,11 @@ pub const PARAM_FILTER2_CUTOFF: ParamId = make_param_id(MODULE_FILTER2, 1);
 pub const PARAM_FILTER2_RESONANCE: ParamId = make_param_id(MODULE_FILTER2, 2);
 pub const PARAM_FILTER2_BANDWIDTH: ParamId = make_param_id(MODULE_FILTER2, 3);
 pub const PARAM_FILTER2_KEY_TRACKING: ParamId = make_param_id(MODULE_FILTER2, 4);
+pub const PARAM_FILTER2_ENV_ATTACK: ParamId = make_param_id(MODULE_FILTER2, 5);
+pub const PARAM_FILTER2_ENV_DECAY: ParamId = make_param_id(MODULE_FILTER2, 6);
+pub const PARAM_FILTER2_ENV_SUSTAIN: ParamId = make_param_id(MODULE_FILTER2, 7);
+pub const PARAM_FILTER2_ENV_RELEASE: ParamId = make_param_id(MODULE_FILTER2, 8);
+pub const PARAM_FILTER2_ENV_AMOUNT: ParamId = make_param_id(MODULE_FILTER2, 9);
 
 // Filter 3
 pub const PARAM_FILTER3_TYPE: ParamId = make_param_id(MODULE_FILTER3, 0);
@@ -133,6 +143,11 @@ pub const PARAM_FILTER3_CUTOFF: ParamId = make_param_id(MODULE_FILTER3, 1);
 pub const PARAM_FILTER3_RESONANCE: ParamId = make_param_id(MODULE_FILTER3, 2);
 pub const PARAM_FILTER3_BANDWIDTH: ParamId = make_param_id(MODULE_FILTER3, 3);
 pub const PARAM_FILTER3_KEY_TRACKING: ParamId = make_param_id(MODULE_FILTER3, 4);
+pub const PARAM_FILTER3_ENV_ATTACK: ParamId = make_param_id(MODULE_FILTER3, 5);
+pub const PARAM_FILTER3_ENV_DECAY: ParamId = make_param_id(MODULE_FILTER3, 6);
+pub const PARAM_FILTER3_ENV_SUSTAIN: ParamId = make_param_id(MODULE_FILTER3, 7);
+pub const PARAM_FILTER3_ENV_RELEASE: ParamId = make_param_id(MODULE_FILTER3, 8);
+pub const PARAM_FILTER3_ENV_AMOUNT: ParamId = make_param_id(MODULE_FILTER3, 9);
 
 // LFO 1
 pub const PARAM_LFO1_WAVEFORM: ParamId = make_param_id(MODULE_LFO1, 0);
