@@ -61,9 +61,9 @@ pub fn generate_scalar(phase: f32, waveform: Waveform) -> f32 {
             // This path shouldn't be called for noise waveforms
             0.0
         }
-        Waveform::Additive => {
-            // Additive synthesis uses wavetable lookup, handled by oscillator
-            // This path shouldn't be called for additive waveforms
+        Waveform::Additive | Waveform::Wavetable => {
+            // Additive synthesis and wavetable use wavetable lookup, handled by oscillator
+            // This path shouldn't be called for these waveforms
             0.0
         }
     }
@@ -108,9 +108,9 @@ pub fn generate_simd(phases: f32x4, waveform: Waveform) -> f32x4 {
             // This path shouldn't be called for noise waveforms
             f32x4::splat(0.0)
         }
-        Waveform::Additive => {
-            // Additive synthesis uses wavetable lookup, handled by oscillator
-            // This path shouldn't be called for additive waveforms
+        Waveform::Additive | Waveform::Wavetable => {
+            // Additive synthesis and wavetable use wavetable lookup, handled by oscillator
+            // This path shouldn't be called for these waveforms
             f32x4::splat(0.0)
         }
     }

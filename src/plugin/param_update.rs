@@ -135,6 +135,12 @@ pub mod param_apply {
                 }
             }
             PARAM_OSC1_SOLO => params.oscillators[0].solo = denorm > 0.5,
+            PARAM_OSC1_WAVETABLE_INDEX => {
+                params.oscillators[0].wavetable_index = denorm.round() as usize;
+            }
+            PARAM_OSC1_WAVETABLE_POSITION => {
+                params.oscillators[0].wavetable_position = denorm.clamp(0.0, 1.0);
+            }
 
             // Oscillator 2
             PARAM_OSC2_WAVEFORM => {
@@ -170,6 +176,12 @@ pub mod param_apply {
                 }
             }
             PARAM_OSC2_SOLO => params.oscillators[1].solo = denorm > 0.5,
+            PARAM_OSC2_WAVETABLE_INDEX => {
+                params.oscillators[1].wavetable_index = denorm.round() as usize;
+            }
+            PARAM_OSC2_WAVETABLE_POSITION => {
+                params.oscillators[1].wavetable_position = denorm.clamp(0.0, 1.0);
+            }
 
             // Oscillator 3
             PARAM_OSC3_WAVEFORM => {
@@ -205,6 +217,12 @@ pub mod param_apply {
                 }
             }
             PARAM_OSC3_SOLO => params.oscillators[2].solo = denorm > 0.5,
+            PARAM_OSC3_WAVETABLE_INDEX => {
+                params.oscillators[2].wavetable_index = denorm.round() as usize;
+            }
+            PARAM_OSC3_WAVETABLE_POSITION => {
+                params.oscillators[2].wavetable_position = denorm.clamp(0.0, 1.0);
+            }
 
             // Filters
             PARAM_FILTER1_TYPE => {
@@ -310,7 +328,9 @@ pub mod param_apply {
 
             // Multiband Distortion
             PARAM_MB_DIST_LOW_MID_FREQ => params.effects.multiband_distortion.low_mid_freq = denorm,
-            PARAM_MB_DIST_MID_HIGH_FREQ => params.effects.multiband_distortion.mid_high_freq = denorm,
+            PARAM_MB_DIST_MID_HIGH_FREQ => {
+                params.effects.multiband_distortion.mid_high_freq = denorm
+            }
             PARAM_MB_DIST_DRIVE_LOW => params.effects.multiband_distortion.drive_low = denorm,
             PARAM_MB_DIST_DRIVE_MID => params.effects.multiband_distortion.drive_mid = denorm,
             PARAM_MB_DIST_DRIVE_HIGH => params.effects.multiband_distortion.drive_high = denorm,
@@ -337,7 +357,7 @@ pub mod param_apply {
 
     fn denorm_to_waveform(denorm: f32) -> Option<crate::params::Waveform> {
         use crate::params::Waveform;
-        // denorm is already the enum index (0-7) from registry.denormalize()
+        // denorm is already the enum index (0-8) from registry.denormalize()
         match denorm.round() as i32 {
             0 => Some(Waveform::Sine),
             1 => Some(Waveform::Saw),
@@ -347,6 +367,7 @@ pub mod param_apply {
             5 => Some(Waveform::WhiteNoise),
             6 => Some(Waveform::PinkNoise),
             7 => Some(Waveform::Additive),
+            8 => Some(Waveform::Wavetable),
             _ => None,
         }
     }
@@ -439,6 +460,8 @@ pub mod param_get {
                     0.0
                 }
             }
+            PARAM_OSC1_WAVETABLE_INDEX => params.oscillators[0].wavetable_index as f32,
+            PARAM_OSC1_WAVETABLE_POSITION => params.oscillators[0].wavetable_position,
 
             // Oscillator 2
             PARAM_OSC2_WAVEFORM => waveform_to_denorm(params.oscillators[1].waveform),
@@ -473,6 +496,8 @@ pub mod param_get {
                     0.0
                 }
             }
+            PARAM_OSC2_WAVETABLE_INDEX => params.oscillators[1].wavetable_index as f32,
+            PARAM_OSC2_WAVETABLE_POSITION => params.oscillators[1].wavetable_position,
 
             // Oscillator 3
             PARAM_OSC3_WAVEFORM => waveform_to_denorm(params.oscillators[2].waveform),
@@ -507,6 +532,8 @@ pub mod param_get {
                     0.0
                 }
             }
+            PARAM_OSC3_WAVETABLE_INDEX => params.oscillators[2].wavetable_index as f32,
+            PARAM_OSC3_WAVETABLE_POSITION => params.oscillators[2].wavetable_position,
 
             // Filters
             PARAM_FILTER1_TYPE => filter_type_to_denorm(params.filters[0].filter_type),
@@ -607,9 +634,27 @@ pub mod param_get {
             PARAM_WIDENER_SIDE_GAIN => params.effects.stereo_widener.side_gain,
 
             // Unison Normalization
-            PARAM_OSC1_UNISON_NORMALIZE => if params.oscillators[0].unison_normalize { 1.0 } else { 0.0 },
-            PARAM_OSC2_UNISON_NORMALIZE => if params.oscillators[1].unison_normalize { 1.0 } else { 0.0 },
-            PARAM_OSC3_UNISON_NORMALIZE => if params.oscillators[2].unison_normalize { 1.0 } else { 0.0 },
+            PARAM_OSC1_UNISON_NORMALIZE => {
+                if params.oscillators[0].unison_normalize {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_OSC2_UNISON_NORMALIZE => {
+                if params.oscillators[1].unison_normalize {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_OSC3_UNISON_NORMALIZE => {
+                if params.oscillators[2].unison_normalize {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
 
             _ => 0.0,
         }
@@ -637,6 +682,7 @@ pub mod param_get {
             Waveform::WhiteNoise => 5.0,
             Waveform::PinkNoise => 6.0,
             Waveform::Additive => 7.0,
+            Waveform::Wavetable => 8.0,
         }
     }
 

@@ -81,46 +81,45 @@ pub fn build_ui(cx: &mut Context) {
                 .gap(Pixels(COL_GAP))
                 .height(Pixels(125.0));
 
-                // Row 2: Oscillators
-                VStack::new(cx, |cx| {
-                    HStack::new(cx, |cx| {
-                        VStack::new(cx, |cx| build_osc_section(cx, 1))
-                            .width(Pixels(OSC_COL_WIDTH))
-                            .height(Pixels(0.0));
-                        VStack::new(cx, |cx| build_osc_section(cx, 2))
-                            .width(Pixels(OSC_COL_WIDTH))
-                            .height(Pixels(0.0));
-                        VStack::new(cx, |cx| build_osc_section(cx, 3))
-                            .width(Pixels(OSC_COL_WIDTH))
-                            .height(Pixels(0.0));
+                // Row 2: Oscillators (with conditional waveform-specific sections)
+                HStack::new(cx, |cx| {
+                    // Oscillator 1 column
+                    VStack::new(cx, |cx| {
+                        build_osc_section(cx, 1);
+                        build_waveform_specific_section(cx, 1);
                     })
-                    .height(Pixels(0.0))
-                    .gap(Pixels(COL_GAP));
-                })
-                .background_color(Color::rgb(35, 35, 40))
-                .gap(Pixels(10.0))
-                .height(Pixels(250.0));
-
-                // Row 3: Harmonics
-                VStack::new(cx, |cx| {
-                    HStack::new(cx, |cx| {
-                        VStack::new(cx, |cx| build_additive_osc_section(cx, 1))
-                            .width(Pixels(OSC_COL_WIDTH))
-                            .height(Units::Auto);
-                        // .gap(Pixels(12.0));
-                        VStack::new(cx, |cx| build_additive_osc_section(cx, 2))
-                            .width(Pixels(OSC_COL_WIDTH))
-                            .height(Units::Auto);
-                        VStack::new(cx, |cx| build_additive_osc_section(cx, 3))
-                            .width(Pixels(OSC_COL_WIDTH))
-                            .height(Units::Auto);
-                    })
+                    .width(Pixels(OSC_COL_WIDTH))
                     .height(Units::Auto)
-                    .gap(Pixels(COL_GAP));
-                })
-                .height(Pixels(200.0));
+                    .padding(Pixels(10.0))
+                    .gap(Pixels(10.0))
+                    .background_color(Color::rgb(35, 35, 40));
 
-                // Row 4: Filters
+                    // Oscillator 2 column
+                    VStack::new(cx, |cx| {
+                        build_osc_section(cx, 2);
+                        build_waveform_specific_section(cx, 2);
+                    })
+                    .width(Pixels(OSC_COL_WIDTH))
+                    .height(Units::Auto)
+                    .padding(Pixels(10.0))
+                    .gap(Pixels(10.0))
+                    .background_color(Color::rgb(35, 35, 40));
+
+                    // Oscillator 3 column
+                    VStack::new(cx, |cx| {
+                        build_osc_section(cx, 3);
+                        build_waveform_specific_section(cx, 3);
+                    })
+                    .width(Pixels(OSC_COL_WIDTH))
+                    .height(Units::Auto)
+                    .padding(Pixels(10.0))
+                    .gap(Pixels(10.0))
+                    .background_color(Color::rgb(35, 35, 40));
+                })
+                .height(Units::Auto)
+                .gap(Pixels(COL_GAP));
+
+                // Row 3: Filters
                 VStack::new(cx, |cx| {
                     HStack::new(cx, |cx| {
                         VStack::new(cx, |cx| build_filter_section(cx, 1))
@@ -139,7 +138,7 @@ pub fn build_ui(cx: &mut Context) {
                 .background_color(Color::rgb(35, 35, 40))
                 .height(Pixels(175.0));
 
-                // Row 5: LFOs
+                // Row 4: LFOs
                 VStack::new(cx, |cx| {
                     HStack::new(cx, |cx| {
                         VStack::new(cx, |cx| build_lfo_section(cx, 1))
@@ -157,7 +156,7 @@ pub fn build_ui(cx: &mut Context) {
                 })
                 .height(Pixels(250.0));
 
-                // Row 6: Effects
+                // Row 5: Effects
                 build_effects_section(cx);
             })
             .width(Stretch(1.0))
@@ -360,6 +359,98 @@ pub fn build_osc_section(cx: &mut Context, osc_index: usize) {
     .gap(Pixels(10.0));
 }
 
+/// Build conditionally-rendered section based on selected waveform
+/// Shows additive harmonics for Additive waveform (7), wavetable controls for Wavetable (8)
+pub fn build_waveform_specific_section(cx: &mut Context, osc_index: usize) {
+    match osc_index {
+        1 => {
+            // Additive harmonics section - visible when waveform == 7 (Additive)
+            VStack::new(cx, |cx| {
+                build_additive_osc_section(cx, 1);
+            })
+            .height(Pixels(220.0))
+            .visibility(GuiState::osc1_waveform.map(|wf| {
+                if *wf == 7 {
+                    Visibility::Visible
+                } else {
+                    Visibility::Hidden
+                }
+            }));
+        }
+        2 => {
+            // Additive harmonics section - visible when waveform == 7 (Additive)
+            VStack::new(cx, |cx| {
+                build_additive_osc_section(cx, 2);
+            })
+            .height(Pixels(220.0))
+            .visibility(GuiState::osc2_waveform.map(|wf| {
+                if *wf == 7 {
+                    Visibility::Visible
+                } else {
+                    Visibility::Hidden
+                }
+            }));
+        }
+        _ => {
+            // Additive harmonics section - visible when waveform == 7 (Additive)
+            VStack::new(cx, |cx| {
+                build_additive_osc_section(cx, 3);
+            })
+            .height(Pixels(220.0))
+            .visibility(GuiState::osc3_waveform.map(|wf| {
+                if *wf == 7 {
+                    Visibility::Visible
+                } else {
+                    Visibility::Hidden
+                }
+            }));
+        }
+    }
+
+    // Wavetable controls section - visible when waveform == 8 (Wavetable)
+    match osc_index {
+        1 => {
+            VStack::new(cx, |cx| {
+                build_wavetable_osc_section(cx, 1);
+            })
+            .height(Pixels(220.0))
+            .visibility(GuiState::osc1_waveform.map(|wf| {
+                if *wf == 8 {
+                    Visibility::Visible
+                } else {
+                    Visibility::Hidden
+                }
+            }));
+        }
+        2 => {
+            VStack::new(cx, |cx| {
+                build_wavetable_osc_section(cx, 2);
+            })
+            .height(Pixels(220.0))
+            .visibility(GuiState::osc2_waveform.map(|wf| {
+                if *wf == 8 {
+                    Visibility::Visible
+                } else {
+                    Visibility::Hidden
+                }
+            }));
+        }
+        _ => {
+            VStack::new(cx, |cx| {
+                build_wavetable_osc_section(cx, 3);
+            })
+            .height(Pixels(220.0))
+            .visibility(GuiState::osc3_waveform.map(|wf| {
+                if *wf == 8 {
+                    Visibility::Visible
+                } else {
+                    Visibility::Hidden
+                }
+            }));
+        }
+    }
+}
+
 pub fn build_additive_osc_section(cx: &mut Context, osc_index: usize) {
     let (h1, h2, h3, h4, h5, h6, h7, h8) = match osc_index {
         1 => (
@@ -427,6 +518,49 @@ pub fn build_additive_osc_section(cx: &mut Context, osc_index: usize) {
         })
         .height(Units::Auto)
         .gap(Pixels(6.0));
+    })
+    .gap(Pixels(12.0));
+}
+
+pub fn build_wavetable_osc_section(cx: &mut Context, osc_index: usize) {
+    let (wt_idx, wt_pos) = match osc_index {
+        1 => (PARAM_OSC1_WAVETABLE_INDEX, PARAM_OSC1_WAVETABLE_POSITION),
+        2 => (PARAM_OSC2_WAVETABLE_INDEX, PARAM_OSC2_WAVETABLE_POSITION),
+        _ => (PARAM_OSC3_WAVETABLE_INDEX, PARAM_OSC3_WAVETABLE_POSITION),
+    };
+
+    VStack::new(cx, |cx| {
+        // Section header
+        Label::new(cx, &format!("Wavetable Controls (Osc {})", osc_index))
+            .font_size(12.0)
+            .color(Color::rgb(200, 200, 210))
+            .width(Stretch(1.0))
+            .height(Pixels(22.0));
+
+        // Wavetable selector and position knobs
+        HStack::new(cx, |cx| {
+            let wt_idx_v = current_normalized(cx, wt_idx);
+            let wt_pos_v = current_normalized(cx, wt_pos);
+
+            param_knob(
+                cx,
+                wt_idx,
+                "Wavetable",
+                wt_idx_v,
+                default_normalized(wt_idx),
+            );
+            param_knob(cx, wt_pos, "Position", wt_pos_v, default_normalized(wt_pos));
+        })
+        .height(Units::Auto)
+        .gap(Pixels(6.0));
+
+        // Info text about wavetable names
+        Label::new(cx, "Built-in: Sine, Saw, Square, Triangle")
+            .font_size(10.0)
+            .color(Color::rgb(160, 160, 170))
+            .width(Stretch(1.0))
+            .height(Pixels(16.0))
+            .text_wrap(true);
     })
     .gap(Pixels(12.0));
 }

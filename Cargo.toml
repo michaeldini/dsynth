@@ -33,6 +33,7 @@ clap-sys = { version = "0.3", optional = true }
 rfd = { version = "0.15", optional = true }
 rand = "0.8"
 image = "0.25"
+hound = "3.5"
 
 [dev-dependencies]
 approx = "0.5"

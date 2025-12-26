@@ -373,6 +373,7 @@ impl Voice {
         filter_params: &[FilterParams; 3],
         lfo_params: &[LFOParams; 3],
         envelope_params: &EnvelopeParams,
+        wavetable_library: &crate::dsp::wavetable_library::WavetableLibrary,
     ) {
         // Step 1: Convert MIDI note to base frequency (Hz)
         // This is the fundamental frequency before pitch/detune modulation
@@ -430,6 +431,12 @@ impl Voice {
                     // Update additive harmonics if waveform is Additive
                     if param.waveform == crate::params::Waveform::Additive {
                         osc.set_additive_harmonics(param.additive_harmonics);
+                    }
+
+                    // Update wavetable if waveform is Wavetable
+                    if param.waveform == crate::params::Waveform::Wavetable {
+                        osc.set_wavetable(param.wavetable_index, wavetable_library);
+                        osc.set_wavetable_position(param.wavetable_position);
                     }
 
                     // Set phase offset for unison decorrelation.

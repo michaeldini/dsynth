@@ -62,6 +62,8 @@ pub const PARAM_OSC1_H6: ParamId = make_param_id(MODULE_OSC1, 16);
 pub const PARAM_OSC1_H7: ParamId = make_param_id(MODULE_OSC1, 17);
 pub const PARAM_OSC1_H8: ParamId = make_param_id(MODULE_OSC1, 18);
 pub const PARAM_OSC1_SOLO: ParamId = make_param_id(MODULE_OSC1, 19);
+pub const PARAM_OSC1_WAVETABLE_INDEX: ParamId = make_param_id(MODULE_OSC1, 20);
+pub const PARAM_OSC1_WAVETABLE_POSITION: ParamId = make_param_id(MODULE_OSC1, 21);
 
 // Oscillator 2 (same structure)
 pub const PARAM_OSC2_WAVEFORM: ParamId = make_param_id(MODULE_OSC2, 0);
@@ -84,6 +86,8 @@ pub const PARAM_OSC2_H6: ParamId = make_param_id(MODULE_OSC2, 16);
 pub const PARAM_OSC2_H7: ParamId = make_param_id(MODULE_OSC2, 17);
 pub const PARAM_OSC2_H8: ParamId = make_param_id(MODULE_OSC2, 18);
 pub const PARAM_OSC2_SOLO: ParamId = make_param_id(MODULE_OSC2, 19);
+pub const PARAM_OSC2_WAVETABLE_INDEX: ParamId = make_param_id(MODULE_OSC2, 20);
+pub const PARAM_OSC2_WAVETABLE_POSITION: ParamId = make_param_id(MODULE_OSC2, 21);
 
 // Oscillator 3 (same structure)
 pub const PARAM_OSC3_WAVEFORM: ParamId = make_param_id(MODULE_OSC3, 0);
@@ -106,6 +110,8 @@ pub const PARAM_OSC3_H6: ParamId = make_param_id(MODULE_OSC3, 16);
 pub const PARAM_OSC3_H7: ParamId = make_param_id(MODULE_OSC3, 17);
 pub const PARAM_OSC3_H8: ParamId = make_param_id(MODULE_OSC3, 18);
 pub const PARAM_OSC3_SOLO: ParamId = make_param_id(MODULE_OSC3, 19);
+pub const PARAM_OSC3_WAVETABLE_INDEX: ParamId = make_param_id(MODULE_OSC3, 20);
+pub const PARAM_OSC3_WAVETABLE_POSITION: ParamId = make_param_id(MODULE_OSC3, 21);
 
 // Filter 1
 pub const PARAM_FILTER1_TYPE: ParamId = make_param_id(MODULE_FILTER1, 0);
@@ -204,9 +210,9 @@ pub const PARAM_WIDENER_MID_GAIN: ParamId = make_param_id(MODULE_EFFECTS, 27);
 pub const PARAM_WIDENER_SIDE_GAIN: ParamId = make_param_id(MODULE_EFFECTS, 28);
 
 // Unison normalization toggles (per oscillator)
-pub const PARAM_OSC1_UNISON_NORMALIZE: ParamId = make_param_id(MODULE_OSC1, 20);
-pub const PARAM_OSC2_UNISON_NORMALIZE: ParamId = make_param_id(MODULE_OSC2, 20);
-pub const PARAM_OSC3_UNISON_NORMALIZE: ParamId = make_param_id(MODULE_OSC3, 20);
+pub const PARAM_OSC1_UNISON_NORMALIZE: ParamId = make_param_id(MODULE_OSC1, 22);
+pub const PARAM_OSC2_UNISON_NORMALIZE: ParamId = make_param_id(MODULE_OSC2, 22);
+pub const PARAM_OSC3_UNISON_NORMALIZE: ParamId = make_param_id(MODULE_OSC3, 22);
 
 /// Value skewing for logarithmic/exponential parameter curves
 #[derive(Debug, Clone, Copy, PartialEq)]

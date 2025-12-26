@@ -91,6 +91,19 @@ pub struct Oscillator {
     /// Current harmonic amplitudes for additive synthesis (8 harmonics)
     /// Index 0 = fundamental, 1 = 2nd harmonic, etc.
     additive_harmonics: [f32; 8],
+
+    /// Current wavetable index when waveform is Wavetable (0 to N-1)
+    wavetable_index: usize,
+
+    /// Wavetable morphing position (0.0 to 1.0)
+    /// 0.0 = current wavetable, 1.0 = next wavetable in sequence
+    /// Continuous values = cross-fade between adjacent wavetables
+    wavetable_position: f32,
+
+    /// Cached wavetable data for fast lookup during audio processing
+    /// Copied from WavetableLibrary when wavetable_index changes
+    /// Stores 4× oversampled wavetable (8192 samples for 2048-sample base)
+    current_wavetable_4x: Option<Vec<f32>>,
 }
 
 impl Oscillator {
@@ -132,6 +145,9 @@ impl Oscillator {
             pink_b2: 0.0,
             additive_wavetable: [0.0; 2048],
             additive_harmonics: [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            wavetable_index: 0,
+            wavetable_position: 0.0,
+            current_wavetable_4x: None,
         };
         // Generate default wavetable (pure sine from fundamental harmonic)
         osc.generate_additive_wavetable();
@@ -221,6 +237,34 @@ impl Oscillator {
         self.generate_additive_wavetable();
     }
 
+    /// Set the wavetable index and load wavetable data from library
+    ///
+    /// This copies the 4× oversampled wavetable from the library into the oscillator's
+    /// cache for fast lookup during audio processing. This is done during parameter updates
+    /// (not in the audio callback) to avoid lookups in the hot path.
+    pub fn set_wavetable(
+        &mut self,
+        index: usize,
+        wavetable_library: &crate::dsp::wavetable_library::WavetableLibrary,
+    ) {
+        self.wavetable_index = index;
+        self.wavetable_position = 0.0;
+
+        // Load wavetable from library and cache the 4× oversampled version
+        if let Some(wavetable) = wavetable_library.get(index) {
+            // Get the pre-computed 4× oversampled data
+            self.current_wavetable_4x = Some(wavetable.samples_4x().to_vec());
+        } else {
+            // Fallback: use empty wavetable (will output silence)
+            self.current_wavetable_4x = None;
+        }
+    }
+
+    /// Set wavetable morphing position
+    pub fn set_wavetable_position(&mut self, position: f32) {
+        self.wavetable_position = position.clamp(0.0, 1.0);
+    }
+
     /// Generate the additive wavetable from current harmonic amplitudes.
     ///
     /// This synthesizes a 2048-sample wavetable by summing sine waves at harmonic
@@ -271,6 +315,29 @@ impl Oscillator {
 
         // Linear interpolation between adjacent samples
         self.additive_wavetable[i0] * (1.0 - frac) + self.additive_wavetable[i1] * frac
+    }
+
+    /// Lookup sample from current wavetable with linear interpolation (4× oversampled).
+    ///
+    /// Uses the current phase (0.0 to 1.0) to index into the 4× oversampled wavetable
+    /// (8192 samples). Returns 0.0 if no wavetable is loaded.
+    ///
+    /// This is called during audio processing, so it must be fast. The wavetable data
+    /// is pre-loaded during parameter updates via `set_wavetable()`.
+    fn lookup_wavetable_4x(&self, phase: f32) -> f32 {
+        if let Some(ref wavetable_data) = self.current_wavetable_4x {
+            let len = wavetable_data.len();
+            let index = phase * len as f32;
+            let i0 = index.floor() as usize % len;
+            let i1 = (i0 + 1) % len;
+            let frac = index.fract();
+
+            // Linear interpolation between adjacent samples
+            wavetable_data[i0] * (1.0 - frac) + wavetable_data[i1] * frac
+        } else {
+            // No wavetable loaded - return silence
+            0.0
+        }
     }
 
     /// Apply wave shaping to an SIMD vector of samples (SIMD version).
@@ -347,7 +414,10 @@ impl Oscillator {
                 samples * (f32x4::splat(1.0) - shape_amount) + saw * shape_amount
             }
             Waveform::Pulse => samples, // Pulse uses shape for PWM, not morphing
-            Waveform::WhiteNoise | Waveform::PinkNoise | Waveform::Additive => samples, // Handled separately
+            Waveform::WhiteNoise
+            | Waveform::PinkNoise
+            | Waveform::Additive
+            | Waveform::Wavetable => samples, // Handled separately
         }
     }
 
@@ -495,6 +565,7 @@ impl Oscillator {
         if self.shape.abs() < 0.001
             && self.waveform != Waveform::Pulse
             && self.waveform != Waveform::Additive
+            && self.waveform != Waveform::Wavetable
         {
             // Fast path: no wave shaping needed
             let phases = f32x4::from_array([
@@ -548,6 +619,16 @@ impl Oscillator {
                     self.lookup_additive_wavetable(phase_array[3]),
                 ])
             }
+            Waveform::Wavetable => {
+                // Lookup from loaded wavetable (4× oversampled)
+                let phase_array = phases.to_array();
+                f32x4::from_array([
+                    self.lookup_wavetable_4x(phase_array[0]),
+                    self.lookup_wavetable_4x(phase_array[1]),
+                    self.lookup_wavetable_4x(phase_array[2]),
+                    self.lookup_wavetable_4x(phase_array[3]),
+                ])
+            }
             _ => waveform::generate_simd(phases, self.waveform),
         };
 
@@ -555,6 +636,7 @@ impl Oscillator {
         if self.shape != 0.0
             && self.waveform != Waveform::Pulse
             && self.waveform != Waveform::Additive
+            && self.waveform != Waveform::Wavetable
         {
             samples = self.apply_wave_shaping(samples);
         } else if self.waveform == Waveform::Additive && self.shape.abs() > 0.001 {
@@ -594,6 +676,7 @@ impl Oscillator {
         if self.shape.abs() < 0.001
             && self.waveform != Waveform::Pulse
             && self.waveform != Waveform::Additive
+            && self.waveform != Waveform::Wavetable
         {
             // Fast path: no wave shaping needed, just generate base waveform
             let mut oversampled = [0.0; 4];
@@ -621,6 +704,10 @@ impl Oscillator {
                     // Lookup from pre-computed wavetable
                     self.lookup_additive_wavetable(self.phase)
                 }
+                Waveform::Wavetable => {
+                    // Lookup from loaded wavetable (4× oversampled)
+                    self.lookup_wavetable_4x(self.phase)
+                }
                 _ => waveform::generate_scalar(self.phase, self.waveform),
             };
 
@@ -628,6 +715,7 @@ impl Oscillator {
             if self.shape != 0.0
                 && self.waveform != Waveform::Pulse
                 && self.waveform != Waveform::Additive
+                && self.waveform != Waveform::Wavetable
             {
                 *sample = self.apply_wave_shaping_scalar(*sample);
             } else if self.waveform == Waveform::Additive && self.shape.abs() > 0.001 {
@@ -695,6 +783,14 @@ impl Oscillator {
                     } else {
                         -1.0
                     }
+                }
+                Waveform::Additive => {
+                    // Lookup from pre-computed additive wavetable with FM
+                    self.lookup_additive_wavetable(modulated_phase)
+                }
+                Waveform::Wavetable => {
+                    // Lookup from loaded wavetable with FM
+                    self.lookup_wavetable_4x(modulated_phase)
                 }
                 _ => waveform::generate_scalar(modulated_phase, self.waveform),
             };
@@ -772,7 +868,10 @@ impl Oscillator {
                 sample * (1.0 - shape_amount) + saw * shape_amount
             }
             Waveform::Pulse => sample,
-            Waveform::WhiteNoise | Waveform::PinkNoise | Waveform::Additive => sample,
+            Waveform::WhiteNoise
+            | Waveform::PinkNoise
+            | Waveform::Additive
+            | Waveform::Wavetable => sample,
         }
     }
 

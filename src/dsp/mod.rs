@@ -5,3 +5,5 @@ pub mod filter;
 pub mod lfo;
 pub mod oscillator;
 pub mod waveform;
+pub mod wavetable;
+pub mod wavetable_library;

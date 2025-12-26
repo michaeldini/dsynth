@@ -76,6 +76,7 @@ impl ParamRegistry {
                     "White Noise".into(),
                     "Pink Noise".into(),
                     "Additive".into(),
+                    "Wavetable".into(),
                 ],
                 0 // Default: Sine
             )
@@ -223,6 +224,7 @@ impl ParamRegistry {
                     "White Noise".into(),
                     "Pink Noise".into(),
                     "Additive".into(),
+                    "Wavetable".into(),
                 ],
                 1 // Default: Saw
             )
@@ -370,6 +372,7 @@ impl ParamRegistry {
                     "White Noise".into(),
                     "Pink Noise".into(),
                     "Additive".into(),
+                    "Wavetable".into(),
                 ],
                 2 // Default: Square
             )
@@ -1061,6 +1064,81 @@ impl ParamRegistry {
                 0.0,
                 2.0,
                 1.0,
+                Some("")
+            )
+        );
+
+        // Wavetable parameters (Oscillator 1)
+        add_param!(
+            PARAM_OSC1_WAVETABLE_INDEX,
+            ParamDescriptor::int(
+                PARAM_OSC1_WAVETABLE_INDEX,
+                "Wavetable",
+                "Oscillator 1",
+                0,
+                63, // Support up to 64 wavetables (built-in + custom)
+                0
+            )
+        );
+        add_param!(
+            PARAM_OSC1_WAVETABLE_POSITION,
+            ParamDescriptor::float(
+                PARAM_OSC1_WAVETABLE_POSITION,
+                "WT Position",
+                "Oscillator 1",
+                0.0,
+                1.0,
+                0.0,
+                Some("")
+            )
+        );
+
+        // Wavetable parameters (Oscillator 2)
+        add_param!(
+            PARAM_OSC2_WAVETABLE_INDEX,
+            ParamDescriptor::int(
+                PARAM_OSC2_WAVETABLE_INDEX,
+                "Wavetable",
+                "Oscillator 2",
+                0,
+                63,
+                0
+            )
+        );
+        add_param!(
+            PARAM_OSC2_WAVETABLE_POSITION,
+            ParamDescriptor::float(
+                PARAM_OSC2_WAVETABLE_POSITION,
+                "WT Position",
+                "Oscillator 2",
+                0.0,
+                1.0,
+                0.0,
+                Some("")
+            )
+        );
+
+        // Wavetable parameters (Oscillator 3)
+        add_param!(
+            PARAM_OSC3_WAVETABLE_INDEX,
+            ParamDescriptor::int(
+                PARAM_OSC3_WAVETABLE_INDEX,
+                "Wavetable",
+                "Oscillator 3",
+                0,
+                63,
+                0
+            )
+        );
+        add_param!(
+            PARAM_OSC3_WAVETABLE_POSITION,
+            ParamDescriptor::float(
+                PARAM_OSC3_WAVETABLE_POSITION,
+                "WT Position",
+                "Oscillator 3",
+                0.0,
+                1.0,
+                0.0,
                 Some("")
             )
         );

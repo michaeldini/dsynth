@@ -37,6 +37,11 @@ pub struct GuiState {
     /// Track pressed keys to prevent key-repeat note retriggering (standalone only)
     #[lens(ignore)]
     pub pressed_keys: HashSet<u8>,
+
+    /// Cached waveform values for conditional rendering (0=Sine, 7=Additive, 8=Wavetable)
+    pub osc1_waveform: i32,
+    pub osc2_waveform: i32,
+    pub osc3_waveform: i32,
 }
 
 impl GuiState {
@@ -52,6 +57,9 @@ impl GuiState {
             last_param_text: String::new(),
             event_sender: None,
             pressed_keys: HashSet::new(),
+            osc1_waveform: 0, // Default: Sine
+            osc2_waveform: 0,
+            osc3_waveform: 0,
         }
     }
 
@@ -69,6 +77,9 @@ impl GuiState {
             last_param_text: String::new(),
             event_sender: Some(event_sender),
             pressed_keys: HashSet::new(),
+            osc1_waveform: 0, // Default: Sine
+            osc2_waveform: 0,
+            osc3_waveform: 0,
         }
     }
 
@@ -81,6 +92,21 @@ impl GuiState {
                 param_id,
                 normalized_value,
             );
+
+            // Sync waveform fields for conditional rendering
+            use crate::plugin::param_descriptor::*;
+            match param_id {
+                PARAM_OSC1_WAVEFORM => {
+                    self.osc1_waveform = params.oscillators[0].waveform as i32;
+                }
+                PARAM_OSC2_WAVEFORM => {
+                    self.osc2_waveform = params.oscillators[1].waveform as i32;
+                }
+                PARAM_OSC3_WAVEFORM => {
+                    self.osc3_waveform = params.oscillators[2].waveform as i32;
+                }
+                _ => {}
+            }
 
             // For standalone: Write full SynthParams to the engine's triple-buffer
             if let Some(ref producer) = self.params_producer {

@@ -88,7 +88,7 @@ pub fn param_cycle_button(
 // Helper function for oscillator waveforms (8 options in registry)
 pub fn oscillator_waveform_button(cx: &mut Context, param_id: u32, _osc_index: usize) {
     const OPTIONS: &[&str] = &[
-        "Sine", "Saw", "Square", "Triangle", "Pulse", "White", "Pink", "Add",
+        "Sine", "Saw", "Square", "Triangle", "Pulse", "White", "Pink", "Add", "Wavetable",
     ];
     param_cycle_button(cx, param_id, "Waveform", OPTIONS);
 }

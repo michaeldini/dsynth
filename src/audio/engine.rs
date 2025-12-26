@@ -2,6 +2,7 @@ use crate::audio::voice::Voice;
 use crate::dsp::effects::{
     Chorus, Distortion, MultibandDistortion, Reverb, StereoDelay, StereoWidener,
 };
+use crate::dsp::wavetable_library::WavetableLibrary;
 use crate::params::SynthParams;
 use triple_buffer::{Input, Output, TripleBuffer};
 
@@ -102,6 +103,9 @@ pub struct SynthEngine {
     distortion: Distortion,
     multiband_distortion: MultibandDistortion,
     stereo_widener: StereoWidener,
+
+    /// Wavetable library for wavetable synthesis
+    wavetable_library: WavetableLibrary,
 }
 
 impl SynthEngine {
@@ -136,6 +140,13 @@ impl SynthEngine {
         let limiter_release_s = 0.050; // 50ms
         let limiter_release_coeff = (-1.0 / (limiter_release_s * sample_rate)).exp();
 
+        // Load wavetable library (with built-in fallback if directory not found)
+        let wavetable_library = WavetableLibrary::load_from_directory("assets/wavetables")
+            .unwrap_or_else(|e| {
+                eprintln!("Wavetable loading error: {}", e);
+                WavetableLibrary::with_builtin_wavetables()
+            });
+
         Self {
             sample_rate,
             voices,
@@ -152,6 +163,7 @@ impl SynthEngine {
             distortion: Distortion::new(sample_rate),
             multiband_distortion: MultibandDistortion::new(sample_rate),
             stereo_widener: StereoWidener::new(sample_rate),
+            wavetable_library,
         }
     }
 
@@ -184,6 +196,7 @@ impl SynthEngine {
                     &self.current_params.filters,
                     &self.current_params.lfos,
                     &self.current_params.envelope,
+                    &self.wavetable_library,
                 );
             }
         }
@@ -380,6 +393,7 @@ impl SynthEngine {
                 &self.current_params.filters,
                 &self.current_params.lfos,
                 &self.current_params.envelope,
+                &self.wavetable_library,
             );
         } else {
             // Polyphonic mode: original behavior
@@ -391,6 +405,7 @@ impl SynthEngine {
                     &self.current_params.filters,
                     &self.current_params.lfos,
                     &self.current_params.envelope,
+                    &self.wavetable_library,
                 );
                 return;
             }
@@ -403,6 +418,7 @@ impl SynthEngine {
                 &self.current_params.filters,
                 &self.current_params.lfos,
                 &self.current_params.envelope,
+                &self.wavetable_library,
             );
         }
     }
@@ -459,6 +475,7 @@ impl SynthEngine {
                     &self.current_params.filters,
                     &self.current_params.lfos,
                     &self.current_params.envelope,
+                    &self.wavetable_library,
                 );
             } else {
                 // No more notes in stack, release the voice
