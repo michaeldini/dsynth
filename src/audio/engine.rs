@@ -140,10 +140,10 @@ impl SynthEngine {
         let limiter_release_s = 0.050; // 50ms
         let limiter_release_coeff = (-1.0 / (limiter_release_s * sample_rate)).exp();
 
-        // Load wavetable library (with built-in fallback if directory not found)
-        let wavetable_library = WavetableLibrary::load_from_directory("assets/wavetables")
+        // Load wavetables from compile-time embedded data (no runtime file dependencies)
+        let wavetable_library = WavetableLibrary::load_from_embedded()
             .unwrap_or_else(|e| {
-                eprintln!("Wavetable loading error: {}", e);
+                eprintln!("Warning: Failed to load embedded wavetables: {}", e);
                 WavetableLibrary::with_builtin_wavetables()
             });
 

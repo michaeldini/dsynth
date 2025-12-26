@@ -2,10 +2,12 @@
 ///
 /// The library loads .wav files from disk at startup and provides access to wavetables
 /// by index or name. All wavetables are pre-loaded to avoid I/O in the audio thread.
-
 use crate::dsp::wavetable::Wavetable;
 use std::collections::HashMap;
 use std::path::Path;
+
+// Include compile-time embedded wavetable data
+include!(concat!(env!("OUT_DIR"), "/embedded_wavetables.rs"));
 
 /// Error types for wavetable loading
 #[derive(Debug)]
@@ -38,7 +40,7 @@ impl From<std::io::Error> for LoadError {
 pub struct WavetableLibrary {
     /// All wavetables indexed by ID
     tables: Vec<Wavetable>,
-    
+
     /// Name → index lookup for user-friendly selection
     name_to_index: HashMap<String, usize>,
 }
@@ -55,18 +57,54 @@ impl WavetableLibrary {
     /// Create a library with built-in wavetables (fallback if no .wav files found)
     pub fn with_builtin_wavetables() -> Self {
         let mut library = Self::new();
-        
+
         // Add built-in waveforms as wavetables
         library.add_wavetable(Wavetable::sine("Sine".to_string(), 2048));
         library.add_wavetable(Wavetable::sawtooth("Sawtooth".to_string(), 2048));
-        
+
         // Generate additional built-in wavetables
         library.add_wavetable(Self::generate_square("Square".to_string(), 2048));
         library.add_wavetable(Self::generate_triangle("Triangle".to_string(), 2048));
         library.add_wavetable(Self::generate_pulse("Pulse 25%".to_string(), 2048, 0.25));
         library.add_wavetable(Self::generate_pulse("Pulse 75%".to_string(), 2048, 0.75));
-        
+
         library
+    }
+
+    /// Load wavetables from compile-time embedded bytes
+    ///
+    /// This is the preferred method for production builds as it eliminates
+    /// runtime file dependencies. Wavetables are embedded into the binary
+    /// at compile time via build.rs.
+    ///
+    /// Falls back to built-in wavetables if no embedded data is available.
+    ///
+    /// # Returns
+    /// WavetableLibrary with loaded wavetables (or built-in fallbacks)
+    pub fn load_from_embedded() -> Result<Self, LoadError> {
+        let mut library = Self::new();
+        let mut loaded_count = 0;
+
+        // Load each embedded wavetable (EMBEDDED_WAVETABLES is defined at module level)
+        for (filename, wav_bytes) in EMBEDDED_WAVETABLES {
+            match Wavetable::from_wav_bytes(wav_bytes, (*filename).to_string()) {
+                Ok(wavetable) => {
+                    library.add_wavetable(wavetable);
+                    loaded_count += 1;
+                }
+                Err(e) => {
+                    eprintln!("Failed to load embedded wavetable '{}': {}", filename, e);
+                }
+            }
+        }
+
+        if loaded_count == 0 {
+            eprintln!("No wavetables loaded from embedded data, using built-in wavetables");
+            return Ok(Self::with_builtin_wavetables());
+        }
+
+        println!("Loaded {} wavetables from embedded data", loaded_count);
+        Ok(library)
     }
 
     /// Load wavetables from directory (e.g., "assets/wavetables/")
@@ -82,10 +120,13 @@ impl WavetableLibrary {
     /// WavetableLibrary with loaded wavetables (or built-in fallbacks)
     pub fn load_from_directory(path: &str) -> Result<Self, LoadError> {
         let dir_path = Path::new(path);
-        
+
         // If directory doesn't exist, use built-in wavetables
         if !dir_path.exists() || !dir_path.is_dir() {
-            eprintln!("Wavetable directory '{}' not found, using built-in wavetables", path);
+            eprintln!(
+                "Wavetable directory '{}' not found, using built-in wavetables",
+                path
+            );
             return Ok(Self::with_builtin_wavetables());
         }
 
@@ -97,7 +138,7 @@ impl WavetableLibrary {
             Ok(entries) => {
                 for entry in entries.flatten() {
                     let entry_path = entry.path();
-                    
+
                     // Check if it's a .wav file
                     if let Some(ext) = entry_path.extension() {
                         if ext.eq_ignore_ascii_case("wav") {
@@ -121,7 +162,10 @@ impl WavetableLibrary {
 
         // If no wavetables were loaded, use built-in ones
         if loaded_count == 0 {
-            eprintln!("No .wav files found in '{}', using built-in wavetables", path);
+            eprintln!(
+                "No .wav files found in '{}', using built-in wavetables",
+                path
+            );
             return Ok(Self::with_builtin_wavetables());
         }
 
@@ -146,15 +190,13 @@ impl WavetableLibrary {
             .map_err(|e| LoadError::InvalidFormat(format!("Failed to open WAV: {}", e)))?;
 
         let spec = reader.spec();
-        
+
         // Read all samples from the WAV file
         let samples: Vec<f32> = match spec.sample_format {
-            hound::SampleFormat::Float => {
-                reader
-                    .samples::<f32>()
-                    .collect::<Result<Vec<_>, _>>()
-                    .map_err(|e| LoadError::InvalidFormat(format!("Failed to read samples: {}", e)))?
-            }
+            hound::SampleFormat::Float => reader
+                .samples::<f32>()
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| LoadError::InvalidFormat(format!("Failed to read samples: {}", e)))?,
             hound::SampleFormat::Int => {
                 // Convert integer samples to float (-1.0 to 1.0)
                 let max_value = (1 << (spec.bits_per_sample - 1)) as f32;
@@ -162,12 +204,16 @@ impl WavetableLibrary {
                     .samples::<i32>()
                     .map(|s| s.map(|v| v as f32 / max_value))
                     .collect::<Result<Vec<_>, _>>()
-                    .map_err(|e| LoadError::InvalidFormat(format!("Failed to read samples: {}", e)))?
+                    .map_err(|e| {
+                        LoadError::InvalidFormat(format!("Failed to read samples: {}", e))
+                    })?
             }
         };
 
         if samples.is_empty() {
-            return Err(LoadError::InvalidFormat("WAV file contains no samples".to_string()));
+            return Err(LoadError::InvalidFormat(
+                "WAV file contains no samples".to_string(),
+            ));
         }
 
         // Convert stereo to mono by averaging channels
@@ -192,22 +238,22 @@ impl WavetableLibrary {
         self.tables.push(wavetable);
         self.name_to_index.insert(name, index);
     }
-    
+
     /// Get wavetable by index
     pub fn get(&self, index: usize) -> Option<&Wavetable> {
         self.tables.get(index)
     }
-    
+
     /// Get index by name
     pub fn find_by_name(&self, name: &str) -> Option<usize> {
         self.name_to_index.get(name).copied()
     }
-    
+
     /// Get all wavetable names
     pub fn list_names(&self) -> Vec<&str> {
         self.tables.iter().map(|wt| wt.name()).collect()
     }
-    
+
     /// Total number of wavetables loaded
     pub fn count(&self) -> usize {
         self.tables.len()
@@ -264,10 +310,10 @@ mod tests {
     #[test]
     fn test_wavetable_library_builtin() {
         let library = WavetableLibrary::with_builtin_wavetables();
-        
+
         // Should have at least the basic built-in wavetables
         assert!(library.count() >= 6);
-        
+
         // Should be able to find by name
         assert!(library.find_by_name("Sine").is_some());
         assert!(library.find_by_name("Sawtooth").is_some());
@@ -276,7 +322,7 @@ mod tests {
     #[test]
     fn test_wavetable_library_get() {
         let library = WavetableLibrary::with_builtin_wavetables();
-        
+
         // Get first wavetable
         let wt = library.get(0).expect("Should have at least one wavetable");
         assert!(!wt.name().is_empty());
@@ -286,7 +332,7 @@ mod tests {
     fn test_wavetable_library_list_names() {
         let library = WavetableLibrary::with_builtin_wavetables();
         let names = library.list_names();
-        
+
         assert!(!names.is_empty());
         assert!(names.contains(&"Sine"));
     }
@@ -295,10 +341,10 @@ mod tests {
     fn test_wavetable_library_add() {
         let mut library = WavetableLibrary::new();
         assert_eq!(library.count(), 0);
-        
+
         library.add_wavetable(Wavetable::sine("Test".to_string(), 2048));
         assert_eq!(library.count(), 1);
-        
+
         assert!(library.find_by_name("Test").is_some());
     }
 }

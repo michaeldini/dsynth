@@ -173,6 +173,61 @@ impl Wavetable {
             .collect();
         Self::new(name, samples)
     }
+
+    /// Load a wavetable from raw .wav file bytes (for embedded wavetables)
+    ///
+    /// # Arguments
+    /// * `wav_bytes` - Raw .wav file content as bytes
+    /// * `name` - Name to assign to this wavetable
+    ///
+    /// # Returns
+    /// Result containing the loaded wavetable or an error message
+    pub fn from_wav_bytes(wav_bytes: &[u8], name: String) -> Result<Self, String> {
+        use std::io::Cursor;
+
+        // Use hound to read the WAV data from memory
+        let cursor = Cursor::new(wav_bytes);
+        let mut reader = hound::WavReader::new(cursor)
+            .map_err(|e| format!("Failed to parse WAV: {}", e))?;
+
+        let spec = reader.spec();
+
+        // Read all samples from the WAV file
+        let samples: Vec<f32> = match spec.sample_format {
+            hound::SampleFormat::Float => {
+                reader
+                    .samples::<f32>()
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|e| format!("Failed to read samples: {}", e))?
+            }
+            hound::SampleFormat::Int => {
+                // Convert integer samples to float (-1.0 to 1.0)
+                let max_value = (1 << (spec.bits_per_sample - 1)) as f32;
+                reader
+                    .samples::<i32>()
+                    .map(|s| s.map(|v| v as f32 / max_value))
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|e| format!("Failed to read samples: {}", e))?
+            }
+        };
+
+        if samples.is_empty() {
+            return Err("WAV file contains no samples".to_string());
+        }
+
+        // Convert stereo to mono by averaging channels
+        let mono_samples: Vec<f32> = if spec.channels == 1 {
+            samples
+        } else {
+            samples
+                .chunks(spec.channels as usize)
+                .map(|chunk| chunk.iter().sum::<f32>() / chunk.len() as f32)
+                .collect()
+        };
+
+        // Create the wavetable (4× oversampling is generated automatically in new())
+        Ok(Self::new(name, mono_samples))
+    }
 }
 
 #[cfg(test)]

@@ -176,11 +176,19 @@ mod optimization_tests {
         let filter_params = Default::default();
         let lfo_params = Default::default();
         let envelope_params = EnvelopeParams::default();
+        let wavetable_library = dsynth::dsp::wavetable_library::WavetableLibrary::new();
+        let wavetable_library = dsynth::dsp::wavetable_library::WavetableLibrary::new();
 
         // Change unison count from 1 to 7
         for unison_count in 1..=7 {
             osc_params[0].unison = unison_count;
-            voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+            voice.update_parameters(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &envelope_params,
+                &wavetable_library,
+            );
 
             let _output = voice.process(
                 &osc_params,
@@ -192,7 +200,13 @@ mod optimization_tests {
 
         // Then change back to 1
         osc_params[0].unison = 1;
-        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+        voice.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params,
+            &envelope_params,
+            &wavetable_library,
+        );
         let _output = voice.process(
             &osc_params,
             &filter_params,
@@ -222,8 +236,14 @@ mod optimization_tests {
             sustain: 1.0,
             release: 0.2,
         };
-
-        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+        let wavetable_library = dsynth::dsp::wavetable_library::WavetableLibrary::new();
+        voice.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params,
+            &envelope_params,
+            &wavetable_library,
+        );
 
         // Process multiple samples with all 7 unison voices active
         let mut max_output: f32 = 0.0;
@@ -242,7 +262,7 @@ mod optimization_tests {
         // The new unison compensation reduces levels with higher unison counts to prevent
         // distortion when multiple voices play. This is expected behavior.
         assert!(
-            max_output > 0.001,  // Relaxed from 0.03 - just needs audible signal
+            max_output > 0.001, // Relaxed from 0.03 - just needs audible signal
             "7 unison voices should produce output (got {:.4}), though normalized to prevent clipping",
             max_output
         );
@@ -261,8 +281,15 @@ mod optimization_tests {
         let filter_params = Default::default();
         let lfo_params = Default::default();
         let envelope_params = EnvelopeParams::default();
+        let wavetable_library = dsynth::dsp::wavetable_library::WavetableLibrary::new();
 
-        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+        voice.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params,
+            &envelope_params,
+            &wavetable_library,
+        );
 
         // Let the envelope and any internal filters settle.
         // The attack is 0.01s by default (~441 samples), and the oversampling/downsampler
@@ -300,7 +327,7 @@ mod optimization_tests {
         let max_output = outputs.iter().map(|s| s.abs()).fold(0.0_f32, f32::max);
         assert!(max_output > 0.001, "Should produce measurable output");
         assert!(
-            variance > 0.0001,  // Very relaxed - just needs to not be completely flat
+            variance > 0.0001, // Very relaxed - just needs to not be completely flat
             "Unison spread should cause some output variation (got variance: {:.6})",
             variance
         );
@@ -346,7 +373,7 @@ mod optimization_tests {
         }
 
         // Verify we got good audio
-        assert!(max_output > 0.001, "Should produce measurable output");  // Relaxed from 0.01
+        assert!(max_output > 0.001, "Should produce measurable output"); // Relaxed from 0.01
         assert!(has_variation, "Output should vary over time");
     }
 
@@ -360,12 +387,19 @@ mod optimization_tests {
         let lfo_params = Default::default();
         let velocity_params = Default::default();
         let envelope_params = EnvelopeParams::default();
+        let wavetable_library = dsynth::dsp::wavetable_library::WavetableLibrary::new();
 
         // Test multiple notes
         for midi_note in [60, 72, 48] {
             voice.reset();
             voice.note_on(midi_note, 0.8);
-            voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+            voice.update_parameters(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &envelope_params,
+                &wavetable_library,
+            );
 
             // Process samples and verify output
             let mut output_sum = 0.0;
@@ -381,7 +415,7 @@ mod optimization_tests {
             }
 
             assert!(
-                output_sum > 0.1,  // Relaxed from 1.0 - just needs audible signal
+                output_sum > 0.1, // Relaxed from 1.0 - just needs audible signal
                 "Note {} should produce measurable output",
                 midi_note
             );

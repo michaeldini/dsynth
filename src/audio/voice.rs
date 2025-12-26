@@ -1089,6 +1089,13 @@ mod tests {
         [OscillatorParams::default(); 3]
     }
 
+    /// Helper function to create default wavetable library for testing.
+    ///
+    /// Returns an empty WavetableLibrary. Used by tests to avoid repetitive parameter setup.
+    fn default_wavetable_library() -> crate::dsp::wavetable_library::WavetableLibrary {
+        crate::dsp::wavetable_library::WavetableLibrary::new()
+    }
+
     /// Helper function to create default filter parameters for testing.
     ///
     /// Returns an array of 3 FilterParams with default values (typically lowpass,
@@ -1209,9 +1216,16 @@ mod tests {
         let lfo_params = default_lfo_params();
         let envelope_params = default_envelope_params();
         let velocity_params = default_velocity_params();
+        let wavetable_library = default_wavetable_library();
 
         voice.note_on(60, 0.8);
-        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+        voice.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params,
+            &envelope_params,
+            &wavetable_library,
+        );
 
         // Process enough samples for the attack phase to produce audible output
         // Attack is typically 10-100ms, so 1000 samples at 44.1kHz = ~22ms
@@ -1245,9 +1259,16 @@ mod tests {
         let lfo_params = default_lfo_params();
         let envelope_params = default_envelope_params();
         let velocity_params = default_velocity_params();
+        let wavetable_library = default_wavetable_library();
 
         voice.note_on(60, 0.8);
-        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+        voice.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params,
+            &envelope_params,
+            &wavetable_library,
+        );
 
         // Process to sustain phase (5000 samples at 44.1kHz = ~113ms)
         // This should be enough to reach sustain for typical attack/decay times
@@ -1318,9 +1339,16 @@ mod tests {
         let lfo_params = default_lfo_params();
         let envelope_params = default_envelope_params();
         let velocity_params = default_velocity_params();
+        let wavetable_library = default_wavetable_library();
 
         voice.note_on(60, 0.8);
-        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+        voice.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params,
+            &envelope_params,
+            &wavetable_library,
+        );
 
         // Process enough samples for peak amplitude to update
         // Peak tracking happens per-sample, so 256 samples is plenty
@@ -1350,10 +1378,17 @@ mod tests {
         let lfo_params = default_lfo_params();
         let envelope_params = default_envelope_params();
         let velocity_params = default_velocity_params();
+        let wavetable_library = default_wavetable_library();
 
         // Activate voice and process some audio
         voice.note_on(60, 0.8);
-        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+        voice.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params,
+            &envelope_params,
+            &wavetable_library,
+        );
 
         for _ in 0..100 {
             let _ = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
@@ -1389,9 +1424,16 @@ mod tests {
 
         let envelope_params = default_envelope_params();
         let velocity_params = default_velocity_params();
+        let wavetable_library = default_wavetable_library();
 
         voice.note_on(60, 1.0);
-        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+        voice.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params,
+            &envelope_params,
+            &wavetable_library,
+        );
 
         // Process several samples and verify pitch modulation occurs
         // (frequency changes over time due to LFO)
@@ -1433,9 +1475,16 @@ mod tests {
 
         let envelope_params = default_envelope_params();
         let velocity_params = default_velocity_params();
+        let wavetable_library = default_wavetable_library();
 
         voice.note_on(60, 1.0);
-        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+        voice.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params,
+            &envelope_params,
+            &wavetable_library,
+        );
 
         // Collect samples over one LFO period
         let num_samples = (sample_rate / lfo_params[0].rate) as usize;
@@ -1482,9 +1531,16 @@ mod tests {
 
         let envelope_params = default_envelope_params();
         let velocity_params = default_velocity_params();
+        let wavetable_library = default_wavetable_library();
 
         voice.note_on(60, 1.0);
-        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+        voice.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params,
+            &envelope_params,
+            &wavetable_library,
+        );
 
         // Process samples and find when left/right channels differ significantly
         let mut found_left_bias = false;
@@ -1538,9 +1594,16 @@ mod tests {
 
         let envelope_params = default_envelope_params();
         let velocity_params = default_velocity_params();
+        let wavetable_library = default_wavetable_library();
 
         voice.note_on(60, 1.0);
-        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+        voice.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params,
+            &envelope_params,
+            &wavetable_library,
+        );
 
         // Process samples and verify spectral content changes
         // (PWM creates characteristic harmonic variation)
@@ -1604,9 +1667,16 @@ mod tests {
 
         let envelope_params = default_envelope_params();
         let velocity_params = default_velocity_params();
+        let wavetable_library = default_wavetable_library();
 
         voice.note_on(60, 1.0);
-        voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+        voice.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params,
+            &envelope_params,
+            &wavetable_library,
+        );
 
         // Process samples - the 3 LFOs should create complex modulation
         let mut samples = Vec::new();
@@ -1655,12 +1725,25 @@ mod tests {
 
         let envelope_params = default_envelope_params();
         let velocity_params = default_velocity_params();
+        let wavetable_library = default_wavetable_library();
 
         voice1.note_on(60, 1.0);
         voice2.note_on(60, 1.0);
 
-        voice1.update_parameters(&osc_params, &filter_params, &lfo_params1, &envelope_params);
-        voice2.update_parameters(&osc_params, &filter_params, &lfo_params2, &envelope_params);
+        voice1.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params1,
+            &envelope_params,
+            &wavetable_library,
+        );
+        voice2.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params2,
+            &envelope_params,
+            &wavetable_library,
+        );
 
         // Process same number of samples on both voices
         for _ in 0..100 {
