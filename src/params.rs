@@ -80,7 +80,7 @@ impl Default for OscillatorParams {
             unison: 1,
             fm_source: None,
             fm_amount: 0.0,
-            unison_detune: 10.0,
+            unison_detune: 20.0, // Raised from 10.0 to reduce phase cancellation
             unison_normalize: true, // Default: normalize to prevent clipping
             phase: 0.0,
             shape: 0.0,
@@ -106,7 +106,7 @@ impl Default for FilterParams {
     fn default() -> Self {
         Self {
             filter_type: FilterType::Lowpass,
-            cutoff: 1000.0,
+            cutoff: 8000.0, // Raised from 1000Hz to preserve presence/attack frequencies
             resonance: 0.707,
             bandwidth: 1.0, // 1 octave for bandpass
             key_tracking: 0.0,
@@ -127,9 +127,9 @@ impl Default for EnvelopeParams {
     fn default() -> Self {
         // Match dsp::envelope::Envelope defaults
         Self {
-            attack: 0.01,
+            attack: 0.001, // 1ms for punchy, snappy transients (was 0.01 = 10ms)
             decay: 0.1,
-            sustain: 0.7,
+            sustain: 0.9, // Raised from 0.7 for fuller sustained notes
             release: 0.2,
         }
     }
@@ -282,7 +282,7 @@ pub struct VelocityParams {
 impl Default for VelocityParams {
     fn default() -> Self {
         Self {
-            amp_sensitivity: 0.7,
+            amp_sensitivity: 0.5, // Reduced from 0.7 to prevent weak sounds at velocity < 64
             filter_sensitivity: 0.5,
         }
     }
@@ -674,7 +674,7 @@ impl Default for SynthParams {
     fn default() -> Self {
         // Create oscillator defaults with only the first oscillator enabled
         let mut osc1 = OscillatorParams::default();
-        osc1.gain = 0.25; // Oscillator 1 is enabled
+        osc1.gain = 0.7; // Higher gain for more "in your face" sound (-3dB instead of -12dB)
 
         let mut osc2 = OscillatorParams::default();
         osc2.waveform = Waveform::Saw; // Different waveform for variety
@@ -691,7 +691,7 @@ impl Default for SynthParams {
             envelope: EnvelopeParams::default(),
             velocity: VelocityParams::default(),
             effects: EffectsParams::default(),
-            master_gain: 0.5,
+            master_gain: 0.85, // Higher default to utilize headroom (was 0.5 = -6dB)
             monophonic: false,
         }
     }

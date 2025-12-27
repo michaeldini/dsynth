@@ -911,7 +911,10 @@ impl Voice {
                 1.0
             };
 
-            let osc_normalization = 1.0 / (active_osc_count as f32 * unison_compensation);
+            // Use √N instead of N for normalization to preserve presence
+            // √2 = 1.41 (-3dB) vs 2.0 (-6dB), √3 = 1.73 (-4.8dB) vs 3.0 (-9.5dB)
+            // This gives a thicker, more "in your face" sound when stacking oscillators
+            let osc_normalization = 1.0 / ((active_osc_count as f32).sqrt() * unison_compensation);
             output_left *= osc_normalization;
             output_right *= osc_normalization;
         }
