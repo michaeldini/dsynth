@@ -78,9 +78,16 @@ fn benchmark_voice(c: &mut Criterion) {
     let lfo_params = [LFOParams::default(); 3];
     let envelope_params = EnvelopeParams::default();
     let velocity_params = VelocityParams::default();
+    let wavetable_library = dsynth::dsp::wavetable_library::WavetableLibrary::new();
 
     voice.note_on(60, 0.8);
-    voice.update_parameters(&osc_params, &filter_params, &lfo_params, &envelope_params);
+    voice.update_parameters(
+        &osc_params,
+        &filter_params,
+        &lfo_params,
+        &envelope_params,
+        &wavetable_library,
+    );
 
     c.bench_function("voice_process", |b| {
         b.iter(|| {

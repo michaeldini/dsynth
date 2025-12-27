@@ -20,6 +20,11 @@
 /// - **Soft Clip**: Gentle compression then hard limit
 /// - **Hard Clip**: Brick-wall limiting (harsh, digital)
 /// - **Cubic**: Subtle harmonic enhancement (adds 3rd harmonic)
+/// - **Foldback**: Wave folding for complex, metallic harmonics (West Coast style)
+/// - **Asymmetric**: Tube-style asymmetric clipping (adds even harmonics)
+/// - **SineShaper**: Sine-based smooth musical distortion
+/// - **Bitcrush**: Bit depth reduction for lo-fi/retro sound
+/// - **Diode**: Models diode clipper circuit (guitar pedal style)
 use std::f32::consts::PI;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -28,6 +33,11 @@ pub enum DistortionType {
     SoftClip,
     HardClip,
     Cubic,
+    Foldback,
+    Asymmetric,
+    SineShaper,
+    Bitcrush,
+    Diode,
 }
 
 /// Distortion/waveshaper processor
@@ -88,28 +98,93 @@ impl Distortion {
         match self.dist_type {
             DistortionType::Tanh => {
                 // Hyperbolic tangent - smooth, tube-like saturation
+                // Most gentle - asymptotically approaches ±1
                 x.tanh()
             }
             DistortionType::SoftClip => {
-                // Soft clip with smooth transition
-                if x > 1.0 {
-                    2.0 / 3.0
-                } else if x < -1.0 {
-                    -2.0 / 3.0
+                // Piecewise polynomial soft clipper - more aggressive than tanh
+                // Transitions smoothly from linear to clipped at ±0.5
+                let abs_x = x.abs();
+                if abs_x <= 0.5 {
+                    x
+                } else if abs_x <= 1.5 {
+                    let sign = x.signum();
+                    let scaled = (abs_x - 0.5) / 1.0; // 0.0 to 1.0 range
+                    sign * (0.5 + (1.0 - scaled * scaled) * 0.5)
                 } else {
-                    x - (x * x * x) / 3.0
+                    x.signum()
                 }
             }
             DistortionType::HardClip => {
-                // Hard brick-wall clipping
-                x.clamp(-1.0, 1.0)
+                // Hard brick-wall clipping at ±0.7 for more aggressive sound
+                // Creates harsh, digital-sounding harmonics
+                x.clamp(-0.7, 0.7)
             }
             DistortionType::Cubic => {
-                // Cubic waveshaper (adds 3rd harmonic)
-                if x.abs() < 1.0 {
-                    x - 0.25 * x * x * x
+                // Cubic waveshaper with stronger 3rd harmonic content
+                // Creates more obvious harmonic distortion
+                let x_clamped = x.clamp(-2.0, 2.0);
+                if x_clamped.abs() < 1.5 {
+                    x_clamped - 0.4 * x_clamped * x_clamped * x_clamped
                 } else {
-                    x.signum() * 0.75
+                    x_clamped.signum() * 0.6
+                }
+            }
+            DistortionType::Foldback => {
+                // Wave folding - reflects signal when exceeding threshold
+                // Creates complex, metallic harmonics (West Coast synthesis)
+                let threshold = 1.0;
+                let range = 4.0 * threshold;
+                let mut folded = x % range;
+
+                // Normalize to -2*threshold to 2*threshold
+                if folded > 2.0 * threshold {
+                    folded -= range;
+                } else if folded < -2.0 * threshold {
+                    folded += range;
+                }
+
+                // Fold back when exceeding threshold
+                if folded > threshold {
+                    2.0 * threshold - folded
+                } else if folded < -threshold {
+                    -2.0 * threshold - folded
+                } else {
+                    folded
+                }
+            }
+            DistortionType::Asymmetric => {
+                // Asymmetric clipping - models vacuum tube behavior
+                // Compresses positive peaks more than negative (adds even harmonics)
+                if x > 0.0 {
+                    x / (1.0 + 0.8 * x) // Stronger compression on positive halfwave
+                } else {
+                    x / (1.0 + 0.3 * x.abs()) // Gentler on negative halfwave
+                }
+            }
+            DistortionType::SineShaper => {
+                // Sine-based waveshaping - very smooth and musical
+                // Less harsh than polynomial methods
+                let clamped = x.clamp(-PI / 2.0, PI / 2.0);
+                clamped.sin() * 1.5 // Scale up slightly for more presence
+            }
+            DistortionType::Bitcrush => {
+                // Reduce bit depth for lo-fi/digital/retro sound
+                // Quantizes signal to fewer discrete levels
+                let bits = 4.0; // Effective bit depth (adjustable)
+                let steps = 2.0_f32.powf(bits);
+                let quantized = (x * steps).round() / steps;
+                quantized.clamp(-1.0, 1.0)
+            }
+            DistortionType::Diode => {
+                // Models diode clipper circuit (guitar pedal style)
+                // Soft knee followed by hard limiting
+                let threshold = 0.6;
+                if x.abs() < threshold {
+                    x // Linear passthrough below threshold
+                } else {
+                    // Compress signal above threshold (10% of overshoot)
+                    x.signum() * (threshold + (x.abs() - threshold) * 0.1)
                 }
             }
         }
@@ -131,14 +206,14 @@ impl Distortion {
     /// # Returns
     /// Distorted output sample
     pub fn process(&mut self, input: f32) -> f32 {
-        // Map drive (0.0 to 1.0) to gain (1.0 to 100.0)
-        let gain = 1.0 + self.drive * 99.0;
+        // Map drive (0.0 to 1.0) to gain (1.0 to 50.0) - reduced from 100x for more control
+        let gain = 1.0 + self.drive * 49.0;
 
         // Apply distortion
         let distorted = self.apply_distortion(input, gain);
 
-        // Compensate for gain increase (rough approximation)
-        let compensated = distorted / (1.0 + self.drive * 0.5);
+        // Less aggressive compensation to preserve distortion character
+        let compensated = distorted / (1.0 + self.drive * 0.3);
 
         // DC blocking (prevents DC offset from asymmetric distortion)
         let blocked = self.dc_block(compensated);
@@ -365,5 +440,106 @@ mod tests {
         // DC blocker state should be reset
         assert_eq!(dist.dc_block_x1, 0.0);
         assert_eq!(dist.dc_block_y1, 0.0);
+    }
+
+    #[test]
+    fn test_distortion_foldback() {
+        let mut dist = Distortion::new(44100.0);
+        dist.set_type(DistortionType::Foldback);
+        dist.set_drive(0.8);
+        dist.set_mix(1.0);
+
+        // Foldback should create folded waveform
+        let output = dist.process(0.5);
+        assert!(output.is_finite(), "Foldback should produce valid output");
+    }
+
+    #[test]
+    fn test_distortion_asymmetric() {
+        let mut dist = Distortion::new(44100.0);
+        dist.set_type(DistortionType::Asymmetric);
+        dist.set_drive(0.5);
+        dist.set_mix(1.0);
+
+        // Asymmetric should treat positive and negative differently
+        let pos_out = dist.process(0.5);
+        dist.clear();
+        let neg_out = dist.process(-0.5);
+
+        // Absolute values should differ due to asymmetry
+        assert!(
+            (pos_out.abs() - neg_out.abs()).abs() > 0.01,
+            "Asymmetric should produce different positive/negative responses"
+        );
+    }
+
+    #[test]
+    fn test_distortion_sine_shaper() {
+        let mut dist = Distortion::new(44100.0);
+        dist.set_type(DistortionType::SineShaper);
+        dist.set_drive(0.6);
+        dist.set_mix(1.0);
+
+        let output = dist.process(0.3);
+        assert!(output.is_finite(), "SineShaper should produce valid output");
+    }
+
+    #[test]
+    fn test_distortion_bitcrush() {
+        let mut dist = Distortion::new(44100.0);
+        dist.set_type(DistortionType::Bitcrush);
+        dist.set_drive(0.3);
+        dist.set_mix(1.0);
+
+        // Bitcrush should quantize the signal
+        let output = dist.process(0.123456);
+        assert!(output.is_finite(), "Bitcrush should produce valid output");
+    }
+
+    #[test]
+    fn test_distortion_diode() {
+        let mut dist = Distortion::new(44100.0);
+        dist.set_type(DistortionType::Diode);
+        dist.set_drive(0.1); // Very low drive to keep signal below threshold
+        dist.set_mix(1.0);
+
+        // Low input with low drive should pass through relatively unchanged
+        let low_out = dist.process(0.1);
+        assert!(
+            (low_out - 0.1).abs() < 0.5,
+            "Diode should pass low signals relatively clean"
+        );
+    }
+
+    #[test]
+    fn test_all_distortion_types_compile() {
+        let sample_rate = 44100.0;
+        let input = 0.5;
+        let gain = 10.0;
+
+        // Just verify all types compile and produce valid output
+        let types = vec![
+            DistortionType::Tanh,
+            DistortionType::SoftClip,
+            DistortionType::HardClip,
+            DistortionType::Cubic,
+            DistortionType::Foldback,
+            DistortionType::Asymmetric,
+            DistortionType::SineShaper,
+            DistortionType::Bitcrush,
+            DistortionType::Diode,
+        ];
+
+        for dist_type in types {
+            let mut dist = Distortion::new(sample_rate);
+            dist.set_type(dist_type);
+            let output = dist.apply_distortion(input, gain);
+            assert!(
+                output.is_finite(),
+                "Distortion type {:?} produced invalid output: {}",
+                dist_type,
+                output
+            );
+        }
     }
 }

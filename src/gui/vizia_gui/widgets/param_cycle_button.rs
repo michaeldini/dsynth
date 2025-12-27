@@ -113,6 +113,16 @@ pub fn lfo_waveform_button(cx: &mut Context, param_id: u32, _lfo_index: usize) {
 
 // Helper function for distortion types (order from DistortionType enum)
 pub fn distortion_type_button(cx: &mut Context, param_id: u32) {
-    const OPTIONS: &[&str] = &["Tanh", "SoftClip", "HardClip", "Cubic"];
+    const OPTIONS: &[&str] = &[
+        "Tanh",
+        "SoftClip",
+        "HardClip",
+        "Cubic",
+        "Foldback",
+        "Asymmetric",
+        "SineShaper",
+        "Bitcrush",
+        "Diode",
+    ];
     param_cycle_button(cx, param_id, "Type", OPTIONS);
 }

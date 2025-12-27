@@ -932,6 +932,11 @@ impl ParamRegistry {
                     "Soft Clip".into(),
                     "Hard Clip".into(),
                     "Cubic".into(),
+                    "Foldback".into(),
+                    "Asymmetric".into(),
+                    "Sine Shaper".into(),
+                    "Bitcrush".into(),
+                    "Diode".into(),
                 ],
                 0 // Default: Tanh
             )

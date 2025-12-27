@@ -418,12 +418,17 @@ pub mod param_apply {
 
     fn denorm_to_distortion_type(denorm: f32) -> Option<crate::params::DistortionType> {
         use crate::params::DistortionType;
-        // denorm is already the enum index (0-3) from registry.denormalize()
+        // denorm is already the enum index (0-8) from registry.denormalize()
         match denorm.round() as i32 {
             0 => Some(DistortionType::Tanh),
             1 => Some(DistortionType::SoftClip),
             2 => Some(DistortionType::HardClip),
             3 => Some(DistortionType::Cubic),
+            4 => Some(DistortionType::Foldback),
+            5 => Some(DistortionType::Asymmetric),
+            6 => Some(DistortionType::SineShaper),
+            7 => Some(DistortionType::Bitcrush),
+            8 => Some(DistortionType::Diode),
             _ => None,
         }
     }
@@ -688,6 +693,11 @@ pub mod param_get {
             DistortionType::SoftClip => 1.0,
             DistortionType::HardClip => 2.0,
             DistortionType::Cubic => 3.0,
+            DistortionType::Foldback => 4.0,
+            DistortionType::Asymmetric => 5.0,
+            DistortionType::SineShaper => 6.0,
+            DistortionType::Bitcrush => 7.0,
+            DistortionType::Diode => 8.0,
         }
     }
 

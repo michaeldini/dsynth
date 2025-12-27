@@ -183,6 +183,11 @@ pub enum DistortionType {
     SoftClip,
     HardClip,
     Cubic,
+    Foldback,
+    Asymmetric,
+    SineShaper,
+    Bitcrush,
+    Diode,
 }
 
 impl fmt::Display for DistortionType {
@@ -192,6 +197,11 @@ impl fmt::Display for DistortionType {
             DistortionType::SoftClip => write!(f, "Soft Clip"),
             DistortionType::HardClip => write!(f, "Hard Clip"),
             DistortionType::Cubic => write!(f, "Cubic"),
+            DistortionType::Foldback => write!(f, "Foldback"),
+            DistortionType::Asymmetric => write!(f, "Asymmetric"),
+            DistortionType::SineShaper => write!(f, "Sine Shaper"),
+            DistortionType::Bitcrush => write!(f, "Bitcrush"),
+            DistortionType::Diode => write!(f, "Diode"),
         }
     }
 }
@@ -203,6 +213,15 @@ impl From<DistortionType> for crate::dsp::effects::distortion::DistortionType {
             DistortionType::SoftClip => crate::dsp::effects::distortion::DistortionType::SoftClip,
             DistortionType::HardClip => crate::dsp::effects::distortion::DistortionType::HardClip,
             DistortionType::Cubic => crate::dsp::effects::distortion::DistortionType::Cubic,
+            DistortionType::Foldback => crate::dsp::effects::distortion::DistortionType::Foldback,
+            DistortionType::Asymmetric => {
+                crate::dsp::effects::distortion::DistortionType::Asymmetric
+            }
+            DistortionType::SineShaper => {
+                crate::dsp::effects::distortion::DistortionType::SineShaper
+            }
+            DistortionType::Bitcrush => crate::dsp::effects::distortion::DistortionType::Bitcrush,
+            DistortionType::Diode => crate::dsp::effects::distortion::DistortionType::Diode,
         }
     }
 }
