@@ -1,6 +1,7 @@
 use crate::audio::voice::Voice;
 use crate::dsp::effects::{
-    Chorus, Distortion, MultibandDistortion, Reverb, StereoDelay, StereoWidener,
+    AutoPan, Bitcrusher, Chorus, CombFilter, Compressor, Distortion, Flanger, MultibandDistortion,
+    Phaser, Reverb, RingModulator, StereoDelay, StereoWidener, Tremolo, Waveshaper,
 };
 use crate::dsp::wavetable_library::WavetableLibrary;
 use crate::params::SynthParams;
@@ -104,6 +105,21 @@ pub struct SynthEngine {
     multiband_distortion: MultibandDistortion,
     stereo_widener: StereoWidener,
 
+    // New modulation/time-based effects
+    phaser: Phaser,
+    flanger: Flanger,
+    tremolo: Tremolo,
+    auto_pan: AutoPan,
+
+    // New filter/pitch effects
+    comb_filter: CombFilter,
+    ring_modulator: RingModulator,
+
+    // New dynamics/distortion effects
+    compressor: Compressor,
+    bitcrusher: Bitcrusher,
+    waveshaper: Waveshaper,
+
     /// Wavetable library for wavetable synthesis
     wavetable_library: WavetableLibrary,
 }
@@ -141,11 +157,10 @@ impl SynthEngine {
         let limiter_release_coeff = (-1.0 / (limiter_release_s * sample_rate)).exp();
 
         // Load wavetables from compile-time embedded data (no runtime file dependencies)
-        let wavetable_library = WavetableLibrary::load_from_embedded()
-            .unwrap_or_else(|e| {
-                eprintln!("Warning: Failed to load embedded wavetables: {}", e);
-                WavetableLibrary::with_builtin_wavetables()
-            });
+        let wavetable_library = WavetableLibrary::load_from_embedded().unwrap_or_else(|e| {
+            eprintln!("Warning: Failed to load embedded wavetables: {}", e);
+            WavetableLibrary::with_builtin_wavetables()
+        });
 
         Self {
             sample_rate,
@@ -163,6 +178,22 @@ impl SynthEngine {
             distortion: Distortion::new(sample_rate),
             multiband_distortion: MultibandDistortion::new(sample_rate),
             stereo_widener: StereoWidener::new(sample_rate),
+
+            // Initialize new modulation/time-based effects
+            phaser: Phaser::new(sample_rate, 6, 1000.0, 0.5),
+            flanger: Flanger::new(sample_rate, 0.5, 15.0, 0.2),
+            tremolo: Tremolo::new(sample_rate, 4.0),
+            auto_pan: AutoPan::new(sample_rate, 1.0),
+
+            // Initialize new filter/pitch effects
+            comb_filter: CombFilter::new(sample_rate, 10.0, 0.5, 0.5),
+            ring_modulator: RingModulator::new(sample_rate, 440.0),
+
+            // Initialize new dynamics/distortion effects
+            compressor: Compressor::new(sample_rate, -20.0, 4.0, 10.0, 100.0),
+            bitcrusher: Bitcrusher::new(sample_rate, sample_rate, 16),
+            waveshaper: Waveshaper::new(crate::dsp::effects::waveshaper::Algorithm::SoftClip, 1.0),
+
             wavetable_library,
         }
     }
@@ -260,6 +291,54 @@ impl SynthEngine {
             .set_mid_gain(effects.stereo_widener.mid_gain);
         self.stereo_widener
             .set_side_gain(effects.stereo_widener.side_gain);
+
+        // Update phaser
+        self.phaser.set_rate(effects.phaser.rate);
+        self.phaser.set_depth(effects.phaser.depth);
+        self.phaser.set_feedback(effects.phaser.feedback);
+        self.phaser.set_mix(effects.phaser.mix);
+
+        // Update flanger
+        self.flanger.set_rate(effects.flanger.rate);
+        self.flanger.set_feedback(effects.flanger.feedback);
+        self.flanger.set_mix(effects.flanger.mix);
+        // Flanger depth controls delay range (depth maps to max delay)
+        let flanger_max_delay = 0.5 + effects.flanger.depth * 14.5; // 0.5-15ms
+        self.flanger.set_delay_range(0.5, flanger_max_delay);
+
+        // Update tremolo
+        self.tremolo.set_rate(effects.tremolo.rate);
+        self.tremolo.set_depth(effects.tremolo.depth);
+
+        // Update auto-pan
+        self.auto_pan.set_rate(effects.auto_pan.rate);
+        self.auto_pan.set_depth(effects.auto_pan.depth);
+
+        // Update comb filter
+        self.comb_filter
+            .set_frequency(effects.comb_filter.frequency);
+        self.comb_filter.set_feedback(effects.comb_filter.feedback);
+        self.comb_filter.set_mix(effects.comb_filter.mix);
+
+        // Update ring modulator
+        self.ring_modulator
+            .set_frequency(effects.ring_mod.frequency);
+        self.ring_modulator.set_depth(effects.ring_mod.depth);
+
+        // Update compressor
+        self.compressor.set_threshold(effects.compressor.threshold);
+        self.compressor.set_ratio(effects.compressor.ratio);
+        self.compressor.set_attack(effects.compressor.attack);
+        self.compressor.set_release(effects.compressor.release);
+
+        // Update bitcrusher
+        self.bitcrusher
+            .set_sample_rate(effects.bitcrusher.sample_rate);
+        self.bitcrusher.set_bit_depth(effects.bitcrusher.bit_depth);
+
+        // Update waveshaper
+        self.waveshaper.set_drive(effects.waveshaper.drive);
+        self.waveshaper.set_mix(effects.waveshaper.mix);
     }
 
     #[inline]
@@ -319,20 +398,67 @@ impl SynthEngine {
         output_left *= master;
         output_right *= master;
 
-        // Effects chain (processed in series: distortion → multiband distortion → chorus → delay → stereo widener → reverb)
-        // This order is intentional:
-        // 1. Distortion first (adds harmonics to dry signal)
-        // 2. Multiband distortion (frequency-specific saturation)
-        // 3. Chorus (adds width before spatial effects)
-        // 4. Delay (rhythmic repeats before reverb)
-        // 5. Stereo widener (Haas/M-S processing before final ambience)
-        // 6. Reverb last (natural space/ambience)
-        let (mut out_l, mut out_r) = self.distortion.process_stereo(output_left, output_right);
-        (out_l, out_r) = self.multiband_distortion.process_stereo(out_l, out_r);
-        (out_l, out_r) = self.chorus.process(out_l, out_r);
-        (out_l, out_r) = self.delay.process(out_l, out_r);
-        (out_l, out_r) = self.stereo_widener.process(out_l, out_r);
-        (out_l, out_r) = self.reverb.process(out_l, out_r);
+        // Effects chain (processed in series)
+        // Order is intentional for sound quality:
+        // 1. Dynamics (compressor) - control peaks first
+        // 2. Distortion/saturation (distortion, waveshaper, bitcrusher) - add harmonics
+        // 3. Multiband distortion - frequency-specific saturation
+        // 4. Filter effects (comb filter, phaser, flanger) - frequency/phase manipulation
+        // 5. Pitch modulation (ring modulator, tremolo) - amplitude/frequency effects
+        // 6. Chorus - adds width/detuning
+        // 7. Delay - rhythmic repeats
+        // 8. Spatial effects (auto-pan, stereo widener) - stereo field manipulation
+        // 9. Reverb last - final ambience/space
+        //
+        // Conditional processing: Skip disabled effects to save CPU
+        let mut out_l = output_left;
+        let mut out_r = output_right;
+
+        if self.current_params.effects.compressor.enabled {
+            (out_l, out_r) = self.compressor.process(out_l, out_r);
+        }
+        if self.current_params.effects.distortion.enabled {
+            (out_l, out_r) = self.distortion.process_stereo(out_l, out_r);
+        }
+        if self.current_params.effects.waveshaper.enabled {
+            (out_l, out_r) = self.waveshaper.process(out_l, out_r);
+        }
+        if self.current_params.effects.bitcrusher.enabled {
+            (out_l, out_r) = self.bitcrusher.process(out_l, out_r);
+        }
+        if self.current_params.effects.multiband_distortion.enabled {
+            (out_l, out_r) = self.multiband_distortion.process_stereo(out_l, out_r);
+        }
+        if self.current_params.effects.comb_filter.enabled {
+            (out_l, out_r) = self.comb_filter.process(out_l, out_r);
+        }
+        if self.current_params.effects.phaser.enabled {
+            (out_l, out_r) = self.phaser.process(out_l, out_r);
+        }
+        if self.current_params.effects.flanger.enabled {
+            (out_l, out_r) = self.flanger.process(out_l, out_r);
+        }
+        if self.current_params.effects.ring_mod.enabled {
+            (out_l, out_r) = self.ring_modulator.process(out_l, out_r);
+        }
+        if self.current_params.effects.tremolo.enabled {
+            (out_l, out_r) = self.tremolo.process(out_l, out_r);
+        }
+        if self.current_params.effects.chorus.enabled {
+            (out_l, out_r) = self.chorus.process(out_l, out_r);
+        }
+        if self.current_params.effects.delay.enabled {
+            (out_l, out_r) = self.delay.process(out_l, out_r);
+        }
+        if self.current_params.effects.auto_pan.enabled {
+            (out_l, out_r) = self.auto_pan.process(out_l, out_r);
+        }
+        if self.current_params.effects.stereo_widener.enabled {
+            (out_l, out_r) = self.stereo_widener.process(out_l, out_r);
+        }
+        if self.current_params.effects.reverb.enabled {
+            (out_l, out_r) = self.reverb.process(out_l, out_r);
+        }
 
         // Transparent limiter to prevent clipping without harmonic distortion.
         self.apply_output_limiter(out_l, out_r)

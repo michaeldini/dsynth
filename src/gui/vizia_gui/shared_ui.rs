@@ -768,6 +768,51 @@ pub fn build_effects_section(cx: &mut Context) {
         })
         .height(Pixels(200.0))
         .gap(Pixels(12.0));
+
+        // Row 3: Modulation effects (phaser, flanger, tremolo, auto-pan)
+        HStack::new(cx, |cx| {
+            VStack::new(cx, |cx| build_phaser_section(cx))
+                .width(Pixels(EFFECT_COL_WIDTH))
+                .gap(Pixels(6.0));
+            VStack::new(cx, |cx| build_flanger_section(cx))
+                .width(Pixels(EFFECT_COL_WIDTH))
+                .gap(Pixels(6.0));
+            VStack::new(cx, |cx| build_tremolo_section(cx))
+                .width(Pixels(EFFECT_COL_WIDTH / 1.5))
+                .gap(Pixels(6.0));
+            VStack::new(cx, |cx| build_autopan_section(cx))
+                .width(Pixels(EFFECT_COL_WIDTH / 1.5))
+                .gap(Pixels(6.0));
+        })
+        .height(Pixels(150.0))
+        .gap(Pixels(12.0));
+
+        // Row 4: Filter/pitch effects + dynamics (comb, ring mod, compressor)
+        HStack::new(cx, |cx| {
+            VStack::new(cx, |cx| build_combfilter_section(cx))
+                .width(Pixels(EFFECT_COL_WIDTH))
+                .gap(Pixels(6.0));
+            VStack::new(cx, |cx| build_ringmod_section(cx))
+                .width(Pixels(EFFECT_COL_WIDTH / 1.5))
+                .gap(Pixels(6.0));
+            VStack::new(cx, |cx| build_compressor_section(cx))
+                .width(Pixels(EFFECT_COL_WIDTH + 20.0))
+                .gap(Pixels(6.0));
+        })
+        .height(Pixels(150.0))
+        .gap(Pixels(12.0));
+
+        // Row 5: Lo-fi effects (bitcrusher, waveshaper)
+        HStack::new(cx, |cx| {
+            VStack::new(cx, |cx| build_bitcrusher_section(cx))
+                .width(Pixels(EFFECT_COL_WIDTH / 1.5))
+                .gap(Pixels(6.0));
+            VStack::new(cx, |cx| build_waveshaper_section(cx))
+                .width(Pixels(EFFECT_COL_WIDTH / 1.5))
+                .gap(Pixels(6.0));
+        })
+        .height(Pixels(150.0))
+        .gap(Pixels(12.0));
     })
     .width(Stretch(1.0))
     .height(Units::Auto)
@@ -778,10 +823,15 @@ pub fn build_effects_section(cx: &mut Context) {
 
 pub fn build_distortion_section(cx: &mut Context) {
     VStack::new(cx, |cx| {
-        Label::new(cx, "Distortion")
-            .font_size(14.0)
-            .color(Color::rgb(200, 200, 210))
-            .height(Pixels(22.0));
+        HStack::new(cx, |cx| {
+            Label::new(cx, "Distortion")
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210))
+                .height(Pixels(22.0));
+            let enabled = current_normalized(cx, PARAM_DISTORTION_ENABLED);
+            param_checkbox(cx, PARAM_DISTORTION_ENABLED, "On", enabled > 0.5);
+        })
+        .gap(Pixels(8.0));
 
         HStack::new(cx, |cx| {
             let drive_v = current_normalized(cx, PARAM_DISTORTION_DRIVE);
@@ -811,10 +861,15 @@ pub fn build_distortion_section(cx: &mut Context) {
 
 pub fn build_chorus_section(cx: &mut Context) {
     VStack::new(cx, |cx| {
-        Label::new(cx, "Chorus")
-            .font_size(14.0)
-            .color(Color::rgb(200, 200, 210))
-            .height(Pixels(22.0));
+        HStack::new(cx, |cx| {
+            Label::new(cx, "Chorus")
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210))
+                .height(Pixels(22.0));
+            let enabled = current_normalized(cx, PARAM_CHORUS_ENABLED);
+            param_checkbox(cx, PARAM_CHORUS_ENABLED, "On", enabled > 0.5);
+        })
+        .gap(Pixels(8.0));
 
         HStack::new(cx, |cx| {
             let rate_v = current_normalized(cx, PARAM_CHORUS_RATE);
@@ -851,10 +906,15 @@ pub fn build_chorus_section(cx: &mut Context) {
 
 pub fn build_delay_section(cx: &mut Context) {
     VStack::new(cx, |cx| {
-        Label::new(cx, "Delay")
-            .font_size(14.0)
-            .color(Color::rgb(200, 200, 210))
-            .height(Pixels(22.0));
+        HStack::new(cx, |cx| {
+            Label::new(cx, "Delay")
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210))
+                .height(Pixels(22.0));
+            let enabled = current_normalized(cx, PARAM_DELAY_ENABLED);
+            param_checkbox(cx, PARAM_DELAY_ENABLED, "On", enabled > 0.5);
+        })
+        .gap(Pixels(8.0));
 
         HStack::new(cx, |cx| {
             let time_v = current_normalized(cx, PARAM_DELAY_TIME_MS);
@@ -899,10 +959,15 @@ pub fn build_delay_section(cx: &mut Context) {
 
 pub fn build_reverb_section(cx: &mut Context) {
     VStack::new(cx, |cx| {
-        Label::new(cx, "Reverb")
-            .font_size(14.0)
-            .color(Color::rgb(200, 200, 210))
-            .height(Pixels(22.0));
+        HStack::new(cx, |cx| {
+            Label::new(cx, "Reverb")
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210))
+                .height(Pixels(22.0));
+            let enabled = current_normalized(cx, PARAM_REVERB_ENABLED);
+            param_checkbox(cx, PARAM_REVERB_ENABLED, "On", enabled > 0.5);
+        })
+        .gap(Pixels(8.0));
 
         HStack::new(cx, |cx| {
             let room_v = current_normalized(cx, PARAM_REVERB_ROOM_SIZE);
@@ -955,10 +1020,15 @@ pub fn build_reverb_section(cx: &mut Context) {
 
 pub fn build_multiband_distortion_section(cx: &mut Context) {
     VStack::new(cx, |cx| {
-        Label::new(cx, "Multiband Distortion")
-            .font_size(14.0)
-            .color(Color::rgb(200, 200, 210))
-            .height(Pixels(22.0));
+        HStack::new(cx, |cx| {
+            Label::new(cx, "Multiband Distortion")
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210))
+                .height(Pixels(22.0));
+            let enabled = current_normalized(cx, PARAM_MB_DIST_ENABLED);
+            param_checkbox(cx, PARAM_MB_DIST_ENABLED, "On", enabled > 0.5);
+        })
+        .gap(Pixels(8.0));
 
         // Crossover frequencies
         HStack::new(cx, |cx| {
@@ -1051,10 +1121,15 @@ pub fn build_multiband_distortion_section(cx: &mut Context) {
 
 pub fn build_stereo_widener_section(cx: &mut Context) {
     VStack::new(cx, |cx| {
-        Label::new(cx, "Stereo Widener")
-            .font_size(14.0)
-            .color(Color::rgb(200, 200, 210))
-            .height(Pixels(22.0));
+        HStack::new(cx, |cx| {
+            Label::new(cx, "Stereo Widener")
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210))
+                .height(Pixels(22.0));
+            let enabled = current_normalized(cx, PARAM_WIDENER_ENABLED);
+            param_checkbox(cx, PARAM_WIDENER_ENABLED, "On", enabled > 0.5);
+        })
+        .gap(Pixels(8.0));
 
         HStack::new(cx, |cx| {
             let haas_delay_v = current_normalized(cx, PARAM_WIDENER_HAAS_DELAY);
@@ -1152,4 +1227,394 @@ pub fn current_normalized(cx: &mut Context, param_id: u32) -> f32 {
 pub fn default_normalized(param_id: u32) -> f32 {
     let registry = param_registry::get_registry();
     registry.get(param_id).map(|d| d.default).unwrap_or(0.0)
+}
+// New effect GUI builder functions to be appended to shared_ui.rs
+
+pub fn build_phaser_section(cx: &mut Context) {
+    VStack::new(cx, |cx| {
+        HStack::new(cx, |cx| {
+            Label::new(cx, "Phaser")
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210))
+                .height(Pixels(22.0));
+            let enabled = current_normalized(cx, PARAM_PHASER_ENABLED);
+            param_checkbox(cx, PARAM_PHASER_ENABLED, "On", enabled > 0.5);
+        })
+        .gap(Pixels(8.0));
+
+        HStack::new(cx, |cx| {
+            let rate_v = current_normalized(cx, PARAM_PHASER_RATE);
+            let depth_v = current_normalized(cx, PARAM_PHASER_DEPTH);
+            let fb_v = current_normalized(cx, PARAM_PHASER_FEEDBACK);
+            let mix_v = current_normalized(cx, PARAM_PHASER_MIX);
+
+            param_knob(
+                cx,
+                PARAM_PHASER_RATE,
+                "Rate",
+                rate_v,
+                default_normalized(PARAM_PHASER_RATE),
+            );
+            param_knob(
+                cx,
+                PARAM_PHASER_DEPTH,
+                "Depth",
+                depth_v,
+                default_normalized(PARAM_PHASER_DEPTH),
+            );
+            param_knob(
+                cx,
+                PARAM_PHASER_FEEDBACK,
+                "FB",
+                fb_v,
+                default_normalized(PARAM_PHASER_FEEDBACK),
+            );
+            param_knob(
+                cx,
+                PARAM_PHASER_MIX,
+                "Mix",
+                mix_v,
+                default_normalized(PARAM_PHASER_MIX),
+            );
+        })
+        .height(Units::Auto)
+        .gap(Pixels(6.0));
+    })
+    .gap(Pixels(6.0));
+}
+
+pub fn build_flanger_section(cx: &mut Context) {
+    VStack::new(cx, |cx| {
+        HStack::new(cx, |cx| {
+            Label::new(cx, "Flanger")
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210))
+                .height(Pixels(22.0));
+            let enabled = current_normalized(cx, PARAM_FLANGER_ENABLED);
+            param_checkbox(cx, PARAM_FLANGER_ENABLED, "On", enabled > 0.5);
+        })
+        .gap(Pixels(8.0));
+
+        HStack::new(cx, |cx| {
+            let rate_v = current_normalized(cx, PARAM_FLANGER_RATE);
+            let depth_v = current_normalized(cx, PARAM_FLANGER_DEPTH);
+            let fb_v = current_normalized(cx, PARAM_FLANGER_FEEDBACK);
+            let mix_v = current_normalized(cx, PARAM_FLANGER_MIX);
+
+            param_knob(
+                cx,
+                PARAM_FLANGER_RATE,
+                "Rate",
+                rate_v,
+                default_normalized(PARAM_FLANGER_RATE),
+            );
+            param_knob(
+                cx,
+                PARAM_FLANGER_DEPTH,
+                "Depth",
+                depth_v,
+                default_normalized(PARAM_FLANGER_DEPTH),
+            );
+            param_knob(
+                cx,
+                PARAM_FLANGER_FEEDBACK,
+                "FB",
+                fb_v,
+                default_normalized(PARAM_FLANGER_FEEDBACK),
+            );
+            param_knob(
+                cx,
+                PARAM_FLANGER_MIX,
+                "Mix",
+                mix_v,
+                default_normalized(PARAM_FLANGER_MIX),
+            );
+        })
+        .height(Units::Auto)
+        .gap(Pixels(6.0));
+    })
+    .gap(Pixels(6.0));
+}
+
+pub fn build_tremolo_section(cx: &mut Context) {
+    VStack::new(cx, |cx| {
+        HStack::new(cx, |cx| {
+            Label::new(cx, "Tremolo")
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210))
+                .height(Pixels(22.0));
+            let enabled = current_normalized(cx, PARAM_TREMOLO_ENABLED);
+            param_checkbox(cx, PARAM_TREMOLO_ENABLED, "On", enabled > 0.5);
+        })
+        .gap(Pixels(8.0));
+
+        HStack::new(cx, |cx| {
+            let rate_v = current_normalized(cx, PARAM_TREMOLO_RATE);
+            let depth_v = current_normalized(cx, PARAM_TREMOLO_DEPTH);
+
+            param_knob(
+                cx,
+                PARAM_TREMOLO_RATE,
+                "Rate",
+                rate_v,
+                default_normalized(PARAM_TREMOLO_RATE),
+            );
+            param_knob(
+                cx,
+                PARAM_TREMOLO_DEPTH,
+                "Depth",
+                depth_v,
+                default_normalized(PARAM_TREMOLO_DEPTH),
+            );
+        })
+        .height(Units::Auto)
+        .gap(Pixels(6.0));
+    })
+    .gap(Pixels(6.0));
+}
+
+pub fn build_autopan_section(cx: &mut Context) {
+    VStack::new(cx, |cx| {
+        HStack::new(cx, |cx| {
+            Label::new(cx, "Auto-Pan")
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210))
+                .height(Pixels(22.0));
+            let enabled = current_normalized(cx, PARAM_AUTOPAN_ENABLED);
+            param_checkbox(cx, PARAM_AUTOPAN_ENABLED, "On", enabled > 0.5);
+        })
+        .gap(Pixels(8.0));
+
+        HStack::new(cx, |cx| {
+            let rate_v = current_normalized(cx, PARAM_AUTOPAN_RATE);
+            let depth_v = current_normalized(cx, PARAM_AUTOPAN_DEPTH);
+
+            param_knob(
+                cx,
+                PARAM_AUTOPAN_RATE,
+                "Rate",
+                rate_v,
+                default_normalized(PARAM_AUTOPAN_RATE),
+            );
+            param_knob(
+                cx,
+                PARAM_AUTOPAN_DEPTH,
+                "Depth",
+                depth_v,
+                default_normalized(PARAM_AUTOPAN_DEPTH),
+            );
+        })
+        .height(Units::Auto)
+        .gap(Pixels(6.0));
+    })
+    .gap(Pixels(6.0));
+}
+
+pub fn build_combfilter_section(cx: &mut Context) {
+    VStack::new(cx, |cx| {
+        HStack::new(cx, |cx| {
+            Label::new(cx, "Comb Filter")
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210))
+                .height(Pixels(22.0));
+            let enabled = current_normalized(cx, PARAM_COMB_ENABLED);
+            param_checkbox(cx, PARAM_COMB_ENABLED, "On", enabled > 0.5);
+        })
+        .gap(Pixels(8.0));
+
+        HStack::new(cx, |cx| {
+            let freq_v = current_normalized(cx, PARAM_COMB_FREQUENCY);
+            let fb_v = current_normalized(cx, PARAM_COMB_FEEDBACK);
+            let mix_v = current_normalized(cx, PARAM_COMB_MIX);
+
+            param_knob(
+                cx,
+                PARAM_COMB_FREQUENCY,
+                "Freq",
+                freq_v,
+                default_normalized(PARAM_COMB_FREQUENCY),
+            );
+            param_knob(
+                cx,
+                PARAM_COMB_FEEDBACK,
+                "FB",
+                fb_v,
+                default_normalized(PARAM_COMB_FEEDBACK),
+            );
+            param_knob(
+                cx,
+                PARAM_COMB_MIX,
+                "Mix",
+                mix_v,
+                default_normalized(PARAM_COMB_MIX),
+            );
+        })
+        .height(Units::Auto)
+        .gap(Pixels(6.0));
+    })
+    .gap(Pixels(6.0));
+}
+
+pub fn build_ringmod_section(cx: &mut Context) {
+    VStack::new(cx, |cx| {
+        HStack::new(cx, |cx| {
+            Label::new(cx, "Ring Mod")
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210))
+                .height(Pixels(22.0));
+            let enabled = current_normalized(cx, PARAM_RINGMOD_ENABLED);
+            param_checkbox(cx, PARAM_RINGMOD_ENABLED, "On", enabled > 0.5);
+        })
+        .gap(Pixels(8.0));
+
+        HStack::new(cx, |cx| {
+            let freq_v = current_normalized(cx, PARAM_RINGMOD_FREQUENCY);
+            let depth_v = current_normalized(cx, PARAM_RINGMOD_DEPTH);
+
+            param_knob(
+                cx,
+                PARAM_RINGMOD_FREQUENCY,
+                "Freq",
+                freq_v,
+                default_normalized(PARAM_RINGMOD_FREQUENCY),
+            );
+            param_knob(
+                cx,
+                PARAM_RINGMOD_DEPTH,
+                "Depth",
+                depth_v,
+                default_normalized(PARAM_RINGMOD_DEPTH),
+            );
+        })
+        .height(Units::Auto)
+        .gap(Pixels(6.0));
+    })
+    .gap(Pixels(6.0));
+}
+
+pub fn build_compressor_section(cx: &mut Context) {
+    VStack::new(cx, |cx| {
+        HStack::new(cx, |cx| {
+            Label::new(cx, "Compressor")
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210))
+                .height(Pixels(22.0));
+            let enabled = current_normalized(cx, PARAM_COMPRESSOR_ENABLED);
+            param_checkbox(cx, PARAM_COMPRESSOR_ENABLED, "On", enabled > 0.5);
+        })
+        .gap(Pixels(8.0));
+
+        HStack::new(cx, |cx| {
+            let thresh_v = current_normalized(cx, PARAM_COMPRESSOR_THRESHOLD);
+            let ratio_v = current_normalized(cx, PARAM_COMPRESSOR_RATIO);
+            let attack_v = current_normalized(cx, PARAM_COMPRESSOR_ATTACK);
+            let release_v = current_normalized(cx, PARAM_COMPRESSOR_RELEASE);
+
+            param_knob(
+                cx,
+                PARAM_COMPRESSOR_THRESHOLD,
+                "Thresh",
+                thresh_v,
+                default_normalized(PARAM_COMPRESSOR_THRESHOLD),
+            );
+            param_knob(
+                cx,
+                PARAM_COMPRESSOR_RATIO,
+                "Ratio",
+                ratio_v,
+                default_normalized(PARAM_COMPRESSOR_RATIO),
+            );
+            param_knob(
+                cx,
+                PARAM_COMPRESSOR_ATTACK,
+                "Attack",
+                attack_v,
+                default_normalized(PARAM_COMPRESSOR_ATTACK),
+            );
+            param_knob(
+                cx,
+                PARAM_COMPRESSOR_RELEASE,
+                "Release",
+                release_v,
+                default_normalized(PARAM_COMPRESSOR_RELEASE),
+            );
+        })
+        .height(Units::Auto)
+        .gap(Pixels(6.0));
+    })
+    .gap(Pixels(6.0));
+}
+
+pub fn build_bitcrusher_section(cx: &mut Context) {
+    VStack::new(cx, |cx| {
+        HStack::new(cx, |cx| {
+            Label::new(cx, "Bitcrusher")
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210))
+                .height(Pixels(22.0));
+            let enabled = current_normalized(cx, PARAM_BITCRUSHER_ENABLED);
+            param_checkbox(cx, PARAM_BITCRUSHER_ENABLED, "On", enabled > 0.5);
+        })
+        .gap(Pixels(8.0));
+
+        HStack::new(cx, |cx| {
+            let rate_v = current_normalized(cx, PARAM_BITCRUSHER_RATE);
+            let bits_v = current_normalized(cx, PARAM_BITCRUSHER_BITS);
+
+            param_knob(
+                cx,
+                PARAM_BITCRUSHER_RATE,
+                "Rate",
+                rate_v,
+                default_normalized(PARAM_BITCRUSHER_RATE),
+            );
+            param_knob(
+                cx,
+                PARAM_BITCRUSHER_BITS,
+                "Bits",
+                bits_v,
+                default_normalized(PARAM_BITCRUSHER_BITS),
+            );
+        })
+        .height(Units::Auto)
+        .gap(Pixels(6.0));
+    })
+    .gap(Pixels(6.0));
+}
+
+pub fn build_waveshaper_section(cx: &mut Context) {
+    VStack::new(cx, |cx| {
+        HStack::new(cx, |cx| {
+            Label::new(cx, "Waveshaper")
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210))
+                .height(Pixels(22.0));
+            let enabled = current_normalized(cx, PARAM_WAVESHAPER_ENABLED);
+            param_checkbox(cx, PARAM_WAVESHAPER_ENABLED, "On", enabled > 0.5);
+        })
+        .gap(Pixels(8.0));
+
+        HStack::new(cx, |cx| {
+            let drive_v = current_normalized(cx, PARAM_WAVESHAPER_DRIVE);
+            let mix_v = current_normalized(cx, PARAM_WAVESHAPER_MIX);
+
+            param_knob(
+                cx,
+                PARAM_WAVESHAPER_DRIVE,
+                "Drive",
+                drive_v,
+                default_normalized(PARAM_WAVESHAPER_DRIVE),
+            );
+            param_knob(
+                cx,
+                PARAM_WAVESHAPER_MIX,
+                "Mix",
+                mix_v,
+                default_normalized(PARAM_WAVESHAPER_MIX),
+            );
+        })
+        .height(Units::Auto)
+        .gap(Pixels(6.0));
+    })
+    .gap(Pixels(6.0));
 }

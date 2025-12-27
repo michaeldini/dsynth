@@ -290,6 +290,7 @@ impl Default for VelocityParams {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ReverbParams {
+    pub enabled: bool,
     pub room_size: f32, // 0.0 to 1.0
     pub damping: f32,   // 0.0 to 1.0 (0.0 = bright, 1.0 = dark)
     pub wet: f32,       // 0.0 to 1.0
@@ -300,6 +301,7 @@ pub struct ReverbParams {
 impl Default for ReverbParams {
     fn default() -> Self {
         Self {
+            enabled: false,
             room_size: 0.5,
             damping: 0.5,
             wet: 0.33,
@@ -311,6 +313,7 @@ impl Default for ReverbParams {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct DelayParams {
+    pub enabled: bool,
     pub time_ms: f32,  // 1.0 to 2000.0
     pub feedback: f32, // 0.0 to 0.95
     pub wet: f32,      // 0.0 to 1.0
@@ -320,6 +323,7 @@ pub struct DelayParams {
 impl Default for DelayParams {
     fn default() -> Self {
         Self {
+            enabled: false,
             time_ms: 500.0,
             feedback: 0.3,
             wet: 0.3,
@@ -330,6 +334,7 @@ impl Default for DelayParams {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ChorusParams {
+    pub enabled: bool,
     pub rate: f32,  // 0.1 to 5.0 Hz
     pub depth: f32, // 0.0 to 1.0
     pub mix: f32,   // 0.0 to 1.0
@@ -338,6 +343,7 @@ pub struct ChorusParams {
 impl Default for ChorusParams {
     fn default() -> Self {
         Self {
+            enabled: false,
             rate: 0.5,
             depth: 0.5,
             mix: 0.5,
@@ -347,6 +353,7 @@ impl Default for ChorusParams {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct DistortionParams {
+    pub enabled: bool,
     pub drive: f32, // 0.0 to 1.0
     pub mix: f32,   // 0.0 to 1.0
     pub dist_type: DistortionType,
@@ -355,7 +362,8 @@ pub struct DistortionParams {
 impl Default for DistortionParams {
     fn default() -> Self {
         Self {
-            drive: 0.0,
+            enabled: false,
+            drive: 0.5,
             mix: 0.5,
             dist_type: DistortionType::Tanh,
         }
@@ -366,6 +374,7 @@ impl Default for DistortionParams {
 /// Allows independent saturation of bass, mid, and high frequency bands
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct MultibandDistortionParams {
+    pub enabled: bool,
     pub low_mid_freq: f32,  // Crossover frequency (50-500 Hz)
     pub mid_high_freq: f32, // Crossover frequency (1000-8000 Hz)
     pub drive_low: f32,     // Bass drive (0.0 to 1.0)
@@ -380,15 +389,16 @@ pub struct MultibandDistortionParams {
 impl Default for MultibandDistortionParams {
     fn default() -> Self {
         Self {
+            enabled: false,
             low_mid_freq: 200.0,
             mid_high_freq: 2000.0,
-            drive_low: 0.0,
-            drive_mid: 0.0,
-            drive_high: 0.0,
+            drive_low: 0.3,
+            drive_mid: 0.3,
+            drive_high: 0.3,
             gain_low: 1.0,
             gain_mid: 1.0,
             gain_high: 1.0,
-            mix: 0.0, // Disabled by default
+            mix: 0.5,
         }
     }
 }
@@ -397,6 +407,7 @@ impl Default for MultibandDistortionParams {
 /// Uses Haas delay and mid/side processing for stereo enhancement
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct StereoWidenerParams {
+    pub enabled: bool,
     pub haas_delay_ms: f32, // Haas delay time (0.0 to 30.0 ms)
     pub haas_mix: f32,      // Haas effect amount (0.0 to 1.0)
     pub width: f32,         // Stereo width (0.0 = mono, 1.0 = normal, 2.0 = extra wide)
@@ -407,11 +418,188 @@ pub struct StereoWidenerParams {
 impl Default for StereoWidenerParams {
     fn default() -> Self {
         Self {
-            haas_delay_ms: 0.0,
-            haas_mix: 0.0,
-            width: 1.0, // Normal stereo width
+            enabled: false,
+            haas_delay_ms: 5.0,
+            haas_mix: 0.3,
+            width: 1.2,
             mid_gain: 1.0,
-            side_gain: 1.0,
+            side_gain: 1.2,
+        }
+    }
+}
+
+/// Phaser parameters
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct PhaserParams {
+    pub enabled: bool,
+    pub rate: f32,     // LFO rate (0.1 to 10.0 Hz)
+    pub depth: f32,    // LFO depth (0.0 to 1.0)
+    pub feedback: f32, // Feedback amount (-0.95 to 0.95)
+    pub mix: f32,      // Dry/wet mix (0.0 to 1.0)
+}
+
+impl Default for PhaserParams {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            rate: 0.5,
+            depth: 0.5,
+            feedback: 0.7,
+            mix: 0.5,
+        }
+    }
+}
+
+/// Flanger parameters
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct FlangerParams {
+    pub enabled: bool,
+    pub rate: f32,     // LFO rate (0.1 to 10.0 Hz)
+    pub depth: f32,    // LFO depth (0.0 to 1.0) - maps to 0.5-15ms delay
+    pub feedback: f32, // Feedback amount (-0.95 to 0.95)
+    pub mix: f32,      // Dry/wet mix (0.0 to 1.0)
+}
+
+impl Default for FlangerParams {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            rate: 0.3,
+            depth: 0.5,
+            feedback: 0.5,
+            mix: 0.5,
+        }
+    }
+}
+
+/// Tremolo parameters
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct TremoloParams {
+    pub enabled: bool,
+    pub rate: f32,  // LFO rate (0.1 to 20.0 Hz)
+    pub depth: f32, // LFO depth (0.0 to 1.0)
+}
+
+impl Default for TremoloParams {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            rate: 4.0,
+            depth: 0.5,
+        }
+    }
+}
+
+/// Auto-Pan parameters
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct AutoPanParams {
+    pub enabled: bool,
+    pub rate: f32,  // LFO rate (0.1 to 20.0 Hz)
+    pub depth: f32, // LFO depth (0.0 to 1.0)
+}
+
+impl Default for AutoPanParams {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            rate: 0.5,
+            depth: 0.5,
+        }
+    }
+}
+
+/// Comb Filter parameters
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct CombFilterParams {
+    pub enabled: bool,
+    pub frequency: f32, // Center frequency (20.0 to 5000.0 Hz)
+    pub feedback: f32,  // Feedback amount (-0.95 to 0.95)
+    pub mix: f32,       // Dry/wet mix (0.0 to 1.0)
+}
+
+impl Default for CombFilterParams {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            frequency: 440.0,
+            feedback: 0.5,
+            mix: 0.5,
+        }
+    }
+}
+
+/// Ring Modulator parameters
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct RingModParams {
+    pub enabled: bool,
+    pub frequency: f32, // Carrier frequency (20.0 to 10000.0 Hz)
+    pub depth: f32,     // Modulation depth (0.0 to 1.0)
+}
+
+impl Default for RingModParams {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            frequency: 440.0,
+            depth: 0.5,
+        }
+    }
+}
+
+/// Compressor parameters
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct CompressorParams {
+    pub enabled: bool,
+    pub threshold: f32, // Threshold in dB (-60.0 to 0.0)
+    pub ratio: f32,     // Compression ratio (1.0 to 20.0)
+    pub attack: f32,    // Attack time in seconds (0.001 to 0.1)
+    pub release: f32,   // Release time in seconds (0.01 to 1.0)
+}
+
+impl Default for CompressorParams {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            threshold: -20.0,
+            ratio: 4.0,
+            attack: 10.0,
+            release: 100.0,
+        }
+    }
+}
+
+/// Bitcrusher parameters
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct BitcrusherParams {
+    pub enabled: bool,
+    pub sample_rate: f32, // Target sample rate (100.0 to 44100.0 Hz)
+    pub bit_depth: u32,   // Bit depth (1 to 16)
+}
+
+impl Default for BitcrusherParams {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            sample_rate: 8000.0,
+            bit_depth: 8,
+        }
+    }
+}
+
+/// Waveshaper parameters
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct WaveshaperParams {
+    pub enabled: bool,
+    pub drive: f32, // Drive/gain amount (1.0 to 10.0)
+    pub mix: f32,   // Dry/wet mix (0.0 to 1.0)
+}
+
+impl Default for WaveshaperParams {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            drive: 2.0,
+            mix: 0.5,
         }
     }
 }
@@ -426,6 +614,24 @@ pub struct EffectsParams {
     pub multiband_distortion: MultibandDistortionParams,
     #[serde(default)]
     pub stereo_widener: StereoWidenerParams,
+    #[serde(default)]
+    pub phaser: PhaserParams,
+    #[serde(default)]
+    pub flanger: FlangerParams,
+    #[serde(default)]
+    pub tremolo: TremoloParams,
+    #[serde(default)]
+    pub auto_pan: AutoPanParams,
+    #[serde(default)]
+    pub comb_filter: CombFilterParams,
+    #[serde(default)]
+    pub ring_mod: RingModParams,
+    #[serde(default)]
+    pub compressor: CompressorParams,
+    #[serde(default)]
+    pub bitcrusher: BitcrusherParams,
+    #[serde(default)]
+    pub waveshaper: WaveshaperParams,
 }
 
 impl Default for EffectsParams {
@@ -437,6 +643,15 @@ impl Default for EffectsParams {
             distortion: DistortionParams::default(),
             multiband_distortion: MultibandDistortionParams::default(),
             stereo_widener: StereoWidenerParams::default(),
+            phaser: PhaserParams::default(),
+            flanger: FlangerParams::default(),
+            tremolo: TremoloParams::default(),
+            auto_pan: AutoPanParams::default(),
+            comb_filter: CombFilterParams::default(),
+            ring_mod: RingModParams::default(),
+            compressor: CompressorParams::default(),
+            bitcrusher: BitcrusherParams::default(),
+            waveshaper: WaveshaperParams::default(),
         }
     }
 }

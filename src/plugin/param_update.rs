@@ -372,6 +372,66 @@ pub mod param_apply {
             PARAM_OSC2_UNISON_NORMALIZE => params.oscillators[1].unison_normalize = denorm > 0.5,
             PARAM_OSC3_UNISON_NORMALIZE => params.oscillators[2].unison_normalize = denorm > 0.5,
 
+            // New Effects - Phaser
+            PARAM_PHASER_RATE => params.effects.phaser.rate = denorm,
+            PARAM_PHASER_DEPTH => params.effects.phaser.depth = denorm,
+            PARAM_PHASER_FEEDBACK => params.effects.phaser.feedback = denorm,
+            PARAM_PHASER_MIX => params.effects.phaser.mix = denorm,
+
+            // New Effects - Flanger
+            PARAM_FLANGER_RATE => params.effects.flanger.rate = denorm,
+            PARAM_FLANGER_DEPTH => params.effects.flanger.depth = denorm,
+            PARAM_FLANGER_FEEDBACK => params.effects.flanger.feedback = denorm,
+            PARAM_FLANGER_MIX => params.effects.flanger.mix = denorm,
+
+            // New Effects - Tremolo
+            PARAM_TREMOLO_RATE => params.effects.tremolo.rate = denorm,
+            PARAM_TREMOLO_DEPTH => params.effects.tremolo.depth = denorm,
+
+            // New Effects - Auto-Pan
+            PARAM_AUTOPAN_RATE => params.effects.auto_pan.rate = denorm,
+            PARAM_AUTOPAN_DEPTH => params.effects.auto_pan.depth = denorm,
+
+            // New Effects - Comb Filter
+            PARAM_COMB_FREQUENCY => params.effects.comb_filter.frequency = denorm,
+            PARAM_COMB_FEEDBACK => params.effects.comb_filter.feedback = denorm,
+            PARAM_COMB_MIX => params.effects.comb_filter.mix = denorm,
+
+            // New Effects - Ring Modulator
+            PARAM_RINGMOD_FREQUENCY => params.effects.ring_mod.frequency = denorm,
+            PARAM_RINGMOD_DEPTH => params.effects.ring_mod.depth = denorm,
+
+            // New Effects - Compressor
+            PARAM_COMPRESSOR_THRESHOLD => params.effects.compressor.threshold = denorm,
+            PARAM_COMPRESSOR_RATIO => params.effects.compressor.ratio = denorm,
+            PARAM_COMPRESSOR_ATTACK => params.effects.compressor.attack = denorm,
+            PARAM_COMPRESSOR_RELEASE => params.effects.compressor.release = denorm,
+
+            // New Effects - Bitcrusher
+            PARAM_BITCRUSHER_RATE => params.effects.bitcrusher.sample_rate = denorm,
+            PARAM_BITCRUSHER_BITS => params.effects.bitcrusher.bit_depth = denorm.round() as u32,
+
+            // New Effects - Waveshaper
+            PARAM_WAVESHAPER_DRIVE => params.effects.waveshaper.drive = denorm,
+            PARAM_WAVESHAPER_MIX => params.effects.waveshaper.mix = denorm,
+
+            // Effect enable/disable toggles
+            PARAM_PHASER_ENABLED => params.effects.phaser.enabled = denorm > 0.5,
+            PARAM_FLANGER_ENABLED => params.effects.flanger.enabled = denorm > 0.5,
+            PARAM_TREMOLO_ENABLED => params.effects.tremolo.enabled = denorm > 0.5,
+            PARAM_AUTOPAN_ENABLED => params.effects.auto_pan.enabled = denorm > 0.5,
+            PARAM_COMB_ENABLED => params.effects.comb_filter.enabled = denorm > 0.5,
+            PARAM_RINGMOD_ENABLED => params.effects.ring_mod.enabled = denorm > 0.5,
+            PARAM_COMPRESSOR_ENABLED => params.effects.compressor.enabled = denorm > 0.5,
+            PARAM_BITCRUSHER_ENABLED => params.effects.bitcrusher.enabled = denorm > 0.5,
+            PARAM_WAVESHAPER_ENABLED => params.effects.waveshaper.enabled = denorm > 0.5,
+            PARAM_REVERB_ENABLED => params.effects.reverb.enabled = denorm > 0.5,
+            PARAM_DELAY_ENABLED => params.effects.delay.enabled = denorm > 0.5,
+            PARAM_CHORUS_ENABLED => params.effects.chorus.enabled = denorm > 0.5,
+            PARAM_DISTORTION_ENABLED => params.effects.distortion.enabled = denorm > 0.5,
+            PARAM_MB_DIST_ENABLED => params.effects.multiband_distortion.enabled = denorm > 0.5,
+            PARAM_WIDENER_ENABLED => params.effects.stereo_widener.enabled = denorm > 0.5,
+
             _ => {} // Unknown parameter, ignore
         }
     }
@@ -681,6 +741,66 @@ pub mod param_get {
                     0.0
                 }
             }
+
+            // New Effects - Phaser
+            PARAM_PHASER_RATE => params.effects.phaser.rate,
+            PARAM_PHASER_DEPTH => params.effects.phaser.depth,
+            PARAM_PHASER_FEEDBACK => params.effects.phaser.feedback,
+            PARAM_PHASER_MIX => params.effects.phaser.mix,
+
+            // New Effects - Flanger
+            PARAM_FLANGER_RATE => params.effects.flanger.rate,
+            PARAM_FLANGER_DEPTH => params.effects.flanger.depth,
+            PARAM_FLANGER_FEEDBACK => params.effects.flanger.feedback,
+            PARAM_FLANGER_MIX => params.effects.flanger.mix,
+
+            // New Effects - Tremolo
+            PARAM_TREMOLO_RATE => params.effects.tremolo.rate,
+            PARAM_TREMOLO_DEPTH => params.effects.tremolo.depth,
+
+            // New Effects - Auto-Pan
+            PARAM_AUTOPAN_RATE => params.effects.auto_pan.rate,
+            PARAM_AUTOPAN_DEPTH => params.effects.auto_pan.depth,
+
+            // New Effects - Comb Filter
+            PARAM_COMB_FREQUENCY => params.effects.comb_filter.frequency,
+            PARAM_COMB_FEEDBACK => params.effects.comb_filter.feedback,
+            PARAM_COMB_MIX => params.effects.comb_filter.mix,
+
+            // New Effects - Ring Modulator
+            PARAM_RINGMOD_FREQUENCY => params.effects.ring_mod.frequency,
+            PARAM_RINGMOD_DEPTH => params.effects.ring_mod.depth,
+
+            // New Effects - Compressor
+            PARAM_COMPRESSOR_THRESHOLD => params.effects.compressor.threshold,
+            PARAM_COMPRESSOR_RATIO => params.effects.compressor.ratio,
+            PARAM_COMPRESSOR_ATTACK => params.effects.compressor.attack,
+            PARAM_COMPRESSOR_RELEASE => params.effects.compressor.release,
+
+            // New Effects - Bitcrusher
+            PARAM_BITCRUSHER_RATE => params.effects.bitcrusher.sample_rate,
+            PARAM_BITCRUSHER_BITS => params.effects.bitcrusher.bit_depth as f32,
+
+            // New Effects - Waveshaper
+            PARAM_WAVESHAPER_DRIVE => params.effects.waveshaper.drive,
+            PARAM_WAVESHAPER_MIX => params.effects.waveshaper.mix,
+
+            // Effect enable/disable toggles
+            PARAM_PHASER_ENABLED => if params.effects.phaser.enabled { 1.0 } else { 0.0 },
+            PARAM_FLANGER_ENABLED => if params.effects.flanger.enabled { 1.0 } else { 0.0 },
+            PARAM_TREMOLO_ENABLED => if params.effects.tremolo.enabled { 1.0 } else { 0.0 },
+            PARAM_AUTOPAN_ENABLED => if params.effects.auto_pan.enabled { 1.0 } else { 0.0 },
+            PARAM_COMB_ENABLED => if params.effects.comb_filter.enabled { 1.0 } else { 0.0 },
+            PARAM_RINGMOD_ENABLED => if params.effects.ring_mod.enabled { 1.0 } else { 0.0 },
+            PARAM_COMPRESSOR_ENABLED => if params.effects.compressor.enabled { 1.0 } else { 0.0 },
+            PARAM_BITCRUSHER_ENABLED => if params.effects.bitcrusher.enabled { 1.0 } else { 0.0 },
+            PARAM_WAVESHAPER_ENABLED => if params.effects.waveshaper.enabled { 1.0 } else { 0.0 },
+            PARAM_REVERB_ENABLED => if params.effects.reverb.enabled { 1.0 } else { 0.0 },
+            PARAM_DELAY_ENABLED => if params.effects.delay.enabled { 1.0 } else { 0.0 },
+            PARAM_CHORUS_ENABLED => if params.effects.chorus.enabled { 1.0 } else { 0.0 },
+            PARAM_DISTORTION_ENABLED => if params.effects.distortion.enabled { 1.0 } else { 0.0 },
+            PARAM_MB_DIST_ENABLED => if params.effects.multiband_distortion.enabled { 1.0 } else { 0.0 },
+            PARAM_WIDENER_ENABLED => if params.effects.stereo_widener.enabled { 1.0 } else { 0.0 },
 
             _ => 0.0,
         }

@@ -224,6 +224,68 @@ pub const PARAM_WIDENER_WIDTH: ParamId = make_param_id(MODULE_EFFECTS, 26);
 pub const PARAM_WIDENER_MID_GAIN: ParamId = make_param_id(MODULE_EFFECTS, 27);
 pub const PARAM_WIDENER_SIDE_GAIN: ParamId = make_param_id(MODULE_EFFECTS, 28);
 
+// Phaser
+pub const PARAM_PHASER_RATE: ParamId = make_param_id(MODULE_EFFECTS, 29);
+pub const PARAM_PHASER_DEPTH: ParamId = make_param_id(MODULE_EFFECTS, 30);
+pub const PARAM_PHASER_FEEDBACK: ParamId = make_param_id(MODULE_EFFECTS, 31);
+pub const PARAM_PHASER_MIX: ParamId = make_param_id(MODULE_EFFECTS, 32);
+
+// Flanger
+pub const PARAM_FLANGER_RATE: ParamId = make_param_id(MODULE_EFFECTS, 33);
+pub const PARAM_FLANGER_DEPTH: ParamId = make_param_id(MODULE_EFFECTS, 34);
+pub const PARAM_FLANGER_FEEDBACK: ParamId = make_param_id(MODULE_EFFECTS, 35);
+pub const PARAM_FLANGER_MIX: ParamId = make_param_id(MODULE_EFFECTS, 36);
+
+// Tremolo
+pub const PARAM_TREMOLO_RATE: ParamId = make_param_id(MODULE_EFFECTS, 37);
+pub const PARAM_TREMOLO_DEPTH: ParamId = make_param_id(MODULE_EFFECTS, 38);
+
+// Auto-Pan
+pub const PARAM_AUTOPAN_RATE: ParamId = make_param_id(MODULE_EFFECTS, 39);
+pub const PARAM_AUTOPAN_DEPTH: ParamId = make_param_id(MODULE_EFFECTS, 40);
+
+// Comb Filter
+pub const PARAM_COMB_FREQUENCY: ParamId = make_param_id(MODULE_EFFECTS, 41);
+pub const PARAM_COMB_FEEDBACK: ParamId = make_param_id(MODULE_EFFECTS, 42);
+pub const PARAM_COMB_MIX: ParamId = make_param_id(MODULE_EFFECTS, 43);
+
+// Ring Modulator
+pub const PARAM_RINGMOD_FREQUENCY: ParamId = make_param_id(MODULE_EFFECTS, 44);
+pub const PARAM_RINGMOD_DEPTH: ParamId = make_param_id(MODULE_EFFECTS, 45);
+
+// Compressor
+pub const PARAM_COMPRESSOR_THRESHOLD: ParamId = make_param_id(MODULE_EFFECTS, 46);
+pub const PARAM_COMPRESSOR_RATIO: ParamId = make_param_id(MODULE_EFFECTS, 47);
+pub const PARAM_COMPRESSOR_ATTACK: ParamId = make_param_id(MODULE_EFFECTS, 48);
+pub const PARAM_COMPRESSOR_RELEASE: ParamId = make_param_id(MODULE_EFFECTS, 49);
+
+// Bitcrusher
+pub const PARAM_BITCRUSHER_RATE: ParamId = make_param_id(MODULE_EFFECTS, 50);
+pub const PARAM_BITCRUSHER_BITS: ParamId = make_param_id(MODULE_EFFECTS, 51);
+
+// Waveshaper
+pub const PARAM_WAVESHAPER_DRIVE: ParamId = make_param_id(MODULE_EFFECTS, 52);
+pub const PARAM_WAVESHAPER_MIX: ParamId = make_param_id(MODULE_EFFECTS, 53);
+
+// Effect enable/disable toggles (IDs 54-62)
+pub const PARAM_PHASER_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 54);
+pub const PARAM_FLANGER_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 55);
+pub const PARAM_TREMOLO_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 56);
+pub const PARAM_AUTOPAN_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 57);
+pub const PARAM_COMB_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 58);
+pub const PARAM_RINGMOD_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 59);
+pub const PARAM_COMPRESSOR_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 60);
+pub const PARAM_BITCRUSHER_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 61);
+pub const PARAM_WAVESHAPER_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 62);
+
+// Legacy effects enable/disable toggles (IDs 63-68)
+pub const PARAM_REVERB_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 63);
+pub const PARAM_DELAY_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 64);
+pub const PARAM_CHORUS_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 65);
+pub const PARAM_DISTORTION_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 66);
+pub const PARAM_MB_DIST_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 67);
+pub const PARAM_WIDENER_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 68);
+
 // Unison normalization toggles (per oscillator)
 pub const PARAM_OSC1_UNISON_NORMALIZE: ParamId = make_param_id(MODULE_OSC1, 22);
 pub const PARAM_OSC2_UNISON_NORMALIZE: ParamId = make_param_id(MODULE_OSC2, 22);
