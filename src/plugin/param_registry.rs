@@ -1177,15 +1177,7 @@ impl ParamRegistry {
         );
         add_param!(
             PARAM_PHASER_MIX,
-            ParamDescriptor::float(
-                PARAM_PHASER_MIX,
-                "Mix",
-                "Phaser",
-                0.0,
-                1.0,
-                0.5,
-                Some("")
-            )
+            ParamDescriptor::float(PARAM_PHASER_MIX, "Mix", "Phaser", 0.0, 1.0, 0.5, Some(""))
         );
 
         // Flanger parameters
@@ -1227,15 +1219,7 @@ impl ParamRegistry {
         );
         add_param!(
             PARAM_FLANGER_MIX,
-            ParamDescriptor::float(
-                PARAM_FLANGER_MIX,
-                "Mix",
-                "Flanger",
-                0.0,
-                1.0,
-                0.5,
-                Some("")
-            )
+            ParamDescriptor::float(PARAM_FLANGER_MIX, "Mix", "Flanger", 0.0, 1.0, 0.5, Some(""))
         );
 
         // Tremolo parameters
@@ -1419,14 +1403,7 @@ impl ParamRegistry {
         );
         add_param!(
             PARAM_BITCRUSHER_BITS,
-            ParamDescriptor::int(
-                PARAM_BITCRUSHER_BITS,
-                "Bit Depth",
-                "Bitcrusher",
-                1,
-                16,
-                16
-            )
+            ParamDescriptor::int(PARAM_BITCRUSHER_BITS, "Bit Depth", "Bitcrusher", 1, 16, 16)
         );
 
         // Waveshaper parameters
@@ -1458,122 +1435,57 @@ impl ParamRegistry {
         // Effect enable/disable toggles
         add_param!(
             PARAM_PHASER_ENABLED,
-            ParamDescriptor::bool(
-                PARAM_PHASER_ENABLED,
-                "Enabled",
-                "Phaser",
-                false
-            )
+            ParamDescriptor::bool(PARAM_PHASER_ENABLED, "Enabled", "Phaser", false)
         );
         add_param!(
             PARAM_FLANGER_ENABLED,
-            ParamDescriptor::bool(
-                PARAM_FLANGER_ENABLED,
-                "Enabled",
-                "Flanger",
-                false
-            )
+            ParamDescriptor::bool(PARAM_FLANGER_ENABLED, "Enabled", "Flanger", false)
         );
         add_param!(
             PARAM_TREMOLO_ENABLED,
-            ParamDescriptor::bool(
-                PARAM_TREMOLO_ENABLED,
-                "Enabled",
-                "Tremolo",
-                false
-            )
+            ParamDescriptor::bool(PARAM_TREMOLO_ENABLED, "Enabled", "Tremolo", false)
         );
         add_param!(
             PARAM_AUTOPAN_ENABLED,
-            ParamDescriptor::bool(
-                PARAM_AUTOPAN_ENABLED,
-                "Enabled",
-                "Auto-Pan",
-                false
-            )
+            ParamDescriptor::bool(PARAM_AUTOPAN_ENABLED, "Enabled", "Auto-Pan", false)
         );
         add_param!(
             PARAM_COMB_ENABLED,
-            ParamDescriptor::bool(
-                PARAM_COMB_ENABLED,
-                "Enabled",
-                "Comb Filter",
-                false
-            )
+            ParamDescriptor::bool(PARAM_COMB_ENABLED, "Enabled", "Comb Filter", false)
         );
         add_param!(
             PARAM_RINGMOD_ENABLED,
-            ParamDescriptor::bool(
-                PARAM_RINGMOD_ENABLED,
-                "Enabled",
-                "Ring Modulator",
-                false
-            )
+            ParamDescriptor::bool(PARAM_RINGMOD_ENABLED, "Enabled", "Ring Modulator", false)
         );
         add_param!(
             PARAM_COMPRESSOR_ENABLED,
-            ParamDescriptor::bool(
-                PARAM_COMPRESSOR_ENABLED,
-                "Enabled",
-                "Compressor",
-                false
-            )
+            ParamDescriptor::bool(PARAM_COMPRESSOR_ENABLED, "Enabled", "Compressor", false)
         );
         add_param!(
             PARAM_BITCRUSHER_ENABLED,
-            ParamDescriptor::bool(
-                PARAM_BITCRUSHER_ENABLED,
-                "Enabled",
-                "Bitcrusher",
-                false
-            )
+            ParamDescriptor::bool(PARAM_BITCRUSHER_ENABLED, "Enabled", "Bitcrusher", false)
         );
         add_param!(
             PARAM_WAVESHAPER_ENABLED,
-            ParamDescriptor::bool(
-                PARAM_WAVESHAPER_ENABLED,
-                "Enabled",
-                "Waveshaper",
-                false
-            )
+            ParamDescriptor::bool(PARAM_WAVESHAPER_ENABLED, "Enabled", "Waveshaper", false)
         );
 
         // Legacy effects enable/disable toggles
         add_param!(
             PARAM_REVERB_ENABLED,
-            ParamDescriptor::bool(
-                PARAM_REVERB_ENABLED,
-                "Enabled",
-                "Reverb",
-                false
-            )
+            ParamDescriptor::bool(PARAM_REVERB_ENABLED, "Enabled", "Reverb", false)
         );
         add_param!(
             PARAM_DELAY_ENABLED,
-            ParamDescriptor::bool(
-                PARAM_DELAY_ENABLED,
-                "Enabled",
-                "Delay",
-                false
-            )
+            ParamDescriptor::bool(PARAM_DELAY_ENABLED, "Enabled", "Delay", false)
         );
         add_param!(
             PARAM_CHORUS_ENABLED,
-            ParamDescriptor::bool(
-                PARAM_CHORUS_ENABLED,
-                "Enabled",
-                "Chorus",
-                false
-            )
+            ParamDescriptor::bool(PARAM_CHORUS_ENABLED, "Enabled", "Chorus", false)
         );
         add_param!(
             PARAM_DISTORTION_ENABLED,
-            ParamDescriptor::bool(
-                PARAM_DISTORTION_ENABLED,
-                "Enabled",
-                "Distortion",
-                false
-            )
+            ParamDescriptor::bool(PARAM_DISTORTION_ENABLED, "Enabled", "Distortion", false)
         );
         add_param!(
             PARAM_MB_DIST_ENABLED,
@@ -1586,12 +1498,7 @@ impl ParamRegistry {
         );
         add_param!(
             PARAM_WIDENER_ENABLED,
-            ParamDescriptor::bool(
-                PARAM_WIDENER_ENABLED,
-                "Enabled",
-                "Stereo Widener",
-                false
-            )
+            ParamDescriptor::bool(PARAM_WIDENER_ENABLED, "Enabled", "Stereo Widener", false)
         );
 
         // Wavetable parameters (Oscillator 1)
