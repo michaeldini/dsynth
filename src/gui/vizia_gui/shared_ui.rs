@@ -77,6 +77,18 @@ pub fn build_ui(cx: &mut Context) {
                     .padding(Pixels(10.0))
                     .gap(Pixels(6.0))
                     .background_color(Color::rgb(35, 35, 40));
+
+                    VStack::new(cx, |cx| {
+                        Label::new(cx, "Voice Compressor")
+                            .font_size(16.0)
+                            .color(Color::rgb(200, 200, 210))
+                            .height(Pixels(24.0));
+                        build_voice_compressor_section(cx);
+                    })
+                    .width(Stretch(1.0))
+                    .padding(Pixels(10.0))
+                    .gap(Pixels(6.0))
+                    .background_color(Color::rgb(35, 35, 40));
                 })
                 .gap(Pixels(COL_GAP))
                 .height(Pixels(125.0));
@@ -181,9 +193,11 @@ pub fn build_master_section(cx: &mut Context) {
         let gain = current_normalized(cx, PARAM_MASTER_GAIN);
         let gain_def = default_normalized(PARAM_MASTER_GAIN);
         let mono = current_normalized(cx, PARAM_MONOPHONIC);
+        let hard_sync = current_normalized(cx, PARAM_HARD_SYNC);
 
         param_knob(cx, PARAM_MASTER_GAIN, "Gain", gain, gain_def);
         param_checkbox(cx, PARAM_MONOPHONIC, "Mono", mono > 0.5);
+        param_checkbox(cx, PARAM_HARD_SYNC, "Hard Sync", hard_sync > 0.5);
 
         // Randomize button
         Button::new(cx, |cx| Label::new(cx, "🎲 Randomize"))
@@ -236,6 +250,64 @@ pub fn build_velocity_section(cx: &mut Context) {
             "Filter",
             filter_v,
             default_normalized(PARAM_VELOCITY_FILTER),
+        );
+    })
+    .height(Units::Auto)
+    .gap(Pixels(6.0));
+}
+
+pub fn build_voice_compressor_section(cx: &mut Context) {
+    HStack::new(cx, |cx| {
+        let enabled = current_normalized(cx, PARAM_VOICE_COMP_ENABLED);
+        let threshold = current_normalized(cx, PARAM_VOICE_COMP_THRESHOLD);
+        let ratio = current_normalized(cx, PARAM_VOICE_COMP_RATIO);
+        let attack = current_normalized(cx, PARAM_VOICE_COMP_ATTACK);
+        let release = current_normalized(cx, PARAM_VOICE_COMP_RELEASE);
+        let knee = current_normalized(cx, PARAM_VOICE_COMP_KNEE);
+        let makeup = current_normalized(cx, PARAM_VOICE_COMP_MAKEUP);
+
+        param_checkbox(cx, PARAM_VOICE_COMP_ENABLED, "On", enabled > 0.5);
+        param_knob(
+            cx,
+            PARAM_VOICE_COMP_THRESHOLD,
+            "Thresh",
+            threshold,
+            default_normalized(PARAM_VOICE_COMP_THRESHOLD),
+        );
+        param_knob(
+            cx,
+            PARAM_VOICE_COMP_RATIO,
+            "Ratio",
+            ratio,
+            default_normalized(PARAM_VOICE_COMP_RATIO),
+        );
+        param_knob(
+            cx,
+            PARAM_VOICE_COMP_ATTACK,
+            "Attack",
+            attack,
+            default_normalized(PARAM_VOICE_COMP_ATTACK),
+        );
+        param_knob(
+            cx,
+            PARAM_VOICE_COMP_RELEASE,
+            "Release",
+            release,
+            default_normalized(PARAM_VOICE_COMP_RELEASE),
+        );
+        param_knob(
+            cx,
+            PARAM_VOICE_COMP_KNEE,
+            "Knee",
+            knee,
+            default_normalized(PARAM_VOICE_COMP_KNEE),
+        );
+        param_knob(
+            cx,
+            PARAM_VOICE_COMP_MAKEUP,
+            "Makeup",
+            makeup,
+            default_normalized(PARAM_VOICE_COMP_MAKEUP),
         );
     })
     .height(Units::Auto)
@@ -566,7 +638,7 @@ pub fn build_wavetable_osc_section(cx: &mut Context, osc_index: usize) {
 }
 
 pub fn build_filter_section(cx: &mut Context, filter_index: usize) {
-    let (ft, cutoff, res, bw, kt, env_amt, env_att, env_dec, env_sus, env_rel) = match filter_index
+    let (ft, cutoff, res, bw, kt, drive, env_amt, env_att, env_dec, env_sus, env_rel) = match filter_index
     {
         1 => (
             PARAM_FILTER1_TYPE,
@@ -574,6 +646,7 @@ pub fn build_filter_section(cx: &mut Context, filter_index: usize) {
             PARAM_FILTER1_RESONANCE,
             PARAM_FILTER1_BANDWIDTH,
             PARAM_FILTER1_KEY_TRACKING,
+            PARAM_FILTER1_DRIVE,
             PARAM_FILTER1_ENV_AMOUNT,
             PARAM_FILTER1_ENV_ATTACK,
             PARAM_FILTER1_ENV_DECAY,
@@ -586,6 +659,7 @@ pub fn build_filter_section(cx: &mut Context, filter_index: usize) {
             PARAM_FILTER2_RESONANCE,
             PARAM_FILTER2_BANDWIDTH,
             PARAM_FILTER2_KEY_TRACKING,
+            PARAM_FILTER2_DRIVE,
             PARAM_FILTER2_ENV_AMOUNT,
             PARAM_FILTER2_ENV_ATTACK,
             PARAM_FILTER2_ENV_DECAY,
@@ -598,6 +672,7 @@ pub fn build_filter_section(cx: &mut Context, filter_index: usize) {
             PARAM_FILTER3_RESONANCE,
             PARAM_FILTER3_BANDWIDTH,
             PARAM_FILTER3_KEY_TRACKING,
+            PARAM_FILTER3_DRIVE,
             PARAM_FILTER3_ENV_AMOUNT,
             PARAM_FILTER3_ENV_ATTACK,
             PARAM_FILTER3_ENV_DECAY,
@@ -621,11 +696,13 @@ pub fn build_filter_section(cx: &mut Context, filter_index: usize) {
             let res_v = current_normalized(cx, res);
             let bw_v = current_normalized(cx, bw);
             let kt_v = current_normalized(cx, kt);
+            let drive_v = current_normalized(cx, drive);
 
             param_knob(cx, cutoff, "Cutoff", cutoff_v, default_normalized(cutoff));
             param_knob(cx, res, "Res", res_v, default_normalized(res));
             param_knob(cx, bw, "BW", bw_v, default_normalized(bw));
             param_knob(cx, kt, "KeyTrk", kt_v, default_normalized(kt));
+            param_knob(cx, drive, "Drive", drive_v, default_normalized(drive));
         })
         .height(Units::Auto)
         .gap(Pixels(6.0));
@@ -802,13 +879,16 @@ pub fn build_effects_section(cx: &mut Context) {
         .height(Pixels(150.0))
         .gap(Pixels(12.0));
 
-        // Row 5: Lo-fi effects (bitcrusher, waveshaper)
+        // Row 5: Lo-fi effects (bitcrusher, waveshaper, exciter)
         HStack::new(cx, |cx| {
             VStack::new(cx, |cx| build_bitcrusher_section(cx))
                 .width(Pixels(EFFECT_COL_WIDTH / 1.5))
                 .gap(Pixels(6.0));
             VStack::new(cx, |cx| build_waveshaper_section(cx))
                 .width(Pixels(EFFECT_COL_WIDTH / 1.5))
+                .gap(Pixels(6.0));
+            VStack::new(cx, |cx| build_exciter_section(cx))
+                .width(Pixels(EFFECT_COL_WIDTH + 30.0))
                 .gap(Pixels(6.0));
         })
         .height(Pixels(150.0))
@@ -1611,6 +1691,51 @@ pub fn build_waveshaper_section(cx: &mut Context) {
                 "Mix",
                 mix_v,
                 default_normalized(PARAM_WAVESHAPER_MIX),
+            );
+        })
+        .height(Units::Auto)
+        .gap(Pixels(6.0));
+    })
+    .gap(Pixels(6.0));
+}
+
+pub fn build_exciter_section(cx: &mut Context) {
+    VStack::new(cx, |cx| {
+        HStack::new(cx, |cx| {
+            Label::new(cx, "Exciter")
+                .font_size(14.0)
+                .color(Color::rgb(200, 200, 210))
+                .height(Pixels(22.0));
+            let enabled = current_normalized(cx, PARAM_EXCITER_ENABLED);
+            param_checkbox(cx, PARAM_EXCITER_ENABLED, "On", enabled > 0.5);
+        })
+        .gap(Pixels(8.0));
+
+        HStack::new(cx, |cx| {
+            let freq_v = current_normalized(cx, PARAM_EXCITER_FREQUENCY);
+            let drive_v = current_normalized(cx, PARAM_EXCITER_DRIVE);
+            let mix_v = current_normalized(cx, PARAM_EXCITER_MIX);
+
+            param_knob(
+                cx,
+                PARAM_EXCITER_FREQUENCY,
+                "Freq",
+                freq_v,
+                default_normalized(PARAM_EXCITER_FREQUENCY),
+            );
+            param_knob(
+                cx,
+                PARAM_EXCITER_DRIVE,
+                "Drive",
+                drive_v,
+                default_normalized(PARAM_EXCITER_DRIVE),
+            );
+            param_knob(
+                cx,
+                PARAM_EXCITER_MIX,
+                "Mix",
+                mix_v,
+                default_normalized(PARAM_EXCITER_MIX),
             );
         })
         .height(Units::Auto)

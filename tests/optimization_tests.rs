@@ -194,7 +194,7 @@ mod optimization_tests {
                 &osc_params,
                 &filter_params,
                 &lfo_params,
-                &Default::default(),
+                &Default::default(), false,
             );
         }
 
@@ -211,7 +211,7 @@ mod optimization_tests {
             &osc_params,
             &filter_params,
             &lfo_params,
-            &Default::default(),
+            &Default::default(), false,
         );
 
         assert!(true, "Unison count changes should work without panicking");
@@ -249,7 +249,7 @@ mod optimization_tests {
         let mut max_output: f32 = 0.0;
         for _ in 0..100 {
             let (left, right) =
-                voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+                voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params, false);
             let output = (left.abs() + right.abs()) / 2.0;
             max_output = max_output.max(output);
             assert!(
@@ -299,7 +299,7 @@ mod optimization_tests {
                 &osc_params,
                 &filter_params,
                 &lfo_params,
-                &Default::default(),
+                &Default::default(), false,
             );
         }
 
@@ -310,7 +310,7 @@ mod optimization_tests {
                 &osc_params,
                 &filter_params,
                 &lfo_params,
-                &Default::default(),
+                &Default::default(), false,
             );
             outputs.push((left + right) / 2.0);
         }
@@ -405,7 +405,7 @@ mod optimization_tests {
             let mut output_sum = 0.0;
             for _ in 0..100 {
                 let (left, right) =
-                    voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+                    voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params, false);
                 output_sum += (left.abs() + right.abs()) / 2.0;
                 assert!(
                     (left.is_finite() && right.is_finite()),

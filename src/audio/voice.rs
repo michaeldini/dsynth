@@ -45,7 +45,8 @@
 //! fragmentation, just constant-time processing.
 
 use crate::dsp::{envelope::Envelope, filter::BiquadFilter, lfo::LFO, oscillator::Oscillator};
-use crate::params::{EnvelopeParams, FilterParams, LFOParams, OscillatorParams, VelocityParams};
+use crate::dsp::effects::compressor::Compressor;
+use crate::params::{EnvelopeParams, FilterParams, LFOParams, OscillatorParams, VelocityParams, VoiceCompressorParams};
 
 /// Maximum number of unison voices per oscillator slot.
 ///
@@ -144,6 +145,22 @@ pub struct Voice {
     /// or auto-wah (modulating filter cutoff).
     lfos: [LFO; 3],
 
+    /// Per-voice compressor for transient control.
+    ///
+    /// Catches transients before they hit the master mix, providing dynamic control
+    /// at the individual voice level. Uses optimized mono compression with envelope
+    /// follower updating every 4 samples for CPU efficiency.
+    voice_compressor: Compressor,
+
+    /// Previous phase of oscillator 1 (for hard sync chain detection).
+    /// When Osc1's phase wraps from >1.0 to <1.0, we reset Osc2's phase to create
+    /// the bright, aggressive harmonics characteristic of hard sync.
+    osc1_phase_prev: f32,
+
+    /// Previous phase of oscillator 2 (for hard sync chain detection).
+    /// When Osc2's phase wraps, we reset Osc3's phase (sync chain: OSC1→OSC2→OSC3).
+    osc2_phase_prev: f32,
+
     /// RMS (Root Mean Square) squared exponential moving average.
     ///
     /// **Currently unused** in favor of peak amplitude tracking for performance.
@@ -238,11 +255,20 @@ impl Voice {
                 LFO::new(sample_rate),
                 LFO::new(sample_rate),
             ],
+            voice_compressor: Compressor::new(
+                sample_rate,
+                -12.0,  // threshold_db: Higher for catching transients
+                3.0,    // ratio: Moderate compression
+                1.0,    // attack_ms: Fast for transient control
+                50.0,   // release_ms: Quick release to avoid pumping
+            ),
             rms_squared_ema: 0.0,
             peak_amplitude: 0.0,
             last_output: 0.0,
             needs_dsp_reset_on_update: false,
             osc_outputs_prev: [0.0; 3],
+            osc1_phase_prev: 0.0, // Initialize hard sync phase tracking
+            osc2_phase_prev: 0.0, // Initialize hard sync chain tracking
         }
     }
 
@@ -583,6 +609,8 @@ impl Voice {
         filter_params: &[FilterParams; 3],
         lfo_params: &[LFOParams; 3],
         velocity_params: &VelocityParams,
+        hard_sync_enabled: bool,
+        voice_comp_params: &VoiceCompressorParams,
     ) -> (f32, f32) {
         // === STEP 1: Early exit for inactive voices ===
         // If this voice isn't producing sound, return silence immediately.
@@ -773,6 +801,58 @@ impl Voice {
 
             // Store the raw oscillator output (needed for FM routing)
             osc_outputs[i] = osc_out;
+
+            // === STEP 5c: Hard Sync Chain - OSC1→OSC2→OSC3 ===
+            // When hard sync is enabled, oscillators sync in a chain:
+            // - OSC1 resets OSC2's phase when OSC1 completes a cycle
+            // - OSC2 resets OSC3's phase when OSC2 completes a cycle
+            // This creates cascading harmonic complexity, similar to classic analog synths
+            // like the Sequential Prophet-5 and Moog Voyager.
+            //
+            // The sharp phase discontinuities generate bright, aggressive harmonics.
+            // Classic use case: EDM leads, aggressive bass, complex evolving timbres
+            // Example: All 3 oscillators slightly detuned → rich harmonic series
+            if hard_sync_enabled {
+                if i == 0 && self.active_unison[1] > 0 {
+                    // OSC1→OSC2 sync
+                    if let Some(ref osc1) = self.oscillators[0][0] {
+                        let current_phase = osc1.get_phase();
+
+                        // Detect wrap: previous phase was higher than current (e.g., 0.95 → 0.05)
+                        if self.osc1_phase_prev > current_phase {
+                            // Reset all Osc2 unison voices to phase 0.0
+                            for unison_idx in 0..self.active_unison[1] {
+                                if let Some(ref mut osc2) = self.oscillators[1][unison_idx] {
+                                    osc2.set_phase(0.0);
+                                    osc2.apply_initial_phase();
+                                }
+                            }
+                        }
+
+                        // Store current phase for next sample's comparison
+                        self.osc1_phase_prev = current_phase;
+                    }
+                } else if i == 1 && self.active_unison[2] > 0 {
+                    // OSC2→OSC3 sync
+                    if let Some(ref osc2) = self.oscillators[1][0] {
+                        let current_phase = osc2.get_phase();
+
+                        // Detect wrap: previous phase was higher than current
+                        if self.osc2_phase_prev > current_phase {
+                            // Reset all Osc3 unison voices to phase 0.0
+                            for unison_idx in 0..self.active_unison[2] {
+                                if let Some(ref mut osc3) = self.oscillators[2][unison_idx] {
+                                    osc3.set_phase(0.0);
+                                    osc3.apply_initial_phase();
+                                }
+                            }
+                        }
+
+                        // Store current phase for next sample's comparison
+                        self.osc2_phase_prev = current_phase;
+                    }
+                }
+            }
         }
 
         // Store outputs for next sample (enables feedback FM)
@@ -842,12 +922,27 @@ impl Voice {
                 + filter_env_values[i] * filter_params[i].envelope.amount)
                 .clamp(20.0, 20000.0);
 
-            // === STEP 6d: Update filter and apply to oscillator output ===
+            // === STEP 6d: Apply pre-filter drive (saturation) ===
+            // Pre-filter saturation adds warmth and presence by generating harmonics
+            // BEFORE filtering. This is key for "analog" sound and punch.
+            let driven_signal = if filter_params[i].drive > 0.001 {
+                // Map drive 0-1 to gain multiplier 1x-3x
+                let drive_gain = 1.0 + filter_params[i].drive * 2.0;
+                let amplified = osc_out * drive_gain;
+                // Soft saturation using tanh (tube-like warmth)
+                let saturated = amplified.tanh();
+                // Compensate for gain to maintain perceived level
+                saturated / drive_gain.sqrt()
+            } else {
+                osc_out
+            };
+
+            // === STEP 6e: Update filter and apply to driven signal ===
             self.filters[i].set_cutoff(modulated_cutoff);
             self.filters[i].set_bandwidth(filter_params[i].bandwidth);
-            let filtered = self.filters[i].process(osc_out);
+            let filtered = self.filters[i].process(driven_signal);
 
-            // === STEP 6e: Apply LFO pan modulation and stereo panning ===
+            // === STEP 6f: Apply LFO pan modulation and stereo panning ===
             // Pan: -1.0 (full left) to 1.0 (full right), 0.0 = center
             //
             // Apply LFO pan modulation first
@@ -939,7 +1034,24 @@ impl Voice {
         // Currently unused, but could be used for decay rate detection or debugging.
         self.last_output = (output_left + output_right) / 2.0;
 
-        // === STEP 8: Return stereo output pair ===
+        // === STEP 10: Apply per-voice compression (if enabled) ===
+        // Per-voice compression catches transients before they hit the master mix.
+        // Uses optimized mono compression with envelope follower updating every 4 samples
+        // for CPU efficiency across 16 simultaneous voices.
+        if voice_comp_params.enabled {
+            // Update compressor parameters
+            self.voice_compressor.set_threshold(voice_comp_params.threshold);
+            self.voice_compressor.set_ratio(voice_comp_params.ratio);
+            self.voice_compressor.set_attack(voice_comp_params.attack);
+            self.voice_compressor.set_release(voice_comp_params.release);
+            self.voice_compressor.set_knee(voice_comp_params.knee);
+            self.voice_compressor.set_makeup_gain(voice_comp_params.makeup_gain);
+            
+            // Apply fast mono compression
+            (output_left, output_right) = self.voice_compressor.process_fast(output_left, output_right);
+        }
+
+        // === STEP 11: Return stereo output pair ===
         (output_left, output_right)
     }
 
@@ -1234,8 +1346,13 @@ mod tests {
         // Attack is typically 10-100ms, so 1000 samples at 44.1kHz = ~22ms
         let mut found_nonzero = false;
         for _ in 0..1000 {
-            let (left, right) =
-                voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+            let (left, right) = voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &velocity_params,
+                false,
+            );
             if (left.abs() + right.abs()) / 2.0 > 0.001 {
                 found_nonzero = true;
                 break;
@@ -1276,7 +1393,13 @@ mod tests {
         // Process to sustain phase (5000 samples at 44.1kHz = ~113ms)
         // This should be enough to reach sustain for typical attack/decay times
         for _ in 0..5000 {
-            let _ = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+            let _ = voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &velocity_params,
+                false,
+            );
         }
 
         assert!(voice.is_active());
@@ -1289,7 +1412,13 @@ mod tests {
         // We allow longer to account for very long release settings
         let mut became_inactive = false;
         for _ in 0..20000 {
-            let _ = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+            let _ = voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &velocity_params,
+                false,
+            );
             if !voice.is_active() {
                 became_inactive = true;
                 break;
@@ -1319,8 +1448,13 @@ mod tests {
 
         // Inactive voice should produce zero without processing
         let mut voice_mut = voice;
-        let (left, right) =
-            voice_mut.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+        let (left, right) = voice_mut.process(
+            &osc_params,
+            &filter_params,
+            &lfo_params,
+            &velocity_params,
+            false,
+        );
         assert_eq!((left, right), (0.0, 0.0));
     }
 
@@ -1356,7 +1490,13 @@ mod tests {
         // Process enough samples for peak amplitude to update
         // Peak tracking happens per-sample, so 256 samples is plenty
         for _ in 0..256 {
-            let _ = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+            let _ = voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &velocity_params,
+                false,
+            );
         }
 
         // Peak amplitude should be non-zero for an active voice producing sound
@@ -1394,7 +1534,13 @@ mod tests {
         );
 
         for _ in 0..100 {
-            let _ = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+            let _ = voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &velocity_params,
+                false,
+            );
         }
 
         // Reset should clear all state
@@ -1440,14 +1586,32 @@ mod tests {
 
         // Process several samples and verify pitch modulation occurs
         // (frequency changes over time due to LFO)
-        let sample1 = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+        let sample1 = voice.process(
+            &osc_params,
+            &filter_params,
+            &lfo_params,
+            &velocity_params,
+            false,
+        );
 
         // Advance LFO by 1/4 period (should be near different LFO value)
         for _ in 0..(sample_rate as usize / (lfo_params[0].rate as usize * 4)) {
-            let _ = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+            let _ = voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &velocity_params,
+                false,
+            );
         }
 
-        let sample2 = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+        let sample2 = voice.process(
+            &osc_params,
+            &filter_params,
+            &lfo_params,
+            &velocity_params,
+            false,
+        );
 
         // With pitch modulation, the samples should differ significantly
         // (Note: exact values are hard to predict, but they shouldn't be identical)
@@ -1494,7 +1658,13 @@ mod tests {
         let mut samples = Vec::new();
 
         for _ in 0..num_samples {
-            let sample = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+            let sample = voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &velocity_params,
+                false,
+            );
             samples.push(sample.0.abs() + sample.1.abs()); // Sum L+R for amplitude
         }
 
@@ -1550,7 +1720,13 @@ mod tests {
         let mut found_right_bias = false;
 
         for _ in 0..(sample_rate as usize) {
-            let sample = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+            let sample = voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &velocity_params,
+                false,
+            );
 
             let left = sample.0.abs();
             let right = sample.1.abs();
@@ -1612,18 +1788,36 @@ mod tests {
         // (PWM creates characteristic harmonic variation)
         let mut samples1 = Vec::new();
         for _ in 0..100 {
-            let sample = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+            let sample = voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &velocity_params,
+                false,
+            );
             samples1.push(sample.0);
         }
 
         // Advance by 1/2 LFO period (opposite PWM phase)
         for _ in 0..((sample_rate / (lfo_params[0].rate * 2.0)) as usize) {
-            let _ = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+            let _ = voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &velocity_params,
+                false,
+            );
         }
 
         let mut samples2 = Vec::new();
         for _ in 0..100 {
-            let sample = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+            let sample = voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &velocity_params,
+                false,
+            );
             samples2.push(sample.0);
         }
 
@@ -1684,7 +1878,13 @@ mod tests {
         // Process samples - the 3 LFOs should create complex modulation
         let mut samples = Vec::new();
         for _ in 0..1000 {
-            let sample = voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params);
+            let sample = voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &velocity_params,
+                false,
+            );
             samples.push(sample.0);
         }
 
@@ -1750,10 +1950,20 @@ mod tests {
 
         // Process same number of samples on both voices
         for _ in 0..100 {
-            let sample1 =
-                voice1.process(&osc_params, &filter_params, &lfo_params1, &velocity_params);
-            let sample2 =
-                voice2.process(&osc_params, &filter_params, &lfo_params2, &velocity_params);
+            let sample1 = voice1.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params1,
+                &velocity_params,
+                false,
+            );
+            let sample2 = voice2.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params2,
+                &velocity_params,
+                false,
+            );
 
             // With routing amounts at 0.0, both voices should produce identical output
             assert_relative_eq!(sample1.0, sample2.0, epsilon = 0.001);

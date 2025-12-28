@@ -196,6 +196,17 @@ impl Oscillator {
         self.phase_increment = freq / self.oversample_rate;
     }
 
+    /// Get the current phase of the oscillator (0.0 to 1.0).
+    ///
+    /// Used for hard sync detection - when the master oscillator's phase wraps
+    /// from >1.0 back to <1.0, the slave oscillator's phase is reset.
+    ///
+    /// # Returns
+    /// Current phase value in the range [0.0, 1.0)
+    pub fn get_phase(&self) -> f32 {
+        self.phase
+    }
+
     /// Set the waveform type (sine, square, saw, triangle, or pulse).
     ///
     /// Different waveforms have different harmonic content and tonal characteristics.

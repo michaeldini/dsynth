@@ -100,6 +100,7 @@ pub mod param_apply {
             // Master
             PARAM_MASTER_GAIN => params.master_gain = denorm,
             PARAM_MONOPHONIC => params.monophonic = denorm > 0.5,
+            PARAM_HARD_SYNC => params.hard_sync_enabled = denorm > 0.5,
 
             // Oscillator 1
             PARAM_OSC1_WAVEFORM => {
@@ -261,6 +262,7 @@ pub mod param_apply {
             PARAM_FILTER1_ENV_SUSTAIN => params.filters[0].envelope.sustain = denorm,
             PARAM_FILTER1_ENV_RELEASE => params.filters[0].envelope.release = denorm,
             PARAM_FILTER1_ENV_AMOUNT => params.filters[0].envelope.amount = denorm,
+            PARAM_FILTER1_DRIVE => params.filters[0].drive = denorm,
 
             // Filter 2 Envelope
             PARAM_FILTER2_ENV_ATTACK => params.filters[1].envelope.attack = denorm,
@@ -268,6 +270,7 @@ pub mod param_apply {
             PARAM_FILTER2_ENV_SUSTAIN => params.filters[1].envelope.sustain = denorm,
             PARAM_FILTER2_ENV_RELEASE => params.filters[1].envelope.release = denorm,
             PARAM_FILTER2_ENV_AMOUNT => params.filters[1].envelope.amount = denorm,
+            PARAM_FILTER2_DRIVE => params.filters[1].drive = denorm,
 
             // Filter 3 Envelope
             PARAM_FILTER3_ENV_ATTACK => params.filters[2].envelope.attack = denorm,
@@ -275,6 +278,7 @@ pub mod param_apply {
             PARAM_FILTER3_ENV_SUSTAIN => params.filters[2].envelope.sustain = denorm,
             PARAM_FILTER3_ENV_RELEASE => params.filters[2].envelope.release = denorm,
             PARAM_FILTER3_ENV_AMOUNT => params.filters[2].envelope.amount = denorm,
+            PARAM_FILTER3_DRIVE => params.filters[2].drive = denorm,
 
             // LFOs
             PARAM_LFO1_WAVEFORM => {
@@ -415,6 +419,11 @@ pub mod param_apply {
             PARAM_WAVESHAPER_DRIVE => params.effects.waveshaper.drive = denorm,
             PARAM_WAVESHAPER_MIX => params.effects.waveshaper.mix = denorm,
 
+            // Exciter
+            PARAM_EXCITER_FREQUENCY => params.effects.exciter.frequency = denorm,
+            PARAM_EXCITER_DRIVE => params.effects.exciter.drive = denorm,
+            PARAM_EXCITER_MIX => params.effects.exciter.mix = denorm,
+
             // Effect enable/disable toggles
             PARAM_PHASER_ENABLED => params.effects.phaser.enabled = denorm > 0.5,
             PARAM_FLANGER_ENABLED => params.effects.flanger.enabled = denorm > 0.5,
@@ -425,12 +434,22 @@ pub mod param_apply {
             PARAM_COMPRESSOR_ENABLED => params.effects.compressor.enabled = denorm > 0.5,
             PARAM_BITCRUSHER_ENABLED => params.effects.bitcrusher.enabled = denorm > 0.5,
             PARAM_WAVESHAPER_ENABLED => params.effects.waveshaper.enabled = denorm > 0.5,
+            PARAM_EXCITER_ENABLED => params.effects.exciter.enabled = denorm > 0.5,
             PARAM_REVERB_ENABLED => params.effects.reverb.enabled = denorm > 0.5,
             PARAM_DELAY_ENABLED => params.effects.delay.enabled = denorm > 0.5,
             PARAM_CHORUS_ENABLED => params.effects.chorus.enabled = denorm > 0.5,
             PARAM_DISTORTION_ENABLED => params.effects.distortion.enabled = denorm > 0.5,
             PARAM_MB_DIST_ENABLED => params.effects.multiband_distortion.enabled = denorm > 0.5,
             PARAM_WIDENER_ENABLED => params.effects.stereo_widener.enabled = denorm > 0.5,
+
+            // Voice Compressor parameters
+            PARAM_VOICE_COMP_ENABLED => params.voice_compressor.enabled = denorm > 0.5,
+            PARAM_VOICE_COMP_THRESHOLD => params.voice_compressor.threshold = denorm,
+            PARAM_VOICE_COMP_RATIO => params.voice_compressor.ratio = denorm,
+            PARAM_VOICE_COMP_ATTACK => params.voice_compressor.attack = denorm,
+            PARAM_VOICE_COMP_RELEASE => params.voice_compressor.release = denorm,
+            PARAM_VOICE_COMP_KNEE => params.voice_compressor.knee = denorm,
+            PARAM_VOICE_COMP_MAKEUP => params.voice_compressor.makeup_gain = denorm,
 
             _ => {} // Unknown parameter, ignore
         }
@@ -507,6 +526,13 @@ pub mod param_get {
             PARAM_MASTER_GAIN => params.master_gain,
             PARAM_MONOPHONIC => {
                 if params.monophonic {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_HARD_SYNC => {
+                if params.hard_sync_enabled {
                     1.0
                 } else {
                     0.0
@@ -627,18 +653,36 @@ pub mod param_get {
             PARAM_FILTER1_RESONANCE => params.filters[0].resonance,
             PARAM_FILTER1_BANDWIDTH => params.filters[0].bandwidth,
             PARAM_FILTER1_KEY_TRACKING => params.filters[0].key_tracking,
+            PARAM_FILTER1_ENV_ATTACK => params.filters[0].envelope.attack,
+            PARAM_FILTER1_ENV_DECAY => params.filters[0].envelope.decay,
+            PARAM_FILTER1_ENV_SUSTAIN => params.filters[0].envelope.sustain,
+            PARAM_FILTER1_ENV_RELEASE => params.filters[0].envelope.release,
+            PARAM_FILTER1_ENV_AMOUNT => params.filters[0].envelope.amount,
+            PARAM_FILTER1_DRIVE => params.filters[0].drive,
 
             PARAM_FILTER2_TYPE => filter_type_to_denorm(params.filters[1].filter_type),
             PARAM_FILTER2_CUTOFF => params.filters[1].cutoff,
             PARAM_FILTER2_RESONANCE => params.filters[1].resonance,
             PARAM_FILTER2_BANDWIDTH => params.filters[1].bandwidth,
             PARAM_FILTER2_KEY_TRACKING => params.filters[1].key_tracking,
+            PARAM_FILTER2_ENV_ATTACK => params.filters[1].envelope.attack,
+            PARAM_FILTER2_ENV_DECAY => params.filters[1].envelope.decay,
+            PARAM_FILTER2_ENV_SUSTAIN => params.filters[1].envelope.sustain,
+            PARAM_FILTER2_ENV_RELEASE => params.filters[1].envelope.release,
+            PARAM_FILTER2_ENV_AMOUNT => params.filters[1].envelope.amount,
+            PARAM_FILTER2_DRIVE => params.filters[1].drive,
 
             PARAM_FILTER3_TYPE => filter_type_to_denorm(params.filters[2].filter_type),
             PARAM_FILTER3_CUTOFF => params.filters[2].cutoff,
             PARAM_FILTER3_RESONANCE => params.filters[2].resonance,
             PARAM_FILTER3_BANDWIDTH => params.filters[2].bandwidth,
             PARAM_FILTER3_KEY_TRACKING => params.filters[2].key_tracking,
+            PARAM_FILTER3_ENV_ATTACK => params.filters[2].envelope.attack,
+            PARAM_FILTER3_ENV_DECAY => params.filters[2].envelope.decay,
+            PARAM_FILTER3_ENV_SUSTAIN => params.filters[2].envelope.sustain,
+            PARAM_FILTER3_ENV_RELEASE => params.filters[2].envelope.release,
+            PARAM_FILTER3_ENV_AMOUNT => params.filters[2].envelope.amount,
+            PARAM_FILTER3_DRIVE => params.filters[2].drive,
 
             // LFOs
             PARAM_LFO1_WAVEFORM => lfo_waveform_to_denorm(params.lfos[0].waveform),
@@ -785,22 +829,139 @@ pub mod param_get {
             PARAM_WAVESHAPER_DRIVE => params.effects.waveshaper.drive,
             PARAM_WAVESHAPER_MIX => params.effects.waveshaper.mix,
 
+            // Exciter
+            PARAM_EXCITER_FREQUENCY => params.effects.exciter.frequency,
+            PARAM_EXCITER_DRIVE => params.effects.exciter.drive,
+            PARAM_EXCITER_MIX => params.effects.exciter.mix,
+
             // Effect enable/disable toggles
-            PARAM_PHASER_ENABLED => if params.effects.phaser.enabled { 1.0 } else { 0.0 },
-            PARAM_FLANGER_ENABLED => if params.effects.flanger.enabled { 1.0 } else { 0.0 },
-            PARAM_TREMOLO_ENABLED => if params.effects.tremolo.enabled { 1.0 } else { 0.0 },
-            PARAM_AUTOPAN_ENABLED => if params.effects.auto_pan.enabled { 1.0 } else { 0.0 },
-            PARAM_COMB_ENABLED => if params.effects.comb_filter.enabled { 1.0 } else { 0.0 },
-            PARAM_RINGMOD_ENABLED => if params.effects.ring_mod.enabled { 1.0 } else { 0.0 },
-            PARAM_COMPRESSOR_ENABLED => if params.effects.compressor.enabled { 1.0 } else { 0.0 },
-            PARAM_BITCRUSHER_ENABLED => if params.effects.bitcrusher.enabled { 1.0 } else { 0.0 },
-            PARAM_WAVESHAPER_ENABLED => if params.effects.waveshaper.enabled { 1.0 } else { 0.0 },
-            PARAM_REVERB_ENABLED => if params.effects.reverb.enabled { 1.0 } else { 0.0 },
-            PARAM_DELAY_ENABLED => if params.effects.delay.enabled { 1.0 } else { 0.0 },
-            PARAM_CHORUS_ENABLED => if params.effects.chorus.enabled { 1.0 } else { 0.0 },
-            PARAM_DISTORTION_ENABLED => if params.effects.distortion.enabled { 1.0 } else { 0.0 },
-            PARAM_MB_DIST_ENABLED => if params.effects.multiband_distortion.enabled { 1.0 } else { 0.0 },
-            PARAM_WIDENER_ENABLED => if params.effects.stereo_widener.enabled { 1.0 } else { 0.0 },
+            PARAM_PHASER_ENABLED => {
+                if params.effects.phaser.enabled {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_FLANGER_ENABLED => {
+                if params.effects.flanger.enabled {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_TREMOLO_ENABLED => {
+                if params.effects.tremolo.enabled {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_AUTOPAN_ENABLED => {
+                if params.effects.auto_pan.enabled {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_COMB_ENABLED => {
+                if params.effects.comb_filter.enabled {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_RINGMOD_ENABLED => {
+                if params.effects.ring_mod.enabled {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_COMPRESSOR_ENABLED => {
+                if params.effects.compressor.enabled {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_BITCRUSHER_ENABLED => {
+                if params.effects.bitcrusher.enabled {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_WAVESHAPER_ENABLED => {
+                if params.effects.waveshaper.enabled {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_EXCITER_ENABLED => {
+                if params.effects.exciter.enabled {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_REVERB_ENABLED => {
+                if params.effects.reverb.enabled {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_DELAY_ENABLED => {
+                if params.effects.delay.enabled {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_CHORUS_ENABLED => {
+                if params.effects.chorus.enabled {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_DISTORTION_ENABLED => {
+                if params.effects.distortion.enabled {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_MB_DIST_ENABLED => {
+                if params.effects.multiband_distortion.enabled {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_WIDENER_ENABLED => {
+                if params.effects.stereo_widener.enabled {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+
+            // Voice Compressor parameters
+            PARAM_VOICE_COMP_ENABLED => {
+                if params.voice_compressor.enabled {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_VOICE_COMP_THRESHOLD => params.voice_compressor.threshold,
+            PARAM_VOICE_COMP_RATIO => params.voice_compressor.ratio,
+            PARAM_VOICE_COMP_ATTACK => params.voice_compressor.attack,
+            PARAM_VOICE_COMP_RELEASE => params.voice_compressor.release,
+            PARAM_VOICE_COMP_KNEE => params.voice_compressor.knee,
+            PARAM_VOICE_COMP_MAKEUP => params.voice_compressor.makeup_gain,
 
             _ => 0.0,
         }

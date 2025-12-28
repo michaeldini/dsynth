@@ -100,6 +100,8 @@ pub struct FilterParams {
     pub bandwidth: f32,    // Bandwidth in octaves for bandpass (0.1 to 4.0)
     pub key_tracking: f32, // Key tracking amount (0.0 to 1.0)
     pub envelope: FilterEnvelopeParams,
+    #[serde(default)]
+    pub drive: f32, // Pre-filter saturation drive (0.0 to 1.0)
 }
 
 impl Default for FilterParams {
@@ -111,6 +113,7 @@ impl Default for FilterParams {
             bandwidth: 1.0, // 1 octave for bandpass
             key_tracking: 0.0,
             envelope: FilterEnvelopeParams::default(),
+            drive: 0.0, // Default: no pre-filter saturation
         }
     }
 }
@@ -552,8 +555,8 @@ pub struct CompressorParams {
     pub enabled: bool,
     pub threshold: f32, // Threshold in dB (-60.0 to 0.0)
     pub ratio: f32,     // Compression ratio (1.0 to 20.0)
-    pub attack: f32,    // Attack time in seconds (0.001 to 0.1)
-    pub release: f32,   // Release time in seconds (0.01 to 1.0)
+    pub attack: f32,    // Attack time in milliseconds
+    pub release: f32,   // Release time in milliseconds
 }
 
 impl Default for CompressorParams {
@@ -564,6 +567,32 @@ impl Default for CompressorParams {
             ratio: 4.0,
             attack: 10.0,
             release: 100.0,
+        }
+    }
+}
+
+/// Voice-level compressor parameters (optimized for transient control)
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct VoiceCompressorParams {
+    pub enabled: bool,
+    pub threshold: f32, // Threshold in dB (-60.0 to 0.0)
+    pub ratio: f32,     // Compression ratio (1.0 to 20.0)
+    pub attack: f32,    // Attack time in milliseconds (0.1 to 50.0)
+    pub release: f32,   // Release time in milliseconds (10.0 to 200.0)
+    pub knee: f32,      // Knee width in dB (0.0 to 20.0)
+    pub makeup_gain: f32, // Makeup gain in dB (0.0 to 30.0)
+}
+
+impl Default for VoiceCompressorParams {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            threshold: -12.0, // Higher threshold for catching transients
+            ratio: 3.0,       // Moderate compression
+            attack: 1.0,      // Fast attack for transient control
+            release: 50.0,    // Quick release to avoid pumping
+            knee: 3.0,        // Soft knee for smooth compression
+            makeup_gain: 0.0, // No makeup gain by default
         }
     }
 }
@@ -604,6 +633,26 @@ impl Default for WaveshaperParams {
     }
 }
 
+/// Exciter parameters - adds "air" and presence to high frequencies
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct ExciterParams {
+    pub enabled: bool,
+    pub frequency: f32, // High-pass cutoff (2000.0 to 12000.0 Hz)
+    pub drive: f32,     // Harmonic drive amount (0.0 to 1.0)
+    pub mix: f32,       // Wet/dry mix (0.0 to 1.0)
+}
+
+impl Default for ExciterParams {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            frequency: 5000.0,
+            drive: 0.5,
+            mix: 0.3,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct EffectsParams {
     pub reverb: ReverbParams,
@@ -632,6 +681,8 @@ pub struct EffectsParams {
     pub bitcrusher: BitcrusherParams,
     #[serde(default)]
     pub waveshaper: WaveshaperParams,
+    #[serde(default)]
+    pub exciter: ExciterParams,
 }
 
 impl Default for EffectsParams {
@@ -652,6 +703,7 @@ impl Default for EffectsParams {
             compressor: CompressorParams::default(),
             bitcrusher: BitcrusherParams::default(),
             waveshaper: WaveshaperParams::default(),
+            exciter: ExciterParams::default(),
         }
     }
 }
@@ -666,8 +718,12 @@ pub struct SynthParams {
     pub velocity: VelocityParams,
     #[serde(default)]
     pub effects: EffectsParams,
+    #[serde(default)]
+    pub voice_compressor: VoiceCompressorParams,
     pub master_gain: f32, // 0.0 to 1.0
     pub monophonic: bool, // Monophonic mode - only one note at a time
+    #[serde(default)]
+    pub hard_sync_enabled: bool, // Hard sync chain: OSC1→OSC2→OSC3 for bright harmonics
 }
 
 impl Default for SynthParams {
@@ -691,8 +747,10 @@ impl Default for SynthParams {
             envelope: EnvelopeParams::default(),
             velocity: VelocityParams::default(),
             effects: EffectsParams::default(),
+            voice_compressor: VoiceCompressorParams::default(),
             master_gain: 0.85, // Higher default to utilize headroom (was 0.5 = -6dB)
             monophonic: false,
+            hard_sync_enabled: false, // Hard sync disabled by default
         }
     }
 }

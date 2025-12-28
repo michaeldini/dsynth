@@ -1,7 +1,8 @@
 use crate::audio::voice::Voice;
 use crate::dsp::effects::{
-    AutoPan, Bitcrusher, Chorus, CombFilter, Compressor, Distortion, Flanger, MultibandDistortion,
-    Phaser, Reverb, RingModulator, StereoDelay, StereoWidener, Tremolo, Waveshaper,
+    AutoPan, Bitcrusher, Chorus, CombFilter, Compressor, Distortion, Exciter, Flanger,
+    MultibandDistortion, Phaser, Reverb, RingModulator, StereoDelay, StereoWidener, Tremolo,
+    Waveshaper,
 };
 use crate::dsp::wavetable_library::WavetableLibrary;
 use crate::params::SynthParams;
@@ -119,6 +120,7 @@ pub struct SynthEngine {
     compressor: Compressor,
     bitcrusher: Bitcrusher,
     waveshaper: Waveshaper,
+    exciter: Exciter,
 
     /// Wavetable library for wavetable synthesis
     wavetable_library: WavetableLibrary,
@@ -193,6 +195,7 @@ impl SynthEngine {
             compressor: Compressor::new(sample_rate, -20.0, 4.0, 10.0, 100.0),
             bitcrusher: Bitcrusher::new(sample_rate, sample_rate, 16),
             waveshaper: Waveshaper::new(crate::dsp::effects::waveshaper::Algorithm::SoftClip, 1.0),
+            exciter: Exciter::new(sample_rate),
 
             wavetable_library,
         }
@@ -339,6 +342,11 @@ impl SynthEngine {
         // Update waveshaper
         self.waveshaper.set_drive(effects.waveshaper.drive);
         self.waveshaper.set_mix(effects.waveshaper.mix);
+
+        // Update exciter
+        self.exciter.set_frequency(effects.exciter.frequency);
+        self.exciter.set_drive(effects.exciter.drive);
+        self.exciter.set_mix(effects.exciter.mix);
     }
 
     #[inline]
@@ -388,6 +396,8 @@ impl SynthEngine {
                 &self.current_params.filters,
                 &self.current_params.lfos,
                 &self.current_params.velocity,
+                self.current_params.hard_sync_enabled,
+                &self.current_params.voice_compressor,
             );
             output_left += left;
             output_right += right;
@@ -422,6 +432,9 @@ impl SynthEngine {
         }
         if self.current_params.effects.waveshaper.enabled {
             (out_l, out_r) = self.waveshaper.process(out_l, out_r);
+        }
+        if self.current_params.effects.exciter.enabled {
+            (out_l, out_r) = self.exciter.process(out_l, out_r);
         }
         if self.current_params.effects.bitcrusher.enabled {
             (out_l, out_r) = self.bitcrusher.process(out_l, out_r);

@@ -59,6 +59,10 @@ impl ParamRegistry {
             PARAM_MONOPHONIC,
             ParamDescriptor::bool(PARAM_MONOPHONIC, "Monophonic", "Master", false)
         );
+        add_param!(
+            PARAM_HARD_SYNC,
+            ParamDescriptor::bool(PARAM_HARD_SYNC, "Hard Sync (1→2→3)", "Master", false)
+        );
 
         // Oscillator 1
         add_param!(
@@ -640,6 +644,11 @@ impl ParamRegistry {
                     0.0,
                     Some("Hz")
                 )
+            );
+
+            add_param!(
+                base_id + 10,
+                ParamDescriptor::float(base_id + 10, "Drive", &module, 0.0, 1.0, 0.0, Some("%"))
             );
         }
 
@@ -1470,6 +1479,48 @@ impl ParamRegistry {
             ParamDescriptor::bool(PARAM_WAVESHAPER_ENABLED, "Enabled", "Waveshaper", false)
         );
 
+        // Exciter
+        add_param!(
+            PARAM_EXCITER_FREQUENCY,
+            ParamDescriptor::float_log(
+                PARAM_EXCITER_FREQUENCY,
+                "Frequency",
+                "Exciter",
+                2000.0,
+                12000.0,
+                5000.0,
+                Some("Hz")
+            )
+        );
+        add_param!(
+            PARAM_EXCITER_DRIVE,
+            ParamDescriptor::float(
+                PARAM_EXCITER_DRIVE,
+                "Drive",
+                "Exciter",
+                0.0,
+                1.0,
+                0.5,
+                Some("%")
+            )
+        );
+        add_param!(
+            PARAM_EXCITER_MIX,
+            ParamDescriptor::float(
+                PARAM_EXCITER_MIX,
+                "Mix",
+                "Exciter",
+                0.0,
+                1.0,
+                0.3,
+                Some("%")
+            )
+        );
+        add_param!(
+            PARAM_EXCITER_ENABLED,
+            ParamDescriptor::bool(PARAM_EXCITER_ENABLED, "Enabled", "Exciter", false)
+        );
+
         // Legacy effects enable/disable toggles
         add_param!(
             PARAM_REVERB_ENABLED,
@@ -1499,6 +1550,84 @@ impl ParamRegistry {
         add_param!(
             PARAM_WIDENER_ENABLED,
             ParamDescriptor::bool(PARAM_WIDENER_ENABLED, "Enabled", "Stereo Widener", false)
+        );
+
+        // Voice Compressor parameters (per-voice transient control)
+        add_param!(
+            PARAM_VOICE_COMP_ENABLED,
+            ParamDescriptor::bool(PARAM_VOICE_COMP_ENABLED, "Enabled", "Voice Compressor", false)
+        );
+        add_param!(
+            PARAM_VOICE_COMP_THRESHOLD,
+            ParamDescriptor::float(
+                PARAM_VOICE_COMP_THRESHOLD,
+                "Threshold",
+                "Voice Compressor",
+                -60.0,
+                0.0,
+                -12.0,
+                Some("dB")
+            )
+        );
+        add_param!(
+            PARAM_VOICE_COMP_RATIO,
+            ParamDescriptor::float(
+                PARAM_VOICE_COMP_RATIO,
+                "Ratio",
+                "Voice Compressor",
+                1.0,
+                20.0,
+                3.0,
+                Some(":1")
+            )
+        );
+        add_param!(
+            PARAM_VOICE_COMP_ATTACK,
+            ParamDescriptor::float_log(
+                PARAM_VOICE_COMP_ATTACK,
+                "Attack",
+                "Voice Compressor",
+                0.1,
+                50.0,
+                1.0,
+                Some("ms")
+            )
+        );
+        add_param!(
+            PARAM_VOICE_COMP_RELEASE,
+            ParamDescriptor::float_log(
+                PARAM_VOICE_COMP_RELEASE,
+                "Release",
+                "Voice Compressor",
+                10.0,
+                200.0,
+                50.0,
+                Some("ms")
+            )
+        );
+        add_param!(
+            PARAM_VOICE_COMP_KNEE,
+            ParamDescriptor::float(
+                PARAM_VOICE_COMP_KNEE,
+                "Knee",
+                "Voice Compressor",
+                0.0,
+                20.0,
+                3.0,
+                Some("dB")
+            )
+        );
+        add_param!(
+            PARAM_VOICE_COMP_MAKEUP,
+            ParamDescriptor::float(
+                PARAM_VOICE_COMP_MAKEUP,
+                "Makeup Gain",
+                "Voice Compressor",
+                0.0,
+                30.0,
+                0.0,
+                Some("dB")
+            )
         );
 
         // Wavetable parameters (Oscillator 1)

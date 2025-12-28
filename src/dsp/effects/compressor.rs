@@ -34,6 +34,12 @@ pub struct Compressor {
     
     /// Release coefficient (calculated from release time)
     release_coeff: f32,
+    
+    /// Sample counter for process_fast() throttling
+    sample_counter: usize,
+    
+    /// Cached envelope value for mono compression
+    envelope_mono: f32,
 }
 
 impl Compressor {
@@ -64,6 +70,8 @@ impl Compressor {
             envelope_right: 0.0,
             attack_coeff: 0.0,
             release_coeff: 0.0,
+            sample_counter: 0,
+            envelope_mono: 0.0,
         };
         
         compressor.update_coefficients();
@@ -179,6 +187,43 @@ impl Compressor {
     pub fn reset(&mut self) {
         self.envelope_left = 0.0;
         self.envelope_right = 0.0;
+        self.envelope_mono = 0.0;
+        self.sample_counter = 0;
+    }
+    
+    /// Process a stereo sample with optimized mono compression (for per-voice use)
+    /// 
+    /// Uses mono envelope follower (max of left/right) and processes envelope every 4 samples
+    /// for CPU efficiency. Applies identical gain reduction to both channels.
+    /// 
+    /// This is optimized for per-voice compression where 16 instances run simultaneously.
+    /// The envelope follower updates every 4 samples (~11kHz at 44.1kHz = imperceptible for transients).
+    pub fn process_fast(&mut self, left: f32, right: f32) -> (f32, f32) {
+        // Update envelope follower every 4 samples to reduce CPU usage
+        if self.sample_counter % 4 == 0 {
+            // Mono compression: use max of both channels for envelope detection
+            let input_peak = left.abs().max(right.abs()).max(0.000001);
+            let input_db = Self::amp_to_db(input_peak);
+            
+            // Envelope follower with attack/release smoothing
+            self.envelope_mono = if input_db > self.envelope_mono {
+                self.attack_coeff * self.envelope_mono + (1.0 - self.attack_coeff) * input_db
+            } else {
+                self.release_coeff * self.envelope_mono + (1.0 - self.release_coeff) * input_db
+            };
+        }
+        
+        self.sample_counter = self.sample_counter.wrapping_add(1);
+        
+        // Calculate gain reduction from cached envelope
+        let gain_reduction = self.calculate_gain_reduction(self.envelope_mono);
+        
+        // Apply identical gain reduction to both channels (mono compression)
+        let makeup = Self::db_to_amp(self.makeup_gain_db);
+        let output_left = left * gain_reduction * makeup;
+        let output_right = right * gain_reduction * makeup;
+        
+        (output_left, output_right)
     }
 }
 

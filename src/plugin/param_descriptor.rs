@@ -31,6 +31,7 @@ const MODULE_LFO3: u8 = 0x09;
 const MODULE_ENVELOPE: u8 = 0x0A;
 const MODULE_VELOCITY: u8 = 0x0B;
 const MODULE_EFFECTS: u8 = 0x0C;
+const MODULE_VOICE: u8 = 0x0D; // Voice-level parameters (per-voice compressor)
 
 // Helper function to create parameter IDs
 const fn make_param_id(module: u8, index: u32) -> ParamId {
@@ -40,6 +41,7 @@ const fn make_param_id(module: u8, index: u32) -> ParamId {
 // Master parameters
 pub const PARAM_MASTER_GAIN: ParamId = make_param_id(MODULE_MASTER, 0);
 pub const PARAM_MONOPHONIC: ParamId = make_param_id(MODULE_MASTER, 1);
+pub const PARAM_HARD_SYNC: ParamId = make_param_id(MODULE_MASTER, 2);
 
 // Oscillator 1
 pub const PARAM_OSC1_WAVEFORM: ParamId = make_param_id(MODULE_OSC1, 0);
@@ -124,6 +126,7 @@ pub const PARAM_FILTER1_ENV_DECAY: ParamId = make_param_id(MODULE_FILTER1, 6);
 pub const PARAM_FILTER1_ENV_SUSTAIN: ParamId = make_param_id(MODULE_FILTER1, 7);
 pub const PARAM_FILTER1_ENV_RELEASE: ParamId = make_param_id(MODULE_FILTER1, 8);
 pub const PARAM_FILTER1_ENV_AMOUNT: ParamId = make_param_id(MODULE_FILTER1, 9);
+pub const PARAM_FILTER1_DRIVE: ParamId = make_param_id(MODULE_FILTER1, 10);
 
 // Filter 2
 pub const PARAM_FILTER2_TYPE: ParamId = make_param_id(MODULE_FILTER2, 0);
@@ -136,6 +139,7 @@ pub const PARAM_FILTER2_ENV_DECAY: ParamId = make_param_id(MODULE_FILTER2, 6);
 pub const PARAM_FILTER2_ENV_SUSTAIN: ParamId = make_param_id(MODULE_FILTER2, 7);
 pub const PARAM_FILTER2_ENV_RELEASE: ParamId = make_param_id(MODULE_FILTER2, 8);
 pub const PARAM_FILTER2_ENV_AMOUNT: ParamId = make_param_id(MODULE_FILTER2, 9);
+pub const PARAM_FILTER2_DRIVE: ParamId = make_param_id(MODULE_FILTER2, 10);
 
 // Filter 3
 pub const PARAM_FILTER3_TYPE: ParamId = make_param_id(MODULE_FILTER3, 0);
@@ -148,6 +152,7 @@ pub const PARAM_FILTER3_ENV_DECAY: ParamId = make_param_id(MODULE_FILTER3, 6);
 pub const PARAM_FILTER3_ENV_SUSTAIN: ParamId = make_param_id(MODULE_FILTER3, 7);
 pub const PARAM_FILTER3_ENV_RELEASE: ParamId = make_param_id(MODULE_FILTER3, 8);
 pub const PARAM_FILTER3_ENV_AMOUNT: ParamId = make_param_id(MODULE_FILTER3, 9);
+pub const PARAM_FILTER3_DRIVE: ParamId = make_param_id(MODULE_FILTER3, 10);
 
 // LFO 1
 pub const PARAM_LFO1_WAVEFORM: ParamId = make_param_id(MODULE_LFO1, 0);
@@ -267,6 +272,12 @@ pub const PARAM_BITCRUSHER_BITS: ParamId = make_param_id(MODULE_EFFECTS, 51);
 pub const PARAM_WAVESHAPER_DRIVE: ParamId = make_param_id(MODULE_EFFECTS, 52);
 pub const PARAM_WAVESHAPER_MIX: ParamId = make_param_id(MODULE_EFFECTS, 53);
 
+// Exciter
+pub const PARAM_EXCITER_FREQUENCY: ParamId = make_param_id(MODULE_EFFECTS, 69);
+pub const PARAM_EXCITER_DRIVE: ParamId = make_param_id(MODULE_EFFECTS, 70);
+pub const PARAM_EXCITER_MIX: ParamId = make_param_id(MODULE_EFFECTS, 71);
+pub const PARAM_EXCITER_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 72);
+
 // Effect enable/disable toggles (IDs 54-62)
 pub const PARAM_PHASER_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 54);
 pub const PARAM_FLANGER_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 55);
@@ -290,6 +301,15 @@ pub const PARAM_WIDENER_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 68);
 pub const PARAM_OSC1_UNISON_NORMALIZE: ParamId = make_param_id(MODULE_OSC1, 22);
 pub const PARAM_OSC2_UNISON_NORMALIZE: ParamId = make_param_id(MODULE_OSC2, 22);
 pub const PARAM_OSC3_UNISON_NORMALIZE: ParamId = make_param_id(MODULE_OSC3, 22);
+
+// Voice Compressor (per-voice transient control)
+pub const PARAM_VOICE_COMP_ENABLED: ParamId = make_param_id(MODULE_VOICE, 0);
+pub const PARAM_VOICE_COMP_THRESHOLD: ParamId = make_param_id(MODULE_VOICE, 1);
+pub const PARAM_VOICE_COMP_RATIO: ParamId = make_param_id(MODULE_VOICE, 2);
+pub const PARAM_VOICE_COMP_ATTACK: ParamId = make_param_id(MODULE_VOICE, 3);
+pub const PARAM_VOICE_COMP_RELEASE: ParamId = make_param_id(MODULE_VOICE, 4);
+pub const PARAM_VOICE_COMP_KNEE: ParamId = make_param_id(MODULE_VOICE, 5);
+pub const PARAM_VOICE_COMP_MAKEUP: ParamId = make_param_id(MODULE_VOICE, 6);
 
 /// Value skewing for logarithmic/exponential parameter curves
 #[derive(Debug, Clone, Copy, PartialEq)]
