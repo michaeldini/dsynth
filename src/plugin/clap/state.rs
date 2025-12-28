@@ -1,10 +1,30 @@
 use super::super::state::PluginState;
-use crate::params::SynthParams;
 /// CLAP State Extension
 ///
 /// Handles plugin state save/load using the PluginState serialization system.
 use clap_sys::ext::state::clap_plugin_state;
 use clap_sys::stream::{clap_istream, clap_ostream};
+
+fn log_to_file(msg: &str) {
+    use std::fs::OpenOptions;
+    use std::io::Write;
+    if let Ok(mut file) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/tmp/dsynth_clap.log")
+    {
+        let _ = writeln!(
+            file,
+            "[{}] STATE: {}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+            msg
+        );
+        let _ = file.sync_all();
+    }
+}
 
 /// Save plugin state to stream
 pub unsafe extern "C" fn state_save(
@@ -16,13 +36,32 @@ pub unsafe extern "C" fn state_save(
     }
 
     // Get current parameters from the plugin instance
-    // In full implementation, we'd extract this from the plugin's processor
-    let params = SynthParams::default(); // Placeholder
+    let instance = unsafe { super::plugin::DSynthClapPlugin::from_ptr(plugin) };
+
+    // Sync current_params from processor (the processor has the most up-to-date values)
+    let params = if let Some(processor) = &instance.processor {
+        processor.current_params
+    } else {
+        instance.current_params
+    };
+
+    // Debug logging
+    log_to_file(&format!(
+        "state_save called - osc1_gain: {}",
+        params.oscillators[0].gain
+    ));
+
     let state = PluginState::from_params(params, None);
 
     match state.to_bytes() {
-        Ok(bytes) => unsafe { write_to_stream(stream, &bytes) },
-        Err(_) => false,
+        Ok(bytes) => {
+            log_to_file(&format!("state_save successful - {} bytes", bytes.len()));
+            unsafe { write_to_stream(stream, &bytes) }
+        }
+        Err(e) => {
+            log_to_file(&format!("state_save failed: {:?}", e));
+            false
+        }
     }
 }
 
@@ -35,17 +74,47 @@ pub unsafe extern "C" fn state_load(
         return false;
     }
 
+    log_to_file("state_load called");
+
     match unsafe { read_from_stream(stream) } {
         Ok(bytes) => {
+            log_to_file(&format!("state_load read {} bytes", bytes.len()));
             match PluginState::from_bytes(&bytes) {
-                Ok(_state) => {
-                    // In full implementation, apply state to processor
+                Ok(state) => {
+                    let params = state.params().clone();
+                    log_to_file(&format!(
+                        "state_load params - osc1_gain: {}",
+                        params.oscillators[0].gain
+                    ));
+
+                    // Apply state to plugin instance
+                    let instance = unsafe { super::plugin::DSynthClapPlugin::from_ptr(plugin) };
+                    instance.current_params = params;
+
+                    // Update shared GUI state
+                    if let Ok(mut gui_params) = instance.synth_params.write() {
+                        *gui_params = params;
+                    }
+
+                    // Apply to processor if active
+                    if let Some(processor) = &mut instance.processor {
+                        processor.current_params = params;
+                        processor.param_producer.write(params);
+                    }
+
+                    log_to_file("state_load successful");
                     true
                 }
-                Err(_) => false,
+                Err(e) => {
+                    log_to_file(&format!("state_load deserialize failed: {:?}", e));
+                    false
+                }
             }
         }
-        Err(_) => false,
+        Err(e) => {
+            log_to_file(&format!("state_load read failed: {:?}", e));
+            false
+        }
     }
 }
 

@@ -164,6 +164,11 @@ pub unsafe extern "C" fn params_flush(
             // Update plugin's stored params
             param_apply::apply_param(&mut instance.current_params, param_id, normalized);
 
+            // Update shared GUI state
+            if let Ok(mut gui_params) = instance.synth_params.write() {
+                param_apply::apply_param(&mut gui_params, param_id, normalized);
+            }
+
             // Also update processor if it exists
             if let Some(processor) = &mut instance.processor {
                 param_apply::apply_param(&mut processor.current_params, param_id, normalized);

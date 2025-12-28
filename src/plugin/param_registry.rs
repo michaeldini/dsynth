@@ -212,6 +212,11 @@ impl ParamRegistry {
             ParamDescriptor::bool(PARAM_OSC1_SOLO, "Solo", "Oscillator 1", false)
         );
 
+        add_param!(
+            PARAM_OSC1_SATURATION,
+            ParamDescriptor::float(PARAM_OSC1_SATURATION, "Saturation", "Oscillator 1", 0.0, 1.0, 0.0, Some("%"))
+        );
+
         // Oscillator 2 (same structure as Osc1)
         add_param!(
             PARAM_OSC2_WAVEFORM,
@@ -358,6 +363,11 @@ impl ParamRegistry {
         add_param!(
             PARAM_OSC2_SOLO,
             ParamDescriptor::bool(PARAM_OSC2_SOLO, "Solo", "Oscillator 2", false)
+        );
+
+        add_param!(
+            PARAM_OSC2_SATURATION,
+            ParamDescriptor::float(PARAM_OSC2_SATURATION, "Saturation", "Oscillator 2", 0.0, 1.0, 0.0, Some("%"))
         );
 
         // Oscillator 3 (same structure)
@@ -508,6 +518,11 @@ impl ParamRegistry {
             ParamDescriptor::bool(PARAM_OSC3_SOLO, "Solo", "Oscillator 3", false)
         );
 
+        add_param!(
+            PARAM_OSC3_SATURATION,
+            ParamDescriptor::float(PARAM_OSC3_SATURATION, "Saturation", "Oscillator 3", 0.0, 1.0, 0.0, Some("%"))
+        );
+
         // Filters (Lowpass, Highpass, Bandpass)
         for filter_idx in 0..3 {
             let base_id = match filter_idx {
@@ -649,6 +664,11 @@ impl ParamRegistry {
             add_param!(
                 base_id + 10,
                 ParamDescriptor::float(base_id + 10, "Drive", &module, 0.0, 1.0, 0.0, Some("%"))
+            );
+
+            add_param!(
+                base_id + 11,
+                ParamDescriptor::float(base_id + 11, "Post Drive", &module, 0.0, 1.0, 0.0, Some("%"))
             );
         }
 
@@ -1627,6 +1647,36 @@ impl ParamRegistry {
                 30.0,
                 0.0,
                 Some("dB")
+            )
+        );
+
+        // Transient Shaper
+        add_param!(
+            PARAM_TRANSIENT_ENABLED,
+            ParamDescriptor::bool(PARAM_TRANSIENT_ENABLED, "Enabled", "Transient Shaper", false)
+        );
+        add_param!(
+            PARAM_TRANSIENT_ATTACK,
+            ParamDescriptor::float(
+                PARAM_TRANSIENT_ATTACK,
+                "Attack Boost",
+                "Transient Shaper",
+                0.0,
+                1.0,
+                0.0,
+                Some("%")
+            )
+        );
+        add_param!(
+            PARAM_TRANSIENT_SUSTAIN,
+            ParamDescriptor::float(
+                PARAM_TRANSIENT_SUSTAIN,
+                "Sustain Reduction",
+                "Transient Shaper",
+                0.0,
+                1.0,
+                0.0,
+                Some("%")
             )
         );
 

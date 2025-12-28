@@ -126,7 +126,7 @@ impl DSynthClapPlugin {
     }
 
     /// Get plugin instance from plugin pointer
-    unsafe fn from_ptr<'a>(plugin: *const clap_plugin) -> &'a mut Self {
+    pub unsafe fn from_ptr<'a>(plugin: *const clap_plugin) -> &'a mut Self {
         unsafe { &mut *((*plugin).plugin_data as *mut Self) }
     }
 

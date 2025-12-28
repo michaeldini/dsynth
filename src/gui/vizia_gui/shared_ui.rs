@@ -12,7 +12,6 @@ use vizia::prelude::*;
 
 /// Build the main UI layout - shared by plugin and standalone
 pub fn build_ui(cx: &mut Context) {
-    const LEFT_COL_WIDTH: f32 = 300.0;
     const OSC_COL_WIDTH: f32 = 360.0;
     const ROW_GAP: f32 = 12.0;
     const COL_GAP: f32 = 12.0;
@@ -49,7 +48,7 @@ pub fn build_ui(cx: &mut Context) {
                             .height(Pixels(24.0));
                         build_master_section(cx);
                     })
-                    .width(Pixels(LEFT_COL_WIDTH))
+                    .width(Stretch(1.0))
                     .padding(Pixels(10.0))
                     .gap(Pixels(6.0))
                     .background_color(Color::rgb(35, 35, 40));
@@ -77,13 +76,30 @@ pub fn build_ui(cx: &mut Context) {
                     .padding(Pixels(10.0))
                     .gap(Pixels(6.0))
                     .background_color(Color::rgb(35, 35, 40));
+                })
+                .gap(Pixels(COL_GAP))
+                .height(Pixels(125.0));
 
+                // Row 1.5: Voice Dynamics (Compressor + Transient Shaper)
+                HStack::new(cx, |cx| {
                     VStack::new(cx, |cx| {
                         Label::new(cx, "Voice Compressor")
                             .font_size(16.0)
                             .color(Color::rgb(200, 200, 210))
                             .height(Pixels(24.0));
                         build_voice_compressor_section(cx);
+                    })
+                    .width(Stretch(1.0))
+                    .padding(Pixels(10.0))
+                    .gap(Pixels(6.0))
+                    .background_color(Color::rgb(35, 35, 40));
+
+                    VStack::new(cx, |cx| {
+                        Label::new(cx, "Transient Shaper")
+                            .font_size(16.0)
+                            .color(Color::rgb(200, 200, 210))
+                            .height(Pixels(24.0));
+                        build_transient_shaper_section(cx);
                     })
                     .width(Stretch(1.0))
                     .padding(Pixels(10.0))
@@ -314,6 +330,32 @@ pub fn build_voice_compressor_section(cx: &mut Context) {
     .gap(Pixels(6.0));
 }
 
+pub fn build_transient_shaper_section(cx: &mut Context) {
+    HStack::new(cx, |cx| {
+        let enabled = current_normalized(cx, PARAM_TRANSIENT_ENABLED);
+        let attack = current_normalized(cx, PARAM_TRANSIENT_ATTACK);
+        let sustain = current_normalized(cx, PARAM_TRANSIENT_SUSTAIN);
+
+        param_checkbox(cx, PARAM_TRANSIENT_ENABLED, "On", enabled > 0.5);
+        param_knob(
+            cx,
+            PARAM_TRANSIENT_ATTACK,
+            "Attack",
+            attack,
+            default_normalized(PARAM_TRANSIENT_ATTACK),
+        );
+        param_knob(
+            cx,
+            PARAM_TRANSIENT_SUSTAIN,
+            "Sustain",
+            sustain,
+            default_normalized(PARAM_TRANSIENT_SUSTAIN),
+        );
+    })
+    .height(Units::Auto)
+    .gap(Pixels(6.0));
+}
+
 pub fn build_osc_section(cx: &mut Context, osc_index: usize) {
     let (
         wf,
@@ -329,6 +371,7 @@ pub fn build_osc_section(cx: &mut Context, osc_index: usize) {
         fm_amt,
         solo,
         unison_norm,
+        saturation,
     ) = match osc_index {
         1 => (
             PARAM_OSC1_WAVEFORM,
@@ -344,6 +387,7 @@ pub fn build_osc_section(cx: &mut Context, osc_index: usize) {
             PARAM_OSC1_FM_AMOUNT,
             PARAM_OSC1_SOLO,
             PARAM_OSC1_UNISON_NORMALIZE,
+            PARAM_OSC1_SATURATION,
         ),
         2 => (
             PARAM_OSC2_WAVEFORM,
@@ -359,6 +403,7 @@ pub fn build_osc_section(cx: &mut Context, osc_index: usize) {
             PARAM_OSC2_FM_AMOUNT,
             PARAM_OSC2_SOLO,
             PARAM_OSC2_UNISON_NORMALIZE,
+            PARAM_OSC2_SATURATION,
         ),
         _ => (
             PARAM_OSC3_WAVEFORM,
@@ -374,6 +419,7 @@ pub fn build_osc_section(cx: &mut Context, osc_index: usize) {
             PARAM_OSC3_FM_AMOUNT,
             PARAM_OSC3_SOLO,
             PARAM_OSC3_UNISON_NORMALIZE,
+            PARAM_OSC3_SATURATION,
         ),
     };
 
@@ -395,11 +441,19 @@ pub fn build_osc_section(cx: &mut Context, osc_index: usize) {
             let detune_v = current_normalized(cx, detune);
             let gain_v = current_normalized(cx, gain);
             let pan_v = current_normalized(cx, pan);
+            let saturation_v = current_normalized(cx, saturation);
 
             param_knob(cx, pitch, "Pitch", pitch_v, default_normalized(pitch));
             param_knob(cx, detune, "Detune", detune_v, default_normalized(detune));
             param_knob(cx, gain, "Gain", gain_v, default_normalized(gain));
             param_knob(cx, pan, "Pan", pan_v, default_normalized(pan));
+            param_knob(
+                cx,
+                saturation,
+                "Sat",
+                saturation_v,
+                default_normalized(saturation),
+            );
         })
         .height(Units::Auto)
         .gap(Pixels(6.0));
@@ -638,48 +692,51 @@ pub fn build_wavetable_osc_section(cx: &mut Context, osc_index: usize) {
 }
 
 pub fn build_filter_section(cx: &mut Context, filter_index: usize) {
-    let (ft, cutoff, res, bw, kt, drive, env_amt, env_att, env_dec, env_sus, env_rel) = match filter_index
-    {
-        1 => (
-            PARAM_FILTER1_TYPE,
-            PARAM_FILTER1_CUTOFF,
-            PARAM_FILTER1_RESONANCE,
-            PARAM_FILTER1_BANDWIDTH,
-            PARAM_FILTER1_KEY_TRACKING,
-            PARAM_FILTER1_DRIVE,
-            PARAM_FILTER1_ENV_AMOUNT,
-            PARAM_FILTER1_ENV_ATTACK,
-            PARAM_FILTER1_ENV_DECAY,
-            PARAM_FILTER1_ENV_SUSTAIN,
-            PARAM_FILTER1_ENV_RELEASE,
-        ),
-        2 => (
-            PARAM_FILTER2_TYPE,
-            PARAM_FILTER2_CUTOFF,
-            PARAM_FILTER2_RESONANCE,
-            PARAM_FILTER2_BANDWIDTH,
-            PARAM_FILTER2_KEY_TRACKING,
-            PARAM_FILTER2_DRIVE,
-            PARAM_FILTER2_ENV_AMOUNT,
-            PARAM_FILTER2_ENV_ATTACK,
-            PARAM_FILTER2_ENV_DECAY,
-            PARAM_FILTER2_ENV_SUSTAIN,
-            PARAM_FILTER2_ENV_RELEASE,
-        ),
-        _ => (
-            PARAM_FILTER3_TYPE,
-            PARAM_FILTER3_CUTOFF,
-            PARAM_FILTER3_RESONANCE,
-            PARAM_FILTER3_BANDWIDTH,
-            PARAM_FILTER3_KEY_TRACKING,
-            PARAM_FILTER3_DRIVE,
-            PARAM_FILTER3_ENV_AMOUNT,
-            PARAM_FILTER3_ENV_ATTACK,
-            PARAM_FILTER3_ENV_DECAY,
-            PARAM_FILTER3_ENV_SUSTAIN,
-            PARAM_FILTER3_ENV_RELEASE,
-        ),
-    };
+    let (ft, cutoff, res, bw, kt, drive, post_drive, env_amt, env_att, env_dec, env_sus, env_rel) =
+        match filter_index {
+            1 => (
+                PARAM_FILTER1_TYPE,
+                PARAM_FILTER1_CUTOFF,
+                PARAM_FILTER1_RESONANCE,
+                PARAM_FILTER1_BANDWIDTH,
+                PARAM_FILTER1_KEY_TRACKING,
+                PARAM_FILTER1_DRIVE,
+                PARAM_FILTER1_POST_DRIVE,
+                PARAM_FILTER1_ENV_AMOUNT,
+                PARAM_FILTER1_ENV_ATTACK,
+                PARAM_FILTER1_ENV_DECAY,
+                PARAM_FILTER1_ENV_SUSTAIN,
+                PARAM_FILTER1_ENV_RELEASE,
+            ),
+            2 => (
+                PARAM_FILTER2_TYPE,
+                PARAM_FILTER2_CUTOFF,
+                PARAM_FILTER2_RESONANCE,
+                PARAM_FILTER2_BANDWIDTH,
+                PARAM_FILTER2_KEY_TRACKING,
+                PARAM_FILTER2_DRIVE,
+                PARAM_FILTER2_POST_DRIVE,
+                PARAM_FILTER2_ENV_AMOUNT,
+                PARAM_FILTER2_ENV_ATTACK,
+                PARAM_FILTER2_ENV_DECAY,
+                PARAM_FILTER2_ENV_SUSTAIN,
+                PARAM_FILTER2_ENV_RELEASE,
+            ),
+            _ => (
+                PARAM_FILTER3_TYPE,
+                PARAM_FILTER3_CUTOFF,
+                PARAM_FILTER3_RESONANCE,
+                PARAM_FILTER3_BANDWIDTH,
+                PARAM_FILTER3_KEY_TRACKING,
+                PARAM_FILTER3_DRIVE,
+                PARAM_FILTER3_POST_DRIVE,
+                PARAM_FILTER3_ENV_AMOUNT,
+                PARAM_FILTER3_ENV_ATTACK,
+                PARAM_FILTER3_ENV_DECAY,
+                PARAM_FILTER3_ENV_SUSTAIN,
+                PARAM_FILTER3_ENV_RELEASE,
+            ),
+        };
 
     VStack::new(cx, |cx| {
         HStack::new(cx, |cx| {
@@ -697,12 +754,20 @@ pub fn build_filter_section(cx: &mut Context, filter_index: usize) {
             let bw_v = current_normalized(cx, bw);
             let kt_v = current_normalized(cx, kt);
             let drive_v = current_normalized(cx, drive);
+            let post_drive_v = current_normalized(cx, post_drive);
 
             param_knob(cx, cutoff, "Cutoff", cutoff_v, default_normalized(cutoff));
             param_knob(cx, res, "Res", res_v, default_normalized(res));
             param_knob(cx, bw, "BW", bw_v, default_normalized(bw));
             param_knob(cx, kt, "KeyTrk", kt_v, default_normalized(kt));
             param_knob(cx, drive, "Drive", drive_v, default_normalized(drive));
+            param_knob(
+                cx,
+                post_drive,
+                "PostDrv",
+                post_drive_v,
+                default_normalized(post_drive),
+            );
         })
         .height(Units::Auto)
         .gap(Pixels(6.0));
@@ -828,7 +893,7 @@ pub fn build_effects_section(cx: &mut Context) {
                 .width(Pixels(EFFECT_COL_WIDTH))
                 .gap(Pixels(6.0));
         })
-        .height(Pixels(150.0))
+        .height(Pixels(125.0))
         .gap(Pixels(12.0));
 
         // Row 2: Multiband distortion, stereo widener, reverb
@@ -911,6 +976,7 @@ pub fn build_distortion_section(cx: &mut Context) {
             let enabled = current_normalized(cx, PARAM_DISTORTION_ENABLED);
             param_checkbox(cx, PARAM_DISTORTION_ENABLED, "On", enabled > 0.5);
         })
+        .height(Units::Auto)
         .gap(Pixels(8.0));
 
         HStack::new(cx, |cx| {
@@ -949,6 +1015,7 @@ pub fn build_chorus_section(cx: &mut Context) {
             let enabled = current_normalized(cx, PARAM_CHORUS_ENABLED);
             param_checkbox(cx, PARAM_CHORUS_ENABLED, "On", enabled > 0.5);
         })
+        .height(Units::Auto)
         .gap(Pixels(8.0));
 
         HStack::new(cx, |cx| {
@@ -994,6 +1061,7 @@ pub fn build_delay_section(cx: &mut Context) {
             let enabled = current_normalized(cx, PARAM_DELAY_ENABLED);
             param_checkbox(cx, PARAM_DELAY_ENABLED, "On", enabled > 0.5);
         })
+        .height(Units::Auto)
         .gap(Pixels(8.0));
 
         HStack::new(cx, |cx| {
@@ -1034,6 +1102,7 @@ pub fn build_delay_section(cx: &mut Context) {
         .height(Units::Auto)
         .gap(Pixels(6.0));
     })
+    .height(Units::Auto)
     .gap(Pixels(6.0));
 }
 
@@ -1047,6 +1116,7 @@ pub fn build_reverb_section(cx: &mut Context) {
             let enabled = current_normalized(cx, PARAM_REVERB_ENABLED);
             param_checkbox(cx, PARAM_REVERB_ENABLED, "On", enabled > 0.5);
         })
+        .height(Units::Auto)
         .gap(Pixels(8.0));
 
         HStack::new(cx, |cx| {
@@ -1108,6 +1178,7 @@ pub fn build_multiband_distortion_section(cx: &mut Context) {
             let enabled = current_normalized(cx, PARAM_MB_DIST_ENABLED);
             param_checkbox(cx, PARAM_MB_DIST_ENABLED, "On", enabled > 0.5);
         })
+        .height(Units::Auto)
         .gap(Pixels(8.0));
 
         // Crossover frequencies
@@ -1209,6 +1280,7 @@ pub fn build_stereo_widener_section(cx: &mut Context) {
             let enabled = current_normalized(cx, PARAM_WIDENER_ENABLED);
             param_checkbox(cx, PARAM_WIDENER_ENABLED, "On", enabled > 0.5);
         })
+        .height(Units::Auto)
         .gap(Pixels(8.0));
 
         HStack::new(cx, |cx| {
@@ -1320,6 +1392,7 @@ pub fn build_phaser_section(cx: &mut Context) {
             let enabled = current_normalized(cx, PARAM_PHASER_ENABLED);
             param_checkbox(cx, PARAM_PHASER_ENABLED, "On", enabled > 0.5);
         })
+        .height(Units::Auto)
         .gap(Pixels(8.0));
 
         HStack::new(cx, |cx| {
@@ -1360,6 +1433,7 @@ pub fn build_phaser_section(cx: &mut Context) {
         .height(Units::Auto)
         .gap(Pixels(6.0));
     })
+    .padding(Pixels(6.0))
     .gap(Pixels(6.0));
 }
 
@@ -1373,6 +1447,7 @@ pub fn build_flanger_section(cx: &mut Context) {
             let enabled = current_normalized(cx, PARAM_FLANGER_ENABLED);
             param_checkbox(cx, PARAM_FLANGER_ENABLED, "On", enabled > 0.5);
         })
+        .height(Units::Auto)
         .gap(Pixels(8.0));
 
         HStack::new(cx, |cx| {
@@ -1426,6 +1501,7 @@ pub fn build_tremolo_section(cx: &mut Context) {
             let enabled = current_normalized(cx, PARAM_TREMOLO_ENABLED);
             param_checkbox(cx, PARAM_TREMOLO_ENABLED, "On", enabled > 0.5);
         })
+        .height(Units::Auto)
         .gap(Pixels(8.0));
 
         HStack::new(cx, |cx| {
@@ -1463,7 +1539,8 @@ pub fn build_autopan_section(cx: &mut Context) {
             let enabled = current_normalized(cx, PARAM_AUTOPAN_ENABLED);
             param_checkbox(cx, PARAM_AUTOPAN_ENABLED, "On", enabled > 0.5);
         })
-        .gap(Pixels(8.0));
+        .gap(Pixels(8.0))
+        .height(Units::Auto);
 
         HStack::new(cx, |cx| {
             let rate_v = current_normalized(cx, PARAM_AUTOPAN_RATE);
@@ -1500,6 +1577,7 @@ pub fn build_combfilter_section(cx: &mut Context) {
             let enabled = current_normalized(cx, PARAM_COMB_ENABLED);
             param_checkbox(cx, PARAM_COMB_ENABLED, "On", enabled > 0.5);
         })
+        .height(Units::Auto)
         .gap(Pixels(8.0));
 
         HStack::new(cx, |cx| {
@@ -1545,7 +1623,8 @@ pub fn build_ringmod_section(cx: &mut Context) {
             let enabled = current_normalized(cx, PARAM_RINGMOD_ENABLED);
             param_checkbox(cx, PARAM_RINGMOD_ENABLED, "On", enabled > 0.5);
         })
-        .gap(Pixels(8.0));
+        .gap(Pixels(8.0))
+        .height(Units::Auto);
 
         HStack::new(cx, |cx| {
             let freq_v = current_normalized(cx, PARAM_RINGMOD_FREQUENCY);
@@ -1582,7 +1661,8 @@ pub fn build_compressor_section(cx: &mut Context) {
             let enabled = current_normalized(cx, PARAM_COMPRESSOR_ENABLED);
             param_checkbox(cx, PARAM_COMPRESSOR_ENABLED, "On", enabled > 0.5);
         })
-        .gap(Pixels(8.0));
+        .gap(Pixels(8.0))
+        .height(Units::Auto);
 
         HStack::new(cx, |cx| {
             let thresh_v = current_normalized(cx, PARAM_COMPRESSOR_THRESHOLD);
@@ -1635,7 +1715,8 @@ pub fn build_bitcrusher_section(cx: &mut Context) {
             let enabled = current_normalized(cx, PARAM_BITCRUSHER_ENABLED);
             param_checkbox(cx, PARAM_BITCRUSHER_ENABLED, "On", enabled > 0.5);
         })
-        .gap(Pixels(8.0));
+        .gap(Pixels(8.0))
+        .height(Units::Auto);
 
         HStack::new(cx, |cx| {
             let rate_v = current_normalized(cx, PARAM_BITCRUSHER_RATE);
@@ -1672,7 +1753,8 @@ pub fn build_waveshaper_section(cx: &mut Context) {
             let enabled = current_normalized(cx, PARAM_WAVESHAPER_ENABLED);
             param_checkbox(cx, PARAM_WAVESHAPER_ENABLED, "On", enabled > 0.5);
         })
-        .gap(Pixels(8.0));
+        .gap(Pixels(8.0))
+        .height(Units::Auto);
 
         HStack::new(cx, |cx| {
             let drive_v = current_normalized(cx, PARAM_WAVESHAPER_DRIVE);
@@ -1709,7 +1791,8 @@ pub fn build_exciter_section(cx: &mut Context) {
             let enabled = current_normalized(cx, PARAM_EXCITER_ENABLED);
             param_checkbox(cx, PARAM_EXCITER_ENABLED, "On", enabled > 0.5);
         })
-        .gap(Pixels(8.0));
+        .gap(Pixels(8.0))
+        .height(Units::Auto);
 
         HStack::new(cx, |cx| {
             let freq_v = current_normalized(cx, PARAM_EXCITER_FREQUENCY);

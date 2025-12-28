@@ -44,9 +44,12 @@
 //! This design ensures predictable performance in the audio callback—no allocations, no heap
 //! fragmentation, just constant-time processing.
 
-use crate::dsp::{envelope::Envelope, filter::BiquadFilter, lfo::LFO, oscillator::Oscillator};
 use crate::dsp::effects::compressor::Compressor;
-use crate::params::{EnvelopeParams, FilterParams, LFOParams, OscillatorParams, VelocityParams, VoiceCompressorParams};
+use crate::dsp::{envelope::Envelope, filter::BiquadFilter, lfo::LFO, oscillator::Oscillator};
+use crate::params::{
+    EnvelopeParams, FilterParams, LFOParams, OscillatorParams, TransientShaperParams,
+    VelocityParams, VoiceCompressorParams,
+};
 
 /// Maximum number of unison voices per oscillator slot.
 ///
@@ -257,10 +260,10 @@ impl Voice {
             ],
             voice_compressor: Compressor::new(
                 sample_rate,
-                -12.0,  // threshold_db: Higher for catching transients
-                3.0,    // ratio: Moderate compression
-                1.0,    // attack_ms: Fast for transient control
-                50.0,   // release_ms: Quick release to avoid pumping
+                -12.0, // threshold_db: Higher for catching transients
+                3.0,   // ratio: Moderate compression
+                1.0,   // attack_ms: Fast for transient control
+                50.0,  // release_ms: Quick release to avoid pumping
             ),
             rms_squared_ema: 0.0,
             peak_amplitude: 0.0,
@@ -611,6 +614,7 @@ impl Voice {
         velocity_params: &VelocityParams,
         hard_sync_enabled: bool,
         voice_comp_params: &VoiceCompressorParams,
+        transient_params: &TransientShaperParams,
     ) -> (f32, f32) {
         // === STEP 1: Early exit for inactive voices ===
         // If this voice isn't producing sound, return silence immediately.
@@ -799,6 +803,21 @@ impl Voice {
                 osc_sum / unison_count_f32.sqrt()
             };
 
+            // === STEP 5b.1: Apply per-oscillator saturation/warmth ===
+            // Adds subtle harmonics before filtering for analog warmth
+            // Uses tanh soft clipping with gain compensation (same pattern as filter drive)
+            let osc_out = if osc_params[i].saturation > 0.001 {
+                // Map saturation 0-1 to gain multiplier 1x-3x
+                let drive_gain = 1.0 + osc_params[i].saturation * 2.0;
+                let amplified = osc_out * drive_gain;
+                // Soft saturation using tanh
+                let saturated = amplified.tanh();
+                // Gain compensation (perceptual loudness)
+                saturated / drive_gain.sqrt()
+            } else {
+                osc_out
+            };
+
             // Store the raw oscillator output (needed for FM routing)
             osc_outputs[i] = osc_out;
 
@@ -942,6 +961,21 @@ impl Voice {
             self.filters[i].set_bandwidth(filter_params[i].bandwidth);
             let filtered = self.filters[i].process(driven_signal);
 
+            // === STEP 6e.1: Apply post-filter drive (saturation after filtering) ===
+            // Post-filter saturation adds harmonics to the filtered signal
+            // Creates different tonal character than pre-filter drive (presence & edge)
+            let post_filtered = if filter_params[i].post_drive > 0.001 {
+                // Map drive 0-1 to gain multiplier 1x-3x (same range as pre-filter drive)
+                let drive_gain = 1.0 + filter_params[i].post_drive * 2.0;
+                let amplified = filtered * drive_gain;
+                // Soft saturation using tanh
+                let saturated = amplified.tanh();
+                // Gain compensation (perceptual loudness)
+                saturated / drive_gain.sqrt()
+            } else {
+                filtered
+            };
+
             // === STEP 6f: Apply LFO pan modulation and stereo panning ===
             // Pan: -1.0 (full left) to 1.0 (full right), 0.0 = center
             //
@@ -961,22 +995,15 @@ impl Voice {
             let right_gain = pan_radians.sin(); // Increases as pan moves right
 
             // Apply gain and panning, then accumulate into output channels
-            let scaled = filtered * osc_params[i].gain;
+            let scaled = post_filtered * osc_params[i].gain;
             output_left += scaled * left_gain;
             output_right += scaled * right_gain;
         }
 
-        // === STEP 7: Normalize for multiple active oscillators with unison ===
+        // === STEP 7: Normalize for multiple active oscillators ===
         // When multiple oscillators are active, their signals sum and can exceed ±1.0.
-        // We need to account for both:
-        // 1. The number of active oscillator slots (1-3)
-        // 2. The unison count in each slot (1-7 each)
-        //
-        // Previous approach using sqrt() was TOO aggressive - it made high unison counts
-        // sound "destroyed" or extremely weak (61% level drop with unison=7).
-        //
-        // New approach: Use a gentler logarithmic compensation that prevents clipping
-        // without destroying the thickness and presence of high unison sounds.
+        // We use simple division by N to prevent clipping, keeping the math straightforward.
+        // The engine will handle polyphonic gain compensation (multiple voices playing).
         let active_osc_count = osc_params
             .iter()
             .enumerate()
@@ -984,32 +1011,9 @@ impl Voice {
             .count();
 
         if active_osc_count > 1 {
-            // Calculate average unison count across active oscillators
-            let total_unison_voices: usize = (0..3)
-                .filter(|&idx| (!any_soloed || osc_params[idx].solo) && self.active_unison[idx] > 0)
-                .map(|idx| self.active_unison[idx])
-                .sum();
-
-            let avg_unison = total_unison_voices as f32 / active_osc_count as f32;
-
-            // Gentler compensation using logarithmic scaling:
-            // - unison=1: compensation = 1.0 (no change)
-            // - unison=3: compensation = 1.26 (vs 1.73 with sqrt)
-            // - unison=5: compensation = 1.43 (vs 2.24 with sqrt)
-            // - unison=7: compensation = 1.55 (vs 2.65 with sqrt)
-            //
-            // Formula: 1 + 0.3 * log2(avg_unison)
-            // This gives headroom without destroying the sound
-            let unison_compensation = if avg_unison > 1.0 {
-                1.0 + 0.3 * avg_unison.log2()
-            } else {
-                1.0
-            };
-
-            // Use √N instead of N for normalization to preserve presence
-            // √2 = 1.41 (-3dB) vs 2.0 (-6dB), √3 = 1.73 (-4.8dB) vs 3.0 (-9.5dB)
-            // This gives a thicker, more "in your face" sound when stacking oscillators
-            let osc_normalization = 1.0 / ((active_osc_count as f32).sqrt() * unison_compensation);
+            // Simple division by N to prevent clipping when stacking oscillators
+            // This maintains clean headroom for the engine's polyphonic mixing
+            let osc_normalization = 1.0 / active_osc_count as f32;
             output_left *= osc_normalization;
             output_right *= osc_normalization;
         }
@@ -1040,15 +1044,41 @@ impl Voice {
         // for CPU efficiency across 16 simultaneous voices.
         if voice_comp_params.enabled {
             // Update compressor parameters
-            self.voice_compressor.set_threshold(voice_comp_params.threshold);
+            self.voice_compressor
+                .set_threshold(voice_comp_params.threshold);
             self.voice_compressor.set_ratio(voice_comp_params.ratio);
             self.voice_compressor.set_attack(voice_comp_params.attack);
             self.voice_compressor.set_release(voice_comp_params.release);
             self.voice_compressor.set_knee(voice_comp_params.knee);
-            self.voice_compressor.set_makeup_gain(voice_comp_params.makeup_gain);
-            
+            self.voice_compressor
+                .set_makeup_gain(voice_comp_params.makeup_gain);
+
             // Apply fast mono compression
-            (output_left, output_right) = self.voice_compressor.process_fast(output_left, output_right);
+            (output_left, output_right) = self
+                .voice_compressor
+                .process_fast(output_left, output_right);
+        }
+
+        // === STEP 10.1: Apply transient shaper (envelope-based gain modulation) ===
+        // Emphasizes attack transients and reduces sustain for punchier sounds
+        // Works by multiplying gain during specific envelope stages
+        if transient_params.enabled {
+            use crate::dsp::envelope::EnvelopeStage;
+
+            let gain_mult = match self.envelope.stage() {
+                EnvelopeStage::Attack => {
+                    // Boost transients during attack (0.0-1.0 → 1x to 2x gain)
+                    1.0 + transient_params.attack_boost
+                }
+                EnvelopeStage::Sustain => {
+                    // Reduce sustain level (0.0-1.0 → 1x to 0x gain)
+                    1.0 - transient_params.sustain_reduction
+                }
+                _ => 1.0, // No change for decay/release/idle
+            };
+
+            output_left *= gain_mult;
+            output_right *= gain_mult;
         }
 
         // === STEP 11: Return stereo output pair ===
@@ -1243,6 +1273,22 @@ mod tests {
         EnvelopeParams::default()
     }
 
+    /// Helper function to create default voice compressor parameters for testing.
+    ///
+    /// Returns VoiceCompressorParams with default values (disabled by default).
+    /// Used by tests to avoid repetitive parameter setup.
+    fn default_voice_comp_params() -> VoiceCompressorParams {
+        VoiceCompressorParams::default()
+    }
+
+    /// Helper function to create default transient shaper parameters for testing.
+    ///
+    /// Returns TransientShaperParams with default values (disabled by default).
+    /// Used by tests to avoid repetitive parameter setup.
+    fn default_transient_params() -> TransientShaperParams {
+        TransientShaperParams::default()
+    }
+
     /// Test that a newly created voice is in the correct initial state.
     ///
     /// Verifies:
@@ -1352,6 +1398,8 @@ mod tests {
                 &lfo_params,
                 &velocity_params,
                 false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
             );
             if (left.abs() + right.abs()) / 2.0 > 0.001 {
                 found_nonzero = true;
@@ -1399,6 +1447,8 @@ mod tests {
                 &lfo_params,
                 &velocity_params,
                 false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
             );
         }
 
@@ -1418,6 +1468,8 @@ mod tests {
                 &lfo_params,
                 &velocity_params,
                 false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
             );
             if !voice.is_active() {
                 became_inactive = true;
@@ -1454,6 +1506,8 @@ mod tests {
             &lfo_params,
             &velocity_params,
             false,
+            &default_voice_comp_params(),
+            &default_transient_params(),
         );
         assert_eq!((left, right), (0.0, 0.0));
     }
@@ -1496,6 +1550,8 @@ mod tests {
                 &lfo_params,
                 &velocity_params,
                 false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
             );
         }
 
@@ -1540,6 +1596,8 @@ mod tests {
                 &lfo_params,
                 &velocity_params,
                 false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
             );
         }
 
@@ -1592,6 +1650,8 @@ mod tests {
             &lfo_params,
             &velocity_params,
             false,
+            &default_voice_comp_params(),
+            &default_transient_params(),
         );
 
         // Advance LFO by 1/4 period (should be near different LFO value)
@@ -1602,6 +1662,8 @@ mod tests {
                 &lfo_params,
                 &velocity_params,
                 false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
             );
         }
 
@@ -1611,6 +1673,8 @@ mod tests {
             &lfo_params,
             &velocity_params,
             false,
+            &default_voice_comp_params(),
+            &default_transient_params(),
         );
 
         // With pitch modulation, the samples should differ significantly
@@ -1664,6 +1728,8 @@ mod tests {
                 &lfo_params,
                 &velocity_params,
                 false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
             );
             samples.push(sample.0.abs() + sample.1.abs()); // Sum L+R for amplitude
         }
@@ -1726,6 +1792,8 @@ mod tests {
                 &lfo_params,
                 &velocity_params,
                 false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
             );
 
             let left = sample.0.abs();
@@ -1794,6 +1862,8 @@ mod tests {
                 &lfo_params,
                 &velocity_params,
                 false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
             );
             samples1.push(sample.0);
         }
@@ -1806,6 +1876,8 @@ mod tests {
                 &lfo_params,
                 &velocity_params,
                 false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
             );
         }
 
@@ -1817,6 +1889,8 @@ mod tests {
                 &lfo_params,
                 &velocity_params,
                 false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
             );
             samples2.push(sample.0);
         }
@@ -1884,6 +1958,8 @@ mod tests {
                 &lfo_params,
                 &velocity_params,
                 false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
             );
             samples.push(sample.0);
         }
@@ -1956,6 +2032,8 @@ mod tests {
                 &lfo_params1,
                 &velocity_params,
                 false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
             );
             let sample2 = voice2.process(
                 &osc_params,
@@ -1963,6 +2041,8 @@ mod tests {
                 &lfo_params2,
                 &velocity_params,
                 false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
             );
 
             // With routing amounts at 0.0, both voices should produce identical output

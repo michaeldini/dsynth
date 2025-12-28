@@ -66,6 +66,7 @@ pub const PARAM_OSC1_H8: ParamId = make_param_id(MODULE_OSC1, 18);
 pub const PARAM_OSC1_SOLO: ParamId = make_param_id(MODULE_OSC1, 19);
 pub const PARAM_OSC1_WAVETABLE_INDEX: ParamId = make_param_id(MODULE_OSC1, 20);
 pub const PARAM_OSC1_WAVETABLE_POSITION: ParamId = make_param_id(MODULE_OSC1, 21);
+pub const PARAM_OSC1_SATURATION: ParamId = make_param_id(MODULE_OSC1, 23);
 
 // Oscillator 2 (same structure)
 pub const PARAM_OSC2_WAVEFORM: ParamId = make_param_id(MODULE_OSC2, 0);
@@ -90,6 +91,7 @@ pub const PARAM_OSC2_H8: ParamId = make_param_id(MODULE_OSC2, 18);
 pub const PARAM_OSC2_SOLO: ParamId = make_param_id(MODULE_OSC2, 19);
 pub const PARAM_OSC2_WAVETABLE_INDEX: ParamId = make_param_id(MODULE_OSC2, 20);
 pub const PARAM_OSC2_WAVETABLE_POSITION: ParamId = make_param_id(MODULE_OSC2, 21);
+pub const PARAM_OSC2_SATURATION: ParamId = make_param_id(MODULE_OSC2, 23);
 
 // Oscillator 3 (same structure)
 pub const PARAM_OSC3_WAVEFORM: ParamId = make_param_id(MODULE_OSC3, 0);
@@ -114,6 +116,7 @@ pub const PARAM_OSC3_H8: ParamId = make_param_id(MODULE_OSC3, 18);
 pub const PARAM_OSC3_SOLO: ParamId = make_param_id(MODULE_OSC3, 19);
 pub const PARAM_OSC3_WAVETABLE_INDEX: ParamId = make_param_id(MODULE_OSC3, 20);
 pub const PARAM_OSC3_WAVETABLE_POSITION: ParamId = make_param_id(MODULE_OSC3, 21);
+pub const PARAM_OSC3_SATURATION: ParamId = make_param_id(MODULE_OSC3, 23);
 
 // Filter 1
 pub const PARAM_FILTER1_TYPE: ParamId = make_param_id(MODULE_FILTER1, 0);
@@ -127,6 +130,7 @@ pub const PARAM_FILTER1_ENV_SUSTAIN: ParamId = make_param_id(MODULE_FILTER1, 7);
 pub const PARAM_FILTER1_ENV_RELEASE: ParamId = make_param_id(MODULE_FILTER1, 8);
 pub const PARAM_FILTER1_ENV_AMOUNT: ParamId = make_param_id(MODULE_FILTER1, 9);
 pub const PARAM_FILTER1_DRIVE: ParamId = make_param_id(MODULE_FILTER1, 10);
+pub const PARAM_FILTER1_POST_DRIVE: ParamId = make_param_id(MODULE_FILTER1, 11);
 
 // Filter 2
 pub const PARAM_FILTER2_TYPE: ParamId = make_param_id(MODULE_FILTER2, 0);
@@ -140,6 +144,7 @@ pub const PARAM_FILTER2_ENV_SUSTAIN: ParamId = make_param_id(MODULE_FILTER2, 7);
 pub const PARAM_FILTER2_ENV_RELEASE: ParamId = make_param_id(MODULE_FILTER2, 8);
 pub const PARAM_FILTER2_ENV_AMOUNT: ParamId = make_param_id(MODULE_FILTER2, 9);
 pub const PARAM_FILTER2_DRIVE: ParamId = make_param_id(MODULE_FILTER2, 10);
+pub const PARAM_FILTER2_POST_DRIVE: ParamId = make_param_id(MODULE_FILTER2, 11);
 
 // Filter 3
 pub const PARAM_FILTER3_TYPE: ParamId = make_param_id(MODULE_FILTER3, 0);
@@ -153,6 +158,7 @@ pub const PARAM_FILTER3_ENV_SUSTAIN: ParamId = make_param_id(MODULE_FILTER3, 7);
 pub const PARAM_FILTER3_ENV_RELEASE: ParamId = make_param_id(MODULE_FILTER3, 8);
 pub const PARAM_FILTER3_ENV_AMOUNT: ParamId = make_param_id(MODULE_FILTER3, 9);
 pub const PARAM_FILTER3_DRIVE: ParamId = make_param_id(MODULE_FILTER3, 10);
+pub const PARAM_FILTER3_POST_DRIVE: ParamId = make_param_id(MODULE_FILTER3, 11);
 
 // LFO 1
 pub const PARAM_LFO1_WAVEFORM: ParamId = make_param_id(MODULE_LFO1, 0);
@@ -310,6 +316,9 @@ pub const PARAM_VOICE_COMP_ATTACK: ParamId = make_param_id(MODULE_VOICE, 3);
 pub const PARAM_VOICE_COMP_RELEASE: ParamId = make_param_id(MODULE_VOICE, 4);
 pub const PARAM_VOICE_COMP_KNEE: ParamId = make_param_id(MODULE_VOICE, 5);
 pub const PARAM_VOICE_COMP_MAKEUP: ParamId = make_param_id(MODULE_VOICE, 6);
+pub const PARAM_TRANSIENT_ENABLED: ParamId = make_param_id(MODULE_VOICE, 7);
+pub const PARAM_TRANSIENT_ATTACK: ParamId = make_param_id(MODULE_VOICE, 8);
+pub const PARAM_TRANSIENT_SUSTAIN: ParamId = make_param_id(MODULE_VOICE, 9);
 
 /// Value skewing for logarithmic/exponential parameter curves
 #[derive(Debug, Clone, Copy, PartialEq)]

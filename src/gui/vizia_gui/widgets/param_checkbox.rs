@@ -6,17 +6,7 @@ pub fn param_checkbox(cx: &mut Context, param_id: u32, label: &str, _initial_che
 
     const CELL_WIDTH: f32 = 80.0;
 
-    VStack::new(cx, move |cx| {
-        // Label at top
-        Label::new(cx, label)
-            .font_size(11.0)
-            .color(Color::rgb(200, 200, 210))
-            .width(Pixels(CELL_WIDTH))
-            .height(Pixels(16.0))
-            .text_align(TextAlign::Center)
-            .text_wrap(false)
-            .text_overflow(TextOverflow::Ellipsis);
-
+    HStack::new(cx, move |cx| {
         // Reactive button that acts like a checkbox - gets current state from GuiState
         Button::new(cx, move |cx| {
             // Get current parameter value from the GUI state to determine if checked
@@ -62,8 +52,17 @@ pub fn param_checkbox(cx: &mut Context, param_id: u32, label: &str, _initial_che
         .background_color(Color::rgb(60, 60, 65))
         .border_width(Pixels(1.0))
         .border_color(Color::rgb(100, 100, 110));
+
+        // Label at right
+        Label::new(cx, label)
+            .font_size(11.0)
+            .color(Color::rgb(200, 200, 210))
+            // .width(Pixels(CELL_WIDTH))
+            .height(Pixels(16.0))
+            .text_align(TextAlign::Center)
+            .text_wrap(false)
+            .text_overflow(TextOverflow::Ellipsis);
     })
     .width(Pixels(CELL_WIDTH))
-    .height(Pixels(60.0))
     .gap(Pixels(4.0));
 }

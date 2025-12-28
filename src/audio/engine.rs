@@ -353,7 +353,7 @@ impl SynthEngine {
     fn apply_output_limiter(&mut self, left: f32, right: f32) -> (f32, f32) {
         // Leave a small headroom margin so sample format conversion/interleaving
         // doesn’t accidentally exceed full scale due to rounding.
-        const THRESHOLD: f32 = 0.98;
+        const THRESHOLD: f32 = 0.90;
 
         let peak = left.abs().max(right.abs());
 
@@ -390,6 +390,7 @@ impl SynthEngine {
         // Mix all voices - stereo
         let mut output_left = 0.0;
         let mut output_right = 0.0;
+        let mut active_count = 0;
         for voice in &mut self.voices {
             let (left, right) = voice.process(
                 &self.current_params.oscillators,
@@ -398,9 +399,26 @@ impl SynthEngine {
                 &self.current_params.velocity,
                 self.current_params.hard_sync_enabled,
                 &self.current_params.voice_compressor,
+                &self.current_params.transient_shaper,
             );
-            output_left += left;
-            output_right += right;
+            if voice.is_active() {
+                output_left += left;
+                output_right += right;
+                active_count += 1;
+            }
+        }
+
+        // Polyphonic gain compensation: prevent distortion when many keys are pressed
+        // Use sqrt(N) to balance between preserving presence and preventing clipping
+        // - 1 voice: 1.0 (no change)
+        // - 4 voices: 0.5 (-6dB)
+        // - 8 voices: 0.35 (-9dB)
+        // - 16 voices: 0.25 (-12dB)
+        // This ensures clean summing without crushing/distortion artifacts
+        if active_count > 1 {
+            let poly_compensation = 1.0 / (active_count as f32).sqrt();
+            output_left *= poly_compensation;
+            output_right *= poly_compensation;
         }
 
         // Apply master gain

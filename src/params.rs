@@ -67,6 +67,8 @@ pub struct OscillatorParams {
     pub additive_harmonics: [f32; 8], // Harmonic amplitudes for additive synthesis (0.0 to 1.0)
     pub wavetable_index: usize, // Wavetable index when waveform is Wavetable (0 to N-1)
     pub wavetable_position: f32, // Wavetable morphing position (0.0 to 1.0)
+    #[serde(default)]
+    pub saturation: f32, // Oscillator-level saturation/warmth (0.0 to 1.0)
 }
 
 impl Default for OscillatorParams {
@@ -88,6 +90,7 @@ impl Default for OscillatorParams {
             additive_harmonics: [1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], // Default: fundamental only
             wavetable_index: 0,      // Default: first wavetable
             wavetable_position: 0.0, // Default: no morphing
+            saturation: 0.0,         // Default: no oscillator saturation
         }
     }
 }
@@ -102,6 +105,8 @@ pub struct FilterParams {
     pub envelope: FilterEnvelopeParams,
     #[serde(default)]
     pub drive: f32, // Pre-filter saturation drive (0.0 to 1.0)
+    #[serde(default)]
+    pub post_drive: f32, // Post-filter saturation drive (0.0 to 1.0)
 }
 
 impl Default for FilterParams {
@@ -113,7 +118,8 @@ impl Default for FilterParams {
             bandwidth: 1.0, // 1 octave for bandpass
             key_tracking: 0.0,
             envelope: FilterEnvelopeParams::default(),
-            drive: 0.0, // Default: no pre-filter saturation
+            drive: 0.0,      // Default: no pre-filter saturation
+            post_drive: 0.0, // Default: no post-filter saturation
         }
     }
 }
@@ -575,11 +581,11 @@ impl Default for CompressorParams {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct VoiceCompressorParams {
     pub enabled: bool,
-    pub threshold: f32, // Threshold in dB (-60.0 to 0.0)
-    pub ratio: f32,     // Compression ratio (1.0 to 20.0)
-    pub attack: f32,    // Attack time in milliseconds (0.1 to 50.0)
-    pub release: f32,   // Release time in milliseconds (10.0 to 200.0)
-    pub knee: f32,      // Knee width in dB (0.0 to 20.0)
+    pub threshold: f32,   // Threshold in dB (-60.0 to 0.0)
+    pub ratio: f32,       // Compression ratio (1.0 to 20.0)
+    pub attack: f32,      // Attack time in milliseconds (0.1 to 50.0)
+    pub release: f32,     // Release time in milliseconds (10.0 to 200.0)
+    pub knee: f32,        // Knee width in dB (0.0 to 20.0)
     pub makeup_gain: f32, // Makeup gain in dB (0.0 to 30.0)
 }
 
@@ -593,6 +599,24 @@ impl Default for VoiceCompressorParams {
             release: 50.0,    // Quick release to avoid pumping
             knee: 3.0,        // Soft knee for smooth compression
             makeup_gain: 0.0, // No makeup gain by default
+        }
+    }
+}
+
+/// Transient shaper parameters (envelope-based gain modulation)
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct TransientShaperParams {
+    pub enabled: bool,
+    pub attack_boost: f32, // Attack boost amount (0.0 to 1.0, adds +0% to +100% gain)
+    pub sustain_reduction: f32, // Sustain reduction amount (0.0 to 1.0, reduces 0% to 100%)
+}
+
+impl Default for TransientShaperParams {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            attack_boost: 0.0,
+            sustain_reduction: 0.0,
         }
     }
 }
@@ -720,6 +744,8 @@ pub struct SynthParams {
     pub effects: EffectsParams,
     #[serde(default)]
     pub voice_compressor: VoiceCompressorParams,
+    #[serde(default)]
+    pub transient_shaper: TransientShaperParams,
     pub master_gain: f32, // 0.0 to 1.0
     pub monophonic: bool, // Monophonic mode - only one note at a time
     #[serde(default)]
@@ -748,6 +774,7 @@ impl Default for SynthParams {
             velocity: VelocityParams::default(),
             effects: EffectsParams::default(),
             voice_compressor: VoiceCompressorParams::default(),
+            transient_shaper: TransientShaperParams::default(),
             master_gain: 0.85, // Higher default to utilize headroom (was 0.5 = -6dB)
             monophonic: false,
             hard_sync_enabled: false, // Hard sync disabled by default

@@ -142,6 +142,7 @@ pub mod param_apply {
             PARAM_OSC1_WAVETABLE_POSITION => {
                 params.oscillators[0].wavetable_position = denorm.clamp(0.0, 1.0);
             }
+            PARAM_OSC1_SATURATION => params.oscillators[0].saturation = denorm,
 
             // Oscillator 2
             PARAM_OSC2_WAVEFORM => {
@@ -183,6 +184,7 @@ pub mod param_apply {
             PARAM_OSC2_WAVETABLE_POSITION => {
                 params.oscillators[1].wavetable_position = denorm.clamp(0.0, 1.0);
             }
+            PARAM_OSC2_SATURATION => params.oscillators[1].saturation = denorm,
 
             // Oscillator 3
             PARAM_OSC3_WAVEFORM => {
@@ -224,6 +226,7 @@ pub mod param_apply {
             PARAM_OSC3_WAVETABLE_POSITION => {
                 params.oscillators[2].wavetable_position = denorm.clamp(0.0, 1.0);
             }
+            PARAM_OSC3_SATURATION => params.oscillators[2].saturation = denorm,
 
             // Filters
             PARAM_FILTER1_TYPE => {
@@ -263,6 +266,7 @@ pub mod param_apply {
             PARAM_FILTER1_ENV_RELEASE => params.filters[0].envelope.release = denorm,
             PARAM_FILTER1_ENV_AMOUNT => params.filters[0].envelope.amount = denorm,
             PARAM_FILTER1_DRIVE => params.filters[0].drive = denorm,
+            PARAM_FILTER1_POST_DRIVE => params.filters[0].post_drive = denorm,
 
             // Filter 2 Envelope
             PARAM_FILTER2_ENV_ATTACK => params.filters[1].envelope.attack = denorm,
@@ -271,6 +275,7 @@ pub mod param_apply {
             PARAM_FILTER2_ENV_RELEASE => params.filters[1].envelope.release = denorm,
             PARAM_FILTER2_ENV_AMOUNT => params.filters[1].envelope.amount = denorm,
             PARAM_FILTER2_DRIVE => params.filters[1].drive = denorm,
+            PARAM_FILTER2_POST_DRIVE => params.filters[1].post_drive = denorm,
 
             // Filter 3 Envelope
             PARAM_FILTER3_ENV_ATTACK => params.filters[2].envelope.attack = denorm,
@@ -279,6 +284,7 @@ pub mod param_apply {
             PARAM_FILTER3_ENV_RELEASE => params.filters[2].envelope.release = denorm,
             PARAM_FILTER3_ENV_AMOUNT => params.filters[2].envelope.amount = denorm,
             PARAM_FILTER3_DRIVE => params.filters[2].drive = denorm,
+            PARAM_FILTER3_POST_DRIVE => params.filters[2].post_drive = denorm,
 
             // LFOs
             PARAM_LFO1_WAVEFORM => {
@@ -451,6 +457,11 @@ pub mod param_apply {
             PARAM_VOICE_COMP_KNEE => params.voice_compressor.knee = denorm,
             PARAM_VOICE_COMP_MAKEUP => params.voice_compressor.makeup_gain = denorm,
 
+            // Transient Shaper parameters
+            PARAM_TRANSIENT_ENABLED => params.transient_shaper.enabled = denorm > 0.5,
+            PARAM_TRANSIENT_ATTACK => params.transient_shaper.attack_boost = denorm,
+            PARAM_TRANSIENT_SUSTAIN => params.transient_shaper.sustain_reduction = denorm,
+
             _ => {} // Unknown parameter, ignore
         }
     }
@@ -574,6 +585,7 @@ pub mod param_get {
             }
             PARAM_OSC1_WAVETABLE_INDEX => params.oscillators[0].wavetable_index as f32,
             PARAM_OSC1_WAVETABLE_POSITION => params.oscillators[0].wavetable_position,
+            PARAM_OSC1_SATURATION => params.oscillators[0].saturation,
 
             // Oscillator 2
             PARAM_OSC2_WAVEFORM => waveform_to_denorm(params.oscillators[1].waveform),
@@ -610,6 +622,7 @@ pub mod param_get {
             }
             PARAM_OSC2_WAVETABLE_INDEX => params.oscillators[1].wavetable_index as f32,
             PARAM_OSC2_WAVETABLE_POSITION => params.oscillators[1].wavetable_position,
+            PARAM_OSC2_SATURATION => params.oscillators[1].saturation,
 
             // Oscillator 3
             PARAM_OSC3_WAVEFORM => waveform_to_denorm(params.oscillators[2].waveform),
@@ -646,6 +659,7 @@ pub mod param_get {
             }
             PARAM_OSC3_WAVETABLE_INDEX => params.oscillators[2].wavetable_index as f32,
             PARAM_OSC3_WAVETABLE_POSITION => params.oscillators[2].wavetable_position,
+            PARAM_OSC3_SATURATION => params.oscillators[2].saturation,
 
             // Filters
             PARAM_FILTER1_TYPE => filter_type_to_denorm(params.filters[0].filter_type),
@@ -659,6 +673,7 @@ pub mod param_get {
             PARAM_FILTER1_ENV_RELEASE => params.filters[0].envelope.release,
             PARAM_FILTER1_ENV_AMOUNT => params.filters[0].envelope.amount,
             PARAM_FILTER1_DRIVE => params.filters[0].drive,
+            PARAM_FILTER1_POST_DRIVE => params.filters[0].post_drive,
 
             PARAM_FILTER2_TYPE => filter_type_to_denorm(params.filters[1].filter_type),
             PARAM_FILTER2_CUTOFF => params.filters[1].cutoff,
@@ -671,6 +686,7 @@ pub mod param_get {
             PARAM_FILTER2_ENV_RELEASE => params.filters[1].envelope.release,
             PARAM_FILTER2_ENV_AMOUNT => params.filters[1].envelope.amount,
             PARAM_FILTER2_DRIVE => params.filters[1].drive,
+            PARAM_FILTER2_POST_DRIVE => params.filters[1].post_drive,
 
             PARAM_FILTER3_TYPE => filter_type_to_denorm(params.filters[2].filter_type),
             PARAM_FILTER3_CUTOFF => params.filters[2].cutoff,
@@ -683,6 +699,7 @@ pub mod param_get {
             PARAM_FILTER3_ENV_RELEASE => params.filters[2].envelope.release,
             PARAM_FILTER3_ENV_AMOUNT => params.filters[2].envelope.amount,
             PARAM_FILTER3_DRIVE => params.filters[2].drive,
+            PARAM_FILTER3_POST_DRIVE => params.filters[2].post_drive,
 
             // LFOs
             PARAM_LFO1_WAVEFORM => lfo_waveform_to_denorm(params.lfos[0].waveform),
@@ -962,6 +979,17 @@ pub mod param_get {
             PARAM_VOICE_COMP_RELEASE => params.voice_compressor.release,
             PARAM_VOICE_COMP_KNEE => params.voice_compressor.knee,
             PARAM_VOICE_COMP_MAKEUP => params.voice_compressor.makeup_gain,
+
+            // Transient Shaper parameters
+            PARAM_TRANSIENT_ENABLED => {
+                if params.transient_shaper.enabled {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            PARAM_TRANSIENT_ATTACK => params.transient_shaper.attack_boost,
+            PARAM_TRANSIENT_SUSTAIN => params.transient_shaper.sustain_reduction,
 
             _ => 0.0,
         }
