@@ -214,7 +214,15 @@ impl ParamRegistry {
 
         add_param!(
             PARAM_OSC1_SATURATION,
-            ParamDescriptor::float(PARAM_OSC1_SATURATION, "Saturation", "Oscillator 1", 0.0, 1.0, 0.0, Some("%"))
+            ParamDescriptor::float(
+                PARAM_OSC1_SATURATION,
+                "Saturation",
+                "Oscillator 1",
+                0.0,
+                1.0,
+                0.0,
+                Some("%")
+            )
         );
 
         // Oscillator 2 (same structure as Osc1)
@@ -367,7 +375,15 @@ impl ParamRegistry {
 
         add_param!(
             PARAM_OSC2_SATURATION,
-            ParamDescriptor::float(PARAM_OSC2_SATURATION, "Saturation", "Oscillator 2", 0.0, 1.0, 0.0, Some("%"))
+            ParamDescriptor::float(
+                PARAM_OSC2_SATURATION,
+                "Saturation",
+                "Oscillator 2",
+                0.0,
+                1.0,
+                0.0,
+                Some("%")
+            )
         );
 
         // Oscillator 3 (same structure)
@@ -520,7 +536,15 @@ impl ParamRegistry {
 
         add_param!(
             PARAM_OSC3_SATURATION,
-            ParamDescriptor::float(PARAM_OSC3_SATURATION, "Saturation", "Oscillator 3", 0.0, 1.0, 0.0, Some("%"))
+            ParamDescriptor::float(
+                PARAM_OSC3_SATURATION,
+                "Saturation",
+                "Oscillator 3",
+                0.0,
+                1.0,
+                0.0,
+                Some("%")
+            )
         );
 
         // Filters (Lowpass, Highpass, Bandpass)
@@ -668,7 +692,15 @@ impl ParamRegistry {
 
             add_param!(
                 base_id + 11,
-                ParamDescriptor::float(base_id + 11, "Post Drive", &module, 0.0, 1.0, 0.0, Some("%"))
+                ParamDescriptor::float(
+                    base_id + 11,
+                    "Post Drive",
+                    &module,
+                    0.0,
+                    1.0,
+                    0.0,
+                    Some("%")
+                )
             );
         }
 
@@ -722,7 +754,7 @@ impl ParamRegistry {
                     base_id + 3,
                     "Filter Amount",
                     &module,
-                    0.0,
+                    -5000.0,
                     5000.0,
                     0.0,
                     Some("Hz")
@@ -735,7 +767,7 @@ impl ParamRegistry {
                     base_id + 4,
                     "Pitch Amount",
                     &module,
-                    0.0,
+                    -100.0,
                     100.0,
                     0.0,
                     Some("cents")
@@ -748,7 +780,7 @@ impl ParamRegistry {
                     base_id + 5,
                     "Gain Amount",
                     &module,
-                    0.0,
+                    -1.0,
                     1.0,
                     0.0,
                     Some("")
@@ -1575,7 +1607,12 @@ impl ParamRegistry {
         // Voice Compressor parameters (per-voice transient control)
         add_param!(
             PARAM_VOICE_COMP_ENABLED,
-            ParamDescriptor::bool(PARAM_VOICE_COMP_ENABLED, "Enabled", "Voice Compressor", false)
+            ParamDescriptor::bool(
+                PARAM_VOICE_COMP_ENABLED,
+                "Enabled",
+                "Voice Compressor",
+                false
+            )
         );
         add_param!(
             PARAM_VOICE_COMP_THRESHOLD,
@@ -1653,7 +1690,12 @@ impl ParamRegistry {
         // Transient Shaper
         add_param!(
             PARAM_TRANSIENT_ENABLED,
-            ParamDescriptor::bool(PARAM_TRANSIENT_ENABLED, "Enabled", "Transient Shaper", false)
+            ParamDescriptor::bool(
+                PARAM_TRANSIENT_ENABLED,
+                "Enabled",
+                "Transient Shaper",
+                false
+            )
         );
         add_param!(
             PARAM_TRANSIENT_ATTACK,

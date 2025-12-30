@@ -103,14 +103,14 @@ pub fn randomize_synth_params<R: Rng + ?Sized>(rng: &mut R) -> SynthParams {
         };
     }
 
-    // LFOs - reduced filter modulation amount for less harsh sweeps
+    // LFOs - bipolar modulation amounts for more expressive control
     for lfo in &mut params.lfos {
         lfo.waveform = lfo_waveforms[rng.gen_range(0..lfo_waveforms.len())];
         lfo.rate = rng.gen_range(0.1..=8.0); // Slightly slower max
         lfo.depth = rng.gen_range(0.0..=0.8); // Reduced from 1.0
-        lfo.filter_amount = rng.gen_range(0.0..=2000.0); // Reduced from 3000
-        lfo.pitch_amount = rng.gen_range(0.0..=50.0); // Pitch modulation in cents
-        lfo.gain_amount = rng.gen_range(0.0..=0.5); // Gain modulation
+        lfo.filter_amount = rng.gen_range(-2000.0..=2000.0); // Bipolar filter modulation
+        lfo.pitch_amount = rng.gen_range(-50.0..=50.0); // Bipolar pitch modulation in cents
+        lfo.gain_amount = rng.gen_range(-0.5..=0.5); // Bipolar gain modulation
         lfo.pan_amount = rng.gen_range(0.0..=0.8); // Pan modulation
         lfo.pwm_amount = rng.gen_range(0.0..=0.7); // PWM/shape modulation
     }

@@ -240,14 +240,14 @@ pub struct LFOParams {
     pub waveform: LFOWaveform,
     pub rate: f32,          // Hz, 0.01 to 20.0
     pub depth: f32,         // 0.0 to 1.0
-    pub filter_amount: f32, // Filter modulation in Hz, 0.0 to 5000.0
+    pub filter_amount: f32, // Filter modulation in Hz, -5000.0 to 5000.0 (bipolar)
 
     // LFO routing matrix (global, affects all oscillators)
     #[serde(default)]
-    pub pitch_amount: f32, // Pitch modulation in cents, 0.0 to 100.0 (bipolar: ±100 cents)
+    pub pitch_amount: f32, // Pitch modulation in cents, -100.0 to 100.0 (bipolar: ±100 cents)
 
     #[serde(default)]
-    pub gain_amount: f32, // Gain modulation, 0.0 to 1.0 (bipolar: ±0.5)
+    pub gain_amount: f32, // Gain modulation, -1.0 to 1.0 (bipolar: ±1.0)
 
     #[serde(default)]
     pub pan_amount: f32, // Pan modulation, 0.0 to 1.0 (bipolar: ±1.0 for full stereo)
