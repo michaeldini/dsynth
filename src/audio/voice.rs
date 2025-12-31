@@ -389,7 +389,7 @@ impl Voice {
         // because process() may be called multiple times before update_parameters() is called,
         // and those process() calls would use old oscillator/filter/compressor samples,
         // causing audible discontinuities (clicks/pops).
-        
+
         // Reset oscillator buffers WITHOUT resetting phase to avoid discontinuities.
         // Phase discontinuities (jumping from 0.7 → 0.0) create audible clicks even with
         // anti-click fades. By only clearing the downsampler buffers and letting phase
@@ -1101,7 +1101,9 @@ impl Voice {
         let (norm_osc_count, norm_unison_sum) = osc_params
             .iter()
             .enumerate()
-            .filter(|(idx, p)| (!any_soloed || p.solo) && p.unison_normalize && self.active_unison[*idx] > 0)
+            .filter(|(idx, p)| {
+                (!any_soloed || p.solo) && p.unison_normalize && self.active_unison[*idx] > 0
+            })
             .fold((0_usize, 0_usize), |(count, sum), (idx, _p)| {
                 (count + 1, sum + self.active_unison[idx])
             });
@@ -1187,10 +1189,10 @@ impl Voice {
             // This creates a smooth curve that reaches ~99% at progress=1.0
             let progress = self.anti_click_samples as f32 / self.anti_click_fade_samples as f32;
             let fade = 1.0 - (-5.0 * progress).exp();
-            
+
             output_left *= fade;
             output_right *= fade;
-            
+
             self.anti_click_samples += 1;
         }
 
