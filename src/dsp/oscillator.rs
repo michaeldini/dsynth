@@ -907,6 +907,23 @@ impl Oscillator {
         self.pink_b1 = 0.0;
         self.pink_b2 = 0.0;
     }
+
+    /// Reset only the internal buffers (downsampler) without changing phase.
+    ///
+    /// This is used when retriggering notes to avoid phase discontinuities that cause clicks.
+    /// The oscillator phase continues from wherever it was, but the downsampler's ring buffer
+    /// is cleared to prevent old samples from the previous note from bleeding through.
+    ///
+    /// Use this instead of reset() for note retriggering to maintain phase continuity.
+    pub fn reset_buffers(&mut self) {
+        self.downsampler.reset();
+
+        // Reset noise generation state (noise needs fresh start per note)
+        self.noise_state = 0x12345678;
+        self.pink_b0 = 0.0;
+        self.pink_b1 = 0.0;
+        self.pink_b2 = 0.0;
+    }
 }
 
 #[cfg(test)]

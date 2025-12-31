@@ -638,8 +638,8 @@ impl ParamDescriptor {
                             format!("{:.0} Hz", value)
                         }
                     }
-                    Some("ms") => format!("{:.2} ms", value),
-                    Some("s") => format!("{:.2} s", value),
+                    Some("ms") => format!("{:.3} ms", value),
+                    Some("s") => format!("{:.3} s", value),
                     Some("semitones") => format!("{:.1} semitones", value),
                     Some("cents") => format!("{:.1} cents", value),
                     Some("%") => format!("{:.0}%", value * 100.0),

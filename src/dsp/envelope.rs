@@ -150,6 +150,14 @@ impl Envelope {
         self.stage = EnvelopeStage::Idle;
         self.current_level = 0.0;
     }
+
+    /// Reset current_level to zero for clean note retriggering.
+    /// This should be called before note_on() when a voice is stolen/reused
+    /// to prevent the envelope from starting at a non-zero level (which would
+    /// cause an audible click/pop).
+    pub fn reset_level(&mut self) {
+        self.current_level = 0.0;
+    }
 }
 
 #[cfg(test)]

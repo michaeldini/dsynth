@@ -649,7 +649,7 @@ fn test_randomize_generates_valid_parameters() {
 
         // Check oscillators
         for osc in &params.oscillators {
-            assert!(osc.waveform as u32 <= 7, "Waveform should be valid enum");
+            assert!(osc.waveform as u32 <= 8, "Waveform should be valid enum");
             assert!(
                 osc.pitch >= -24.0 && osc.pitch <= 24.0,
                 "Pitch should be in semitones ±24"

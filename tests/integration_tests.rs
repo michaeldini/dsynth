@@ -169,6 +169,8 @@ fn test_hard_sync_creates_harmonics() {
             &params.lfos,
             &params.velocity,
             false, // hard_sync_enabled = false
+            &Default::default(), // voice_comp_params
+            &Default::default(), // transient_params
         );
         samples_no_sync.push(left);
     }
@@ -178,7 +180,7 @@ fn test_hard_sync_creates_harmonics() {
     // Reset voice for second test
     voice.note_off();
     for _ in 0..4410 {
-        voice.process(&params.oscillators, &params.filters, &params.lfos, &params.velocity, false);
+        voice.process(&params.oscillators, &params.filters, &params.lfos, &params.velocity, false, &Default::default(), &Default::default());
     }
     
     // Test WITH hard sync chain (OSC1→OSC2→OSC3)
@@ -199,6 +201,8 @@ fn test_hard_sync_creates_harmonics() {
             &params.lfos,
             &params.velocity,
             true, // hard_sync_enabled = true (enables full chain)
+            &Default::default(), // voice_comp_params
+            &Default::default(), // transient_params
         );
         samples_with_sync.push(left);
     }

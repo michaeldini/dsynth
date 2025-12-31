@@ -2,8 +2,8 @@
 
 use crate::gui::vizia_gui::GuiState;
 use crate::gui::vizia_gui::widgets::{
-    distortion_type_button, filter_type_button, fm_source_button, lfo_waveform_button,
-    oscillator_waveform_button, param_checkbox, param_knob,
+    EnvelopeEditor, distortion_type_button, filter_type_button, fm_source_button,
+    lfo_waveform_button, oscillator_waveform_button, param_checkbox, param_knob,
 };
 use crate::plugin::param_descriptor::*;
 use crate::plugin::param_registry;
@@ -19,7 +19,7 @@ pub fn build_ui(cx: &mut Context) {
     VStack::new(cx, |cx| {
         // Title bar + live status text
         HStack::new(cx, |cx| {
-            Label::new(cx, "DSynth - VIZIA GUI")
+            Label::new(cx, "DSynth")
                 .font_size(20.0)
                 .color(Color::rgb(220, 220, 230));
 
@@ -78,7 +78,7 @@ pub fn build_ui(cx: &mut Context) {
                     .background_color(Color::rgb(35, 35, 40));
                 })
                 .gap(Pixels(COL_GAP))
-                .height(Pixels(125.0));
+                .height(Pixels(280.0));
 
                 // Row 1.5: Voice Dynamics (Compressor + Transient Shaper)
                 HStack::new(cx, |cx| {
@@ -228,24 +228,27 @@ pub fn build_master_section(cx: &mut Context) {
 }
 
 pub fn build_envelope_section(cx: &mut Context) {
-    HStack::new(cx, |cx| {
-        let attack = current_normalized(cx, PARAM_ENVELOPE_ATTACK);
-        let decay = current_normalized(cx, PARAM_ENVELOPE_DECAY);
-        let sustain = current_normalized(cx, PARAM_ENVELOPE_SUSTAIN);
-        let release = current_normalized(cx, PARAM_ENVELOPE_RELEASE);
+    let attack = current_normalized(cx, PARAM_ENVELOPE_ATTACK);
+    let decay = current_normalized(cx, PARAM_ENVELOPE_DECAY);
+    let sustain = current_normalized(cx, PARAM_ENVELOPE_SUSTAIN);
+    let release = current_normalized(cx, PARAM_ENVELOPE_RELEASE);
 
-        let attack_def = default_normalized(PARAM_ENVELOPE_ATTACK);
-        let decay_def = default_normalized(PARAM_ENVELOPE_DECAY);
-        let sustain_def = default_normalized(PARAM_ENVELOPE_SUSTAIN);
-        let release_def = default_normalized(PARAM_ENVELOPE_RELEASE);
-
-        param_knob(cx, PARAM_ENVELOPE_ATTACK, "Attack", attack, attack_def);
-        param_knob(cx, PARAM_ENVELOPE_DECAY, "Decay", decay, decay_def);
-        param_knob(cx, PARAM_ENVELOPE_SUSTAIN, "Sustain", sustain, sustain_def);
-        param_knob(cx, PARAM_ENVELOPE_RELEASE, "Release", release, release_def);
-    })
-    .height(Pixels(100.0))
-    .gap(Pixels(6.0));
+    // Visual envelope editor
+    EnvelopeEditor::new(
+        cx,
+        attack,
+        decay,
+        sustain,
+        release,
+        PARAM_ENVELOPE_ATTACK,
+        PARAM_ENVELOPE_DECAY,
+        PARAM_ENVELOPE_SUSTAIN,
+        PARAM_ENVELOPE_RELEASE,
+    )
+    .background_color(Color::rgb(25, 25, 30))
+    .border_width(Pixels(1.0))
+    .border_color(Color::rgb(60, 60, 70))
+    .corner_radius(Pixels(4.0));
 }
 
 pub fn build_velocity_section(cx: &mut Context) {

@@ -94,9 +94,27 @@ pub struct SynthEngine {
     /// at the output without introducing harmonic distortion like `tanh()`.
     limiter_gain: f32,
 
+    /// One-pole smoothing coefficient for limiter attack.
+    ///
+    /// We intentionally smooth *both* attack and release to avoid instantaneous gain steps,
+    /// which can present as clicks when a new note causes a sudden peak increase.
+    limiter_attack_coeff: f32,
+
     /// One-pole smoothing coefficient for limiter release.
     /// Recovery is smoothed to avoid pumping; gain reduction is applied instantly.
     limiter_release_coeff: f32,
+
+    /// Smoothed polyphonic gain compensation.
+    ///
+    /// A hard step in poly compensation (e.g., 1.0 → 1/√2 when going 1→2 voices)
+    /// is an instantaneous gain change and can be audible as a click.
+    poly_gain: f32,
+
+    /// Smoothing coefficient when poly_gain needs to decrease (more attenuation).
+    poly_gain_attack_coeff: f32,
+
+    /// Smoothing coefficient when poly_gain needs to increase (less attenuation).
+    poly_gain_release_coeff: f32,
 
     /// Effects chain - processed after voice mixing
     reverb: Reverb,
@@ -153,10 +171,20 @@ impl SynthEngine {
             voices.push(Voice::new(sample_rate));
         }
 
-        // Limiter tuning: fast attack, slower release. These are conservative and
-        // designed to avoid audible artifacts while preventing clipping.
+        // Limiter tuning: very fast (but smoothed) attack, slower release.
+        // Smoothing prevents instantaneous gain steps that can sound like clicks.
+        let limiter_attack_s = 0.0002; // 0.2ms
         let limiter_release_s = 0.050; // 50ms
+        let limiter_attack_coeff = (-1.0 / (limiter_attack_s * sample_rate)).exp();
         let limiter_release_coeff = (-1.0 / (limiter_release_s * sample_rate)).exp();
+
+        // Polyphonic gain compensation smoothing.
+        // Keep attack fast enough to prevent overload, but smooth enough to avoid clicks
+        // when active voice count changes (pressing/releasing keys).
+        let poly_attack_s = 0.0010; // 1ms
+        let poly_release_s = 0.0100; // 10ms
+        let poly_gain_attack_coeff = (-1.0 / (poly_attack_s * sample_rate)).exp();
+        let poly_gain_release_coeff = (-1.0 / (poly_release_s * sample_rate)).exp();
 
         // Load wavetables from compile-time embedded data (no runtime file dependencies)
         let wavetable_library = WavetableLibrary::load_from_embedded().unwrap_or_else(|e| {
@@ -173,7 +201,11 @@ impl SynthEngine {
             sample_counter: 0,
             param_update_interval: 32, // Update every 32 samples (~0.7ms at 44.1kHz)
             limiter_gain: 1.0,
+            limiter_attack_coeff,
             limiter_release_coeff,
+            poly_gain: 1.0,
+            poly_gain_attack_coeff,
+            poly_gain_release_coeff,
             reverb: Reverb::new(sample_rate),
             delay: StereoDelay::new(sample_rate),
             chorus: Chorus::new(sample_rate),
@@ -353,7 +385,7 @@ impl SynthEngine {
     fn apply_output_limiter(&mut self, left: f32, right: f32) -> (f32, f32) {
         // Leave a small headroom margin so sample format conversion/interleaving
         // doesn’t accidentally exceed full scale due to rounding.
-        const THRESHOLD: f32 = 0.90;
+        const THRESHOLD: f32 = 0.98;
 
         let peak = left.abs().max(right.abs());
 
@@ -365,13 +397,13 @@ impl SynthEngine {
             1.0
         };
 
-        // Critical: prevent overshoot.
-        // If we need *more* gain reduction (target_gain < current), apply it immediately.
-        // This ensures the limiter never relies on the final clamp (which is audible).
+        // Smooth attack and release to avoid instantaneous gain steps (clicks).
+        // This may allow a rare single-sample clamp on extreme transients, which is
+        // generally less audible than a hard gain discontinuity.
         if target_gain < self.limiter_gain {
-            self.limiter_gain = target_gain;
+            let coeff = self.limiter_attack_coeff;
+            self.limiter_gain = coeff * self.limiter_gain + (1.0 - coeff) * target_gain;
         } else {
-            // Release: recover smoothly back toward unity.
             let coeff = self.limiter_release_coeff;
             self.limiter_gain = coeff * self.limiter_gain + (1.0 - coeff) * target_gain;
         }
@@ -408,18 +440,25 @@ impl SynthEngine {
             }
         }
 
-        // Polyphonic gain compensation: prevent distortion when many keys are pressed
-        // Use sqrt(N) to balance between preserving presence and preventing clipping
-        // - 1 voice: 1.0 (no change)
-        // - 4 voices: 0.5 (-6dB)
-        // - 8 voices: 0.35 (-9dB)
-        // - 16 voices: 0.25 (-12dB)
-        // This ensures clean summing without crushing/distortion artifacts
-        if active_count > 1 {
-            let poly_compensation = 1.0 / (active_count as f32).sqrt();
-            output_left *= poly_compensation;
-            output_right *= poly_compensation;
+        // Polyphonic gain compensation: prevent distortion when many keys are pressed.
+        // IMPORTANT: smooth changes in this gain. A step change when active_count changes
+        // (e.g., pressing a second key) can be audible as a click.
+        let target_poly_gain = if active_count > 1 {
+            1.0 / (active_count as f32).sqrt()
+        } else {
+            1.0
+        };
+
+        if target_poly_gain < self.poly_gain {
+            let coeff = self.poly_gain_attack_coeff;
+            self.poly_gain = coeff * self.poly_gain + (1.0 - coeff) * target_poly_gain;
+        } else {
+            let coeff = self.poly_gain_release_coeff;
+            self.poly_gain = coeff * self.poly_gain + (1.0 - coeff) * target_poly_gain;
         }
+
+        output_left *= self.poly_gain;
+        output_right *= self.poly_gain;
 
         // Apply master gain
         let master = self.current_params.master_gain;
@@ -536,6 +575,11 @@ impl SynthEngine {
     /// assert!(output.abs() < 2.0, "Output should be in valid range");
     /// ```
     pub fn note_on(&mut self, note: u8, velocity: f32) {
+        // MIDI semantics: NoteOn with velocity 0 is equivalent to NoteOff.
+        // Avoid activating a voice that should be silent.
+        if velocity <= 0.0 {
+            return;
+        }
         if self.current_params.monophonic {
             // Monophonic mode: use only the first voice
             // Add note to stack if not already present
@@ -1140,32 +1184,30 @@ mod tests {
         assert_eq!(engine.active_voice_count(), 3);
     }
 
-    /// Test that zero velocity notes still produce output with velocity sensitivity.
-    /// Verifies:
-    /// - Zero velocity doesn't produce complete silence (by design)
-    /// - With velocity sensitivity enabled, zero velocity produces quieter but audible output
-    /// - The envelope still works correctly even with minimal velocity
-    /// This tests the velocity response and minimum amplitude handling
+    /// Test that zero velocity NoteOn is treated as no-op (MIDI semantics).
+    ///
+    /// MIDI specifies that NoteOn with velocity 0 is equivalent to NoteOff.
+    /// For engine-level note injection, we treat velocity 0 as "do nothing" to
+    /// avoid activating voices that should be silent.
     #[test]
     fn test_zero_velocity_note() {
         let (_producer, consumer) = create_parameter_buffer();
         let mut engine = SynthEngine::new(44100.0, consumer);
 
         engine.note_on(60, 0.0);
-        assert_eq!(engine.active_voice_count(), 1);
+        assert_eq!(engine.active_voice_count(), 0);
 
-        // Process samples - with velocity sensitivity, zero velocity still produces some output
-        // (1.0 - sensitivity) * volume. Default sensitivity is 0.7, so minimum is 0.3
+        // Process samples - should remain silent.
         let mut max_output = 0.0_f32;
         for _ in 0..1000 {
             let sample = engine.process();
             max_output = max_output.max(sample.abs());
         }
 
-        // Should produce some output (velocity scaling allows quieter but not silent notes)
         assert!(
-            max_output > 0.0 && max_output < 1.0,
-            "Zero velocity should produce reduced but non-zero output with velocity sensitivity"
+            max_output <= 1.0e-6,
+            "Zero velocity should be silent, but got peak {:.6}",
+            max_output
         );
     }
 

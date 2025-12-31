@@ -195,6 +195,21 @@ pub struct Voice {
     /// any oscillator to use any other as a modulation source (including later
     /// oscillators modulating earlier ones via 1-sample delayed feedback).
     osc_outputs_prev: [f32; 3],
+
+    /// Anti-click fade-in sample counter.
+    ///
+    /// Counts samples since note-on to apply a short exponential fade-in (1-2ms)
+    /// at the start of every note. This prevents clicks/pops when voices are stolen
+    /// while still producing sound. The fade is independent of envelope attack and
+    /// ensures smooth transitions during voice stealing.
+    ///
+    /// Reset to 0 on note_on(), increments every sample during process().
+    anti_click_samples: usize,
+
+    /// Anti-click fade-in duration in samples (2ms at 44.1kHz = 88 samples).
+    ///
+    /// This value is calculated as: 0.002 * sample_rate
+    anti_click_fade_samples: usize,
 }
 
 impl Voice {
@@ -272,6 +287,8 @@ impl Voice {
             osc_outputs_prev: [0.0; 3],
             osc1_phase_prev: 0.0, // Initialize hard sync phase tracking
             osc2_phase_prev: 0.0, // Initialize hard sync chain tracking
+            anti_click_samples: 0,
+            anti_click_fade_samples: (0.002 * sample_rate) as usize, // 2ms fade
         }
     }
 
@@ -326,22 +343,77 @@ impl Voice {
             env.note_on();
         }
 
-        // Reset all LFOs to phase 0.0
-        // This ensures LFO modulation starts consistently for each note.
-        // Without this, LFOs would continue from their previous phase, causing
-        // unpredictable filter modulation at note-on.
-        for lfo in &mut self.lfos {
-            lfo.reset();
-        }
+        // DO NOT reset LFOs! Resetting LFO phase to 0 causes sudden jumps in modulation
+        // (filter cutoff, gain, pan, pitch), creating audible discontinuities.
+        // LFOs run continuously across note boundaries to avoid clicks.
 
         // Reset RMS tracking
         // Although we use peak amplitude for voice stealing, we reset RMS for consistency
         // (it's a historical artifact from when RMS was used for voice stealing).
         self.rms_squared_ema = 0.0;
 
-        // Engine calls update_parameters() immediately after note_on().
-        // We defer resetting oscillator/filter state until then so unison phase offsets
-        // (set via Oscillator::set_phase) are actually applied to the running phase.
+        // CRITICAL: Reset envelope levels to zero BEFORE triggering attack.
+        // If a voice is stolen while in release phase (e.g., current_level = 0.3),
+        // the new note would start attacking from 0.3 instead of 0.0, causing a
+        // sudden amplitude jump (click/pop). By resetting to 0.0 first, we ensure
+        // all notes start from silence and attack cleanly.
+        self.envelope.reset_level();
+        for env in &mut self.filter_envelopes {
+            env.reset_level();
+        }
+
+        // DO NOT reset LFOs! Resetting LFO phase to 0 causes sudden jumps in modulation
+        // (filter cutoff, gain, pan, pitch), creating audible discontinuities.
+        // LFOs should run continuously across note boundaries to avoid clicks.
+        // Comment out: for lfo in &mut self.lfos { lfo.reset(); }
+
+        // Reset hard sync phase tracking.
+        // These track the previous phase of oscillators for hard sync detection.
+        // If not reset, stale phase values from the previous note can cause incorrect
+        // sync triggers at the start of the new note.
+        self.osc1_phase_prev = 0.0;
+        self.osc2_phase_prev = 0.0;
+
+        // Reset FM feedback buffer.
+        // This stores previous sample outputs for feedback FM synthesis.
+        // Old values would cause discontinuities in FM modulation.
+        self.osc_outputs_prev = [0.0; 3];
+
+        // Reset anti-click fade counter to trigger fade-in for this note.
+        // This ensures a smooth 2ms fade-in at the start of every note,
+        // preventing clicks when voices are stolen while still producing sound.
+        self.anti_click_samples = 0;
+
+        // Reset all DSP components IMMEDIATELY to prevent clicks from stale state.
+        // This must happen in note_on() rather than being deferred to update_parameters()
+        // because process() may be called multiple times before update_parameters() is called,
+        // and those process() calls would use old oscillator/filter/compressor samples,
+        // causing audible discontinuities (clicks/pops).
+        
+        // Reset oscillator buffers WITHOUT resetting phase to avoid discontinuities.
+        // Phase discontinuities (jumping from 0.7 → 0.0) create audible clicks even with
+        // anti-click fades. By only clearing the downsampler buffers and letting phase
+        // continue, we maintain waveform continuity while still removing stale samples.
+        for osc_slot in &mut self.oscillators {
+            for osc_opt in osc_slot.iter_mut() {
+                if let Some(osc) = osc_opt {
+                    osc.reset_buffers();
+                }
+            }
+        }
+
+        // Reset all filters (clears delay lines: x1, x2, y1, y2)
+        for filter in &mut self.filters {
+            filter.reset();
+        }
+
+        // Reset per-voice compressor (clears envelope follower state)
+        self.voice_compressor.reset();
+
+        // Flag that update_parameters() should reapply phase offsets.
+        // Even though we don't reset phase (to avoid discontinuities), we still need
+        // update_parameters() to apply frequency and other parameter changes on the first
+        // call after note_on().
         self.needs_dsp_reset_on_update = true;
     }
 
@@ -498,10 +570,9 @@ impl Voice {
                     let phase_offset = (param.phase + (unison_idx as f32) * GOLDEN_FRACTION) % 1.0;
                     osc.set_phase(phase_offset);
 
-                    // Apply phase offsets once per note start.
-                    // Without this, all oscillators keep their old running phase and the
-                    // initial_phase offsets never take effect, leading to coherent summing
-                    // and large peaks when unison is increased.
+                    // Apply the phase offset that was set above.
+                    // We already did a full reset() in note_on(), so now we just need to
+                    // apply the specific initial_phase for this oscillator's unison decorrelation.
                     if self.needs_dsp_reset_on_update {
                         osc.apply_initial_phase();
                     }
@@ -1018,6 +1089,30 @@ impl Voice {
             output_right *= osc_normalization;
         }
 
+        // === STEP 7.1: Gentle unison loudness compensation ===
+        // Even with per-oscillator unison peak normalization (divide by N), increasing unison
+        // generally increases perceived loudness and makes multi-note chords more likely to
+        // drive the master limiter. Apply a mild, psychoacoustically-friendly compensation
+        // based on the average unison count of oscillators that have unison normalization
+        // enabled.
+        //
+        // This is intentionally gentler than sqrt(N) to avoid "sound destruction" at high
+        // unison counts.
+        let (norm_osc_count, norm_unison_sum) = osc_params
+            .iter()
+            .enumerate()
+            .filter(|(idx, p)| (!any_soloed || p.solo) && p.unison_normalize && self.active_unison[*idx] > 0)
+            .fold((0_usize, 0_usize), |(count, sum), (idx, _p)| {
+                (count + 1, sum + self.active_unison[idx])
+            });
+
+        if norm_osc_count > 0 {
+            let avg_unison = (norm_unison_sum as f32 / norm_osc_count as f32).max(1.0);
+            let unison_comp = 1.0 + 0.3 * avg_unison.log2();
+            output_left /= unison_comp;
+            output_right /= unison_comp;
+        }
+
         // === STEP 8: Apply envelope and velocity-sensitive amplitude ===
         // Multiply the final mixed output by the envelope (0.0-1.0) and velocity factor.
         // This shapes the amplitude over time (ADSR) and scales by key velocity.
@@ -1081,7 +1176,25 @@ impl Voice {
             output_right *= gain_mult;
         }
 
-        // === STEP 11: Return stereo output pair ===
+        // === STEP 11: Apply anti-click fade-in (FINAL STAGE) ===
+        // Apply a 5ms exponential fade-in at the start of every note.
+        // This MUST be the very last processing step to ensure nothing can bypass it.
+        // Prevents clicks/crackles when voices are stolen or notes retrigger quickly.
+        // The fade is independent of envelope attack and uses exponential curve for smoothness.
+        if self.anti_click_samples < self.anti_click_fade_samples {
+            // Exponential fade: 0 → 1 over 5ms
+            // Formula: 1 - e^(-5 * progress)
+            // This creates a smooth curve that reaches ~99% at progress=1.0
+            let progress = self.anti_click_samples as f32 / self.anti_click_fade_samples as f32;
+            let fade = 1.0 - (-5.0 * progress).exp();
+            
+            output_left *= fade;
+            output_right *= fade;
+            
+            self.anti_click_samples += 1;
+        }
+
+        // === STEP 12: Return stereo output pair ===
         (output_left, output_right)
     }
 
@@ -1191,10 +1304,8 @@ impl Voice {
         // Reset envelope to initial state (ready for next attack)
         self.envelope.reset();
 
-        // Reset all LFOs to phase 0.0 (start from beginning of waveform)
-        for lfo in &mut self.lfos {
-            lfo.reset();
-        }
+        // DO NOT reset LFOs - they should run continuously to avoid modulation discontinuities
+        // Comment out: for lfo in &mut self.lfos { lfo.reset(); }
 
         // Reset all oscillators (clear phase, DC offset, downsampler state)
         // We iterate through all 21 pre-allocated oscillators (3 slots × 7 unison)

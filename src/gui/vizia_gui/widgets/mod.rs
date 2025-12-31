@@ -1,9 +1,10 @@
+pub mod envelope_editor;
 pub mod knob;
 pub mod param_checkbox;
 pub mod param_cycle_button;
 pub mod param_knob;
 
-// pub use dropdown::Dropdown;
+pub use envelope_editor::EnvelopeEditor;
 pub use knob::Knob;
 pub use param_checkbox::param_checkbox;
 pub use param_cycle_button::{
