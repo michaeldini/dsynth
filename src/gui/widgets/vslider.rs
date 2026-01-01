@@ -94,8 +94,7 @@ impl View for VSlider {
     fn event(&mut self, cx: &mut EventContext, event: &mut Event) {
         // Sync message (re-using existing knob sync message)
         event.map(|gui_msg: &crate::gui::GuiMessage, _meta| {
-            if let crate::gui::GuiMessage::SyncKnobValue(param_id, normalized) = gui_msg
-            {
+            if let crate::gui::GuiMessage::SyncKnobValue(param_id, normalized) = gui_msg {
                 if *param_id == self.param_id {
                     self.normalized_value = normalized.clamp(0.0, 1.0);
                 }

@@ -90,8 +90,7 @@ impl View for Knob {
     fn event(&mut self, cx: &mut EventContext, event: &mut Event) {
         // Handle SyncKnobValue messages to update visual state
         event.map(|gui_msg: &crate::gui::GuiMessage, _meta| {
-            if let crate::gui::GuiMessage::SyncKnobValue(param_id, normalized) = gui_msg
-            {
+            if let crate::gui::GuiMessage::SyncKnobValue(param_id, normalized) = gui_msg {
                 if *param_id == self.param_id {
                     self.normalized_value = normalized.clamp(0.0, 1.0);
                 }
