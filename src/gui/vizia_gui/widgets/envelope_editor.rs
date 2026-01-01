@@ -41,7 +41,6 @@ pub struct EnvelopeEditor {
 pub(crate) enum DraggedHandle {
     Attack,
     Decay,
-    Sustain,
     Release,
 }
 
@@ -218,15 +217,6 @@ impl EnvelopeEditor {
                 cx.emit(crate::gui::vizia_gui::GuiMessage::ParamChanged(
                     self.decay_param_id,
                     self.decay_normalized,
-                ));
-            }
-
-            DraggedHandle::Sustain => {
-                // Sustain level only (vertical)
-                self.sustain_normalized = ny;
-                cx.emit(crate::gui::vizia_gui::GuiMessage::ParamChanged(
-                    self.sustain_param_id,
-                    self.sustain_normalized,
                 ));
             }
 

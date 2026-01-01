@@ -727,8 +727,8 @@ impl SynthEngine {
             .enumerate()
             .filter(|(_, v)| v.is_active())
             .min_by(|(_, a), (_, b)| {
-                a.get_rms()
-                    .partial_cmp(&b.get_rms())
+                a.peak_amplitude()
+                    .partial_cmp(&b.peak_amplitude())
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
             .map(|(idx, _)| idx)

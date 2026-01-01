@@ -1443,7 +1443,7 @@ impl Voice {
     /// The method is called `get_rms()` for historical reasons (it used to return RMS),
     /// but it actually returns peak amplitude. Renaming would break the API, so the name
     /// remains but the implementation changed for performance.
-    pub fn get_rms(&self) -> f32 {
+    pub fn peak_amplitude(&self) -> f32 {
         // Return peak amplitude seen since note on
         // This is a simple, fast metric that works well for voice stealing
         self.peak_amplitude
@@ -1885,7 +1885,10 @@ mod tests {
         }
 
         // Peak amplitude should be non-zero for an active voice producing sound
-        assert!(voice.get_rms() > 0.0, "RMS should be > 0 for active voice");
+        assert!(
+            voice.peak_amplitude() > 0.0,
+            "RMS should be > 0 for active voice"
+        );
     }
 
     /// Test that reset() clears all voice state correctly.
@@ -1936,7 +1939,7 @@ mod tests {
         assert!(!voice.is_active());
         assert_eq!(voice.note(), 0);
         assert_eq!(voice.velocity, 0.0);
-        assert_eq!(voice.get_rms(), 0.0);
+        assert_eq!(voice.peak_amplitude(), 0.0);
     }
 
     #[test]
