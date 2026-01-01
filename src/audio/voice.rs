@@ -265,6 +265,37 @@ pub struct Voice {
 
     /// Cached last-applied envelope parameters.
     last_applied_envelope_params: EnvelopeParams,
+
+    /// Cached last-applied voice compressor parameters.
+    ///
+    /// Used to avoid reconfiguring the compressor every sample when params are unchanged.
+    last_applied_voice_comp_params: VoiceCompressorParams,
+
+    /// Cached per-oscillator base frequency (Hz) after applying note + pitch + detune.
+    ///
+    /// Used to avoid recomputing expensive `powf` work in the per-sample hot path when
+    /// pitch modulation is active.
+    osc_base_freq_hz: [f32; 3],
+
+    /// Cached unison detune multipliers for each oscillator slot.
+    ///
+    /// Indexed by `[osc_slot][unison_idx]`.
+    unison_detune_mul: [[f32; MAX_UNISON_VOICES]; 3],
+
+    /// Cached key-tracking cutoff multiplier per filter.
+    ///
+    /// Key tracking depends only on the current note and the `key_tracking` amount, so we
+    /// cache it to avoid a per-sample `powf` in the filter cutoff modulation path.
+    filter_key_tracking_mul: [f32; 3],
+
+    /// Whether any LFO is actively modulating pan.
+    ///
+    /// When false, we can cache per-oscillator pan gains and avoid per-sample sin/cos.
+    pan_mod_active: bool,
+
+    /// Cached equal-power panning gains (only used when `pan_mod_active` is false).
+    cached_pan_left_gain: [f32; 3],
+    cached_pan_right_gain: [f32; 3],
 }
 
 impl Voice {
@@ -364,6 +395,16 @@ impl Voice {
             last_applied_filter_params: [FilterParams::default(); 3],
             last_applied_lfo_params: [LFOParams::default(); 3],
             last_applied_envelope_params: EnvelopeParams::default(),
+            last_applied_voice_comp_params: VoiceCompressorParams::default(),
+
+            osc_base_freq_hz: [0.0; 3],
+            unison_detune_mul: [[1.0; MAX_UNISON_VOICES]; 3],
+
+            filter_key_tracking_mul: [1.0; 3],
+
+            pan_mod_active: false,
+            cached_pan_left_gain: [std::f32::consts::FRAC_1_SQRT_2; 3],
+            cached_pan_right_gain: [std::f32::consts::FRAC_1_SQRT_2; 3],
         }
     }
 
@@ -626,6 +667,19 @@ impl Voice {
             0.0
         };
 
+        // Key tracking depends on note and filter key_tracking amount.
+        // Update it whenever either the note changes or filter params change.
+        if needs_filter_update || note_changed {
+            let note_offset = self.note as f32 - 60.0; // C4 reference
+            for i in 0..3 {
+                let key_tracking = filter_params[i].key_tracking.clamp(0.0, 1.0);
+                // Matches the previous per-sample formula:
+                // cutoff_mult = 2^((note_offset * 100cents * key_tracking) / 1200)
+                //            = 2^((note_offset * key_tracking) / 12)
+                self.filter_key_tracking_mul[i] = 2.0_f32.powf((note_offset * key_tracking) / 12.0);
+            }
+        }
+
         for i in 0..3 {
             if needs_osc_update {
                 let param = &osc_params[i];
@@ -636,6 +690,7 @@ impl Voice {
                 let pitch_mult = 2.0_f32.powf(param.pitch / 12.0);
                 let detune_mult = 2.0_f32.powf(param.detune / 1200.0);
                 let base_osc_freq = base_freq * pitch_mult * detune_mult;
+                self.osc_base_freq_hz[i] = base_osc_freq;
 
                 for unison_idx in 0..target_unison {
                     if let Some(ref mut osc) = self.oscillators[i][unison_idx] {
@@ -647,6 +702,8 @@ impl Voice {
                         } else {
                             1.0
                         };
+
+                        self.unison_detune_mul[i][unison_idx] = unison_detune;
 
                         let freq = base_osc_freq * unison_detune;
                         osc.set_frequency(freq);
@@ -689,6 +746,26 @@ impl Voice {
                 let lfo = &lfo_params[i];
                 self.lfos[i].set_rate(lfo.rate);
                 self.lfos[i].set_waveform(lfo.waveform);
+            }
+        }
+
+        // Cache pan gains when pan modulation is not active.
+        // This removes per-sample sin/cos calls in the voice hot path for the common case.
+        if needs_lfo_update || osc_params_changed {
+            let new_pan_mod_active = lfo_params
+                .iter()
+                .any(|p| (p.pan_amount * p.depth).abs() > 0.001);
+            let pan_mod_just_disabled = self.pan_mod_active && !new_pan_mod_active;
+
+            self.pan_mod_active = new_pan_mod_active;
+
+            if !self.pan_mod_active && (osc_params_changed || pan_mod_just_disabled) {
+                for i in 0..3 {
+                    let pan = osc_params[i].pan.clamp(-1.0, 1.0);
+                    let pan_radians = (pan + 1.0) * std::f32::consts::PI / 4.0;
+                    self.cached_pan_left_gain[i] = pan_radians.cos();
+                    self.cached_pan_right_gain[i] = pan_radians.sin();
+                }
             }
         }
 
@@ -896,34 +973,27 @@ impl Voice {
             // === STEP 5a: Apply LFO pitch and PWM modulation ===
             // Pitch modulation: Recalculate frequency with LFO cents offset
             // PWM modulation: Modify shape parameter with LFO offset
-            if global_pitch_mod_cents.abs() > 0.001 || global_pwm_mod.abs() > 0.001 {
-                let base_freq = Self::midi_note_to_freq(self.note);
-                let pitch_mult = 2.0_f32.powf(osc_params[i].pitch / 12.0);
-                let detune_mult = 2.0_f32.powf(osc_params[i].detune / 1200.0);
+            let pitch_mod_active = global_pitch_mod_cents.abs() > 0.001;
+            let pwm_mod_active = global_pwm_mod.abs() > 0.001;
+            if pitch_mod_active || pwm_mod_active {
+                let lfo_pitch_mult = if pitch_mod_active {
+                    2.0_f32.powf(global_pitch_mod_cents / 1200.0)
+                } else {
+                    1.0
+                };
 
-                // Apply LFO pitch modulation (in cents)
-                let lfo_pitch_mult = 2.0_f32.powf(global_pitch_mod_cents / 1200.0);
-                let base_osc_freq = base_freq * pitch_mult * detune_mult * lfo_pitch_mult;
-
-                // Calculate modulated shape for PWM
+                let base_osc_freq = self.osc_base_freq_hz[i] * lfo_pitch_mult;
                 let modulated_shape = (osc_params[i].shape + global_pwm_mod).clamp(-1.0, 1.0);
 
-                // Apply to all unison voices
                 for unison_idx in 0..unison_count {
                     if let Some(ref mut osc) = self.oscillators[i][unison_idx] {
-                        // Calculate unison detune spread (same as update_parameters)
-                        let unison_detune = if unison_count > 1 {
-                            let spread = osc_params[i].unison_detune / 100.0;
-                            let offset = (unison_idx as f32 - (unison_count - 1) as f32 / 2.0)
-                                / (unison_count - 1) as f32;
-                            2.0_f32.powf(offset * spread / 12.0)
-                        } else {
-                            1.0
-                        };
-
-                        let freq = base_osc_freq * unison_detune;
-                        osc.set_frequency(freq);
-                        osc.set_shape(modulated_shape);
+                        if pitch_mod_active {
+                            let freq = base_osc_freq * self.unison_detune_mul[i][unison_idx];
+                            osc.set_frequency(freq);
+                        }
+                        if pwm_mod_active {
+                            osc.set_shape(modulated_shape);
+                        }
                     }
                 }
             }
@@ -1096,18 +1166,8 @@ impl Voice {
 
             // **Key tracking**: Scale filter cutoff with MIDI note number
             // If key_tracking = 1.0, the filter tracks the keyboard 1:1 (cutoff doubles per octave).
-            // If key_tracking = 0.0, the filter cutoff is fixed regardless of note.
-            // Reference note: 60 (C4, middle C)
-            let key_tracking_offset = if filter_params[i].key_tracking > 0.0 {
-                let base_note = 60.0; // C4 as reference
-                let note_offset = self.note as f32 - base_note;
-                let cents_per_note = 100.0; // One semitone = 100 cents
-                let cutoff_mult = 2.0_f32
-                    .powf((note_offset * cents_per_note * filter_params[i].key_tracking) / 1200.0);
-                base_cutoff * (cutoff_mult - 1.0)
-            } else {
-                0.0
-            };
+            // If key_tracking = 0.0, the multiplier is 1.0 and this offset becomes 0.0.
+            let key_tracking_offset = base_cutoff * (self.filter_key_tracking_mul[i] - 1.0);
 
             // **Velocity to filter cutoff**: Harder key press opens the filter more
             // Uses the same standardized formula as amplitude (centered at velocity 0.5).
@@ -1178,19 +1238,22 @@ impl Voice {
             // Pan: -1.0 (full left) to 1.0 (full right), 0.0 = center
             //
             // Apply LFO pan modulation first
-            let modulated_pan = (osc_params[i].pan + global_pan_mod).clamp(-1.0, 1.0);
+            let (left_gain, right_gain) = if self.pan_mod_active {
+                let modulated_pan = (osc_params[i].pan + global_pan_mod).clamp(-1.0, 1.0);
 
-            // Equal-power panning law ensures constant perceived loudness as we pan.
-            // We map pan to an angle (0 to π/2) and use sin/cos for the gain curves:
-            //   pan = -1.0 → angle = 0       → left = 1.0, right = 0.0 (full left)
-            //   pan =  0.0 → angle = π/4     → left = 0.707, right = 0.707 (center, -3dB each)
-            //   pan = +1.0 → angle = π/2     → left = 0.0, right = 1.0 (full right)
-            //
-            // Why π/4 radians (45°) for center? sin(45°) = cos(45°) = 1/√2 ≈ 0.707,
-            // and 0.707² + 0.707² = 1.0 (constant power).
-            let pan_radians = (modulated_pan + 1.0) * std::f32::consts::PI / 4.0; // Map [-1, 1] to [0, π/2]
-            let left_gain = pan_radians.cos(); // Decreases as pan moves right
-            let right_gain = pan_radians.sin(); // Increases as pan moves right
+                // Equal-power panning law ensures constant perceived loudness as we pan.
+                // We map pan to an angle (0 to π/2) and use sin/cos for the gain curves:
+                //   pan = -1.0 → angle = 0       → left = 1.0, right = 0.0 (full left)
+                //   pan =  0.0 → angle = π/4     → left = 0.707, right = 0.707 (center, -3dB each)
+                //   pan = +1.0 → angle = π/2     → left = 0.0, right = 1.0 (full right)
+                //
+                // Why π/4 radians (45°) for center? sin(45°) = cos(45°) = 1/√2 ≈ 0.707,
+                // and 0.707² + 0.707² = 1.0 (constant power).
+                let pan_radians = (modulated_pan + 1.0) * std::f32::consts::PI / 4.0; // Map [-1, 1] to [0, π/2]
+                (pan_radians.cos(), pan_radians.sin())
+            } else {
+                (self.cached_pan_left_gain[i], self.cached_pan_right_gain[i])
+            };
 
             // Apply gain and panning, then accumulate into output channels
             let scaled = post_filtered * osc_params[i].gain;
@@ -1267,15 +1330,20 @@ impl Voice {
         // Uses optimized mono compression with envelope follower updating every 4 samples
         // for CPU efficiency across 16 simultaneous voices.
         if voice_comp_params.enabled {
-            // Update compressor parameters
-            self.voice_compressor
-                .set_threshold(voice_comp_params.threshold);
-            self.voice_compressor.set_ratio(voice_comp_params.ratio);
-            self.voice_compressor.set_attack(voice_comp_params.attack);
-            self.voice_compressor.set_release(voice_comp_params.release);
-            self.voice_compressor.set_knee(voice_comp_params.knee);
-            self.voice_compressor
-                .set_makeup_gain(voice_comp_params.makeup_gain);
+            if !self.last_applied_voice_comp_params.enabled
+                || *voice_comp_params != self.last_applied_voice_comp_params
+            {
+                self.voice_compressor
+                    .set_threshold(voice_comp_params.threshold);
+                self.voice_compressor.set_ratio(voice_comp_params.ratio);
+                self.voice_compressor.set_attack(voice_comp_params.attack);
+                self.voice_compressor.set_release(voice_comp_params.release);
+                self.voice_compressor.set_knee(voice_comp_params.knee);
+                self.voice_compressor
+                    .set_makeup_gain(voice_comp_params.makeup_gain);
+
+                self.last_applied_voice_comp_params = *voice_comp_params;
+            }
 
             // Apply fast mono compression
             (output_left, output_right) = self
