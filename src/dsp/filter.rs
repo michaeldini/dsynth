@@ -7,8 +7,21 @@ pub struct BiquadFilter {
     sample_rate: f32,
     filter_type: FilterType,
     cutoff: f32,
+    target_cutoff: f32,
     resonance: f32,
     bandwidth: f32, // Bandwidth in octaves for bandpass filter
+
+    /// Throttle for expensive coefficient updates when cutoff is modulated at audio-rate.
+    ///
+    /// Updating biquad coefficients requires `sin`/`cos` and is relatively expensive.
+    /// In DSynth we frequently modulate cutoff per-sample (LFO, envelope, key tracking),
+    /// so we update coefficients at a small fixed interval and treat intermediate samples
+    /// as holding the last coefficients.
+    ///
+    /// Default: every 4 samples (~0.09ms at 44.1kHz). This is typically inaudible but
+    /// reduces CPU cost significantly when cutoff changes continuously.
+    cutoff_update_interval: u8,
+    cutoff_update_counter: u8,
 
     // Biquad coefficients
     b0: f32,
@@ -33,12 +46,18 @@ impl BiquadFilter {
 
     /// Create a new biquad filter
     pub fn new(sample_rate: f32) -> Self {
+        const DEFAULT_CUTOFF_UPDATE_INTERVAL: u8 = 4;
         let mut filter = Self {
             sample_rate,
             filter_type: FilterType::Lowpass,
             cutoff: 1000.0,
+            target_cutoff: 1000.0,
             resonance: 0.707,
             bandwidth: 1.0, // 1 octave default for bandpass
+
+            cutoff_update_interval: DEFAULT_CUTOFF_UPDATE_INTERVAL,
+            cutoff_update_counter: 0,
+
             b0: 1.0,
             b1: 0.0,
             b2: 0.0,
@@ -53,10 +72,25 @@ impl BiquadFilter {
         filter
     }
 
+    /// Set how often cutoff coefficient updates are allowed to run.
+    ///
+    /// - `1` means update every call (highest accuracy, highest CPU)
+    /// - Larger values reduce CPU for audio-rate cutoff modulation
+    pub fn set_cutoff_update_interval(&mut self, interval: u8) {
+        self.cutoff_update_interval = interval.max(1);
+        self.cutoff_update_counter = 0;
+        // Apply any pending target immediately when tightening the interval.
+        if (self.cutoff - self.target_cutoff).abs() > 0.01 {
+            self.cutoff = self.target_cutoff;
+            self.update_coefficients();
+        }
+    }
+
     /// Set filter type
     pub fn set_filter_type(&mut self, filter_type: FilterType) {
         if self.filter_type != filter_type {
             self.filter_type = filter_type;
+            self.cutoff_update_counter = 0;
             self.update_coefficients();
         }
     }
@@ -64,8 +98,27 @@ impl BiquadFilter {
     /// Set cutoff frequency in Hz
     pub fn set_cutoff(&mut self, cutoff: f32) {
         let clamped = cutoff.clamp(20.0, self.sample_rate * 0.49);
-        if (self.cutoff - clamped).abs() > 0.01 {
-            self.cutoff = clamped;
+
+        if (self.target_cutoff - clamped).abs() <= 0.01 {
+            return;
+        }
+        self.target_cutoff = clamped;
+
+        // If the cutoff jump is large, update immediately to keep UI/automation responsive.
+        // For small continuous modulation, rate-limit expensive coefficient recomputation.
+        let large_jump = (self.cutoff - self.target_cutoff).abs() > 100.0;
+
+        if self.cutoff_update_interval == 1 || large_jump {
+            self.cutoff = self.target_cutoff;
+            self.cutoff_update_counter = 0;
+            self.update_coefficients();
+            return;
+        }
+
+        self.cutoff_update_counter = self.cutoff_update_counter.saturating_add(1);
+        if self.cutoff_update_counter >= self.cutoff_update_interval {
+            self.cutoff_update_counter = 0;
+            self.cutoff = self.target_cutoff;
             self.update_coefficients();
         }
     }
@@ -75,6 +128,7 @@ impl BiquadFilter {
         let clamped = resonance.clamp(0.5, 50.0);
         if (self.resonance - clamped).abs() > 0.01 {
             self.resonance = clamped;
+            self.cutoff_update_counter = 0;
             self.update_coefficients();
         }
     }
@@ -85,6 +139,7 @@ impl BiquadFilter {
         if (self.bandwidth - clamped).abs() > 0.01 {
             self.bandwidth = clamped;
             if self.filter_type == FilterType::Bandpass {
+                self.cutoff_update_counter = 0;
                 self.update_coefficients();
             }
         }
@@ -187,6 +242,7 @@ mod tests {
     #[test]
     fn test_cutoff_clamping() {
         let mut filter = BiquadFilter::new(44100.0);
+        filter.set_cutoff_update_interval(1);
 
         // Too low
         filter.set_cutoff(10.0);
@@ -204,6 +260,7 @@ mod tests {
     #[test]
     fn test_resonance_clamping() {
         let mut filter = BiquadFilter::new(44100.0);
+        filter.set_cutoff_update_interval(1);
 
         filter.set_resonance(0.1);
         assert_eq!(filter.resonance, 0.5);
@@ -218,6 +275,7 @@ mod tests {
     #[test]
     fn test_bandwidth_clamping() {
         let mut filter = BiquadFilter::new(44100.0);
+        filter.set_cutoff_update_interval(1);
 
         filter.set_bandwidth(0.01);
         assert_eq!(filter.bandwidth, 0.1);
@@ -232,6 +290,7 @@ mod tests {
     #[test]
     fn test_coefficient_stability() {
         let mut filter = BiquadFilter::new(44100.0);
+        filter.set_cutoff_update_interval(1);
         filter.set_cutoff(20000.0);
         filter.set_resonance(50.0);
 
@@ -246,6 +305,7 @@ mod tests {
     #[test]
     fn test_lowpass_dc_signal() {
         let mut filter = BiquadFilter::new(44100.0);
+        filter.set_cutoff_update_interval(1);
         filter.set_filter_type(FilterType::Lowpass);
         filter.set_cutoff(1000.0);
         filter.set_resonance(0.707);

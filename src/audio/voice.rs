@@ -247,6 +247,24 @@ pub struct Voice {
 
     /// Per-filter smoothed cutoff frequency (Hz) used during mono legato transitions.
     mono_smoothed_cutoff_hz: [f32; 3],
+
+    /// Last MIDI note that oscillator-dependent parameters were applied for.
+    ///
+    /// Used to avoid recomputing oscillator frequency/unison state when only non-osc
+    /// parameters (e.g., filter cutoff) change.
+    last_applied_note: u8,
+
+    /// Cached last-applied oscillator parameters.
+    last_applied_osc_params: [OscillatorParams; 3],
+
+    /// Cached last-applied filter parameters.
+    last_applied_filter_params: [FilterParams; 3],
+
+    /// Cached last-applied LFO parameters.
+    last_applied_lfo_params: [LFOParams; 3],
+
+    /// Cached last-applied envelope parameters.
+    last_applied_envelope_params: EnvelopeParams,
 }
 
 impl Voice {
@@ -339,6 +357,13 @@ impl Voice {
             mono_declick_total_samples: (0.0015 * sample_rate) as usize, // 1.5ms
             mono_declick_cutoff_coeff: (-1.0 / (0.0005 * sample_rate)).exp(), // 0.5ms time constant
             mono_smoothed_cutoff_hz: [0.0; 3],
+
+            // Parameter caching for incremental updates.
+            last_applied_note: 0,
+            last_applied_osc_params: [OscillatorParams::default(); 3],
+            last_applied_filter_params: [FilterParams::default(); 3],
+            last_applied_lfo_params: [LFOParams::default(); 3],
+            last_applied_envelope_params: EnvelopeParams::default(),
         }
     }
 
@@ -578,115 +603,117 @@ impl Voice {
         envelope_params: &EnvelopeParams,
         wavetable_library: &crate::dsp::wavetable_library::WavetableLibrary,
     ) {
-        // Step 1: Convert MIDI note to base frequency (Hz)
-        // This is the fundamental frequency before pitch/detune modulation
-        let base_freq = Self::midi_note_to_freq(self.note);
+        let osc_params_changed = *osc_params != self.last_applied_osc_params;
+        let filter_params_changed = *filter_params != self.last_applied_filter_params;
+        let lfo_params_changed = *lfo_params != self.last_applied_lfo_params;
+        let envelope_params_changed = *envelope_params != self.last_applied_envelope_params;
+        let note_changed = self.note != self.last_applied_note;
 
-        // Step 2: Configure each of the 3 oscillator/filter/LFO groups
+        // If note_on() reset buffers, we must re-apply oscillator state at least once,
+        // even if note/params match the previous note.
+        let needs_osc_update = self.needs_dsp_reset_on_update || note_changed || osc_params_changed;
+        let needs_filter_update = filter_params_changed;
+        let needs_lfo_update = lfo_params_changed;
+        let needs_envelope_update = envelope_params_changed;
+
+        if !(needs_osc_update || needs_filter_update || needs_lfo_update || needs_envelope_update) {
+            return;
+        }
+
+        let base_freq = if needs_osc_update {
+            Self::midi_note_to_freq(self.note)
+        } else {
+            0.0
+        };
+
         for i in 0..3 {
-            let param = &osc_params[i];
+            if needs_osc_update {
+                let param = &osc_params[i];
 
-            // Step 3: Determine unison voice count (1-7), clamped to valid range
-            // This controls how many oscillators in this slot are active.
-            // No allocations—we just change the processing count.
-            let target_unison = param.unison.clamp(1, MAX_UNISON_VOICES);
-            self.active_unison[i] = target_unison;
+                let target_unison = param.unison.clamp(1, MAX_UNISON_VOICES);
+                self.active_unison[i] = target_unison;
 
-            // Step 4: Calculate frequency with pitch shift and detune
-            // Pitch: Semitones (±24 semitones = ±2 octaves)
-            // Detune: Cents (±100 cents = ±1 semitone)
-            let pitch_mult = 2.0_f32.powf(param.pitch / 12.0);
-            let detune_mult = 2.0_f32.powf(param.detune / 1200.0);
-            let base_osc_freq = base_freq * pitch_mult * detune_mult;
+                let pitch_mult = 2.0_f32.powf(param.pitch / 12.0);
+                let detune_mult = 2.0_f32.powf(param.detune / 1200.0);
+                let base_osc_freq = base_freq * pitch_mult * detune_mult;
 
-            // Step 5: Configure each active unison voice with frequency spread
-            // Unison voices are detuned copies of the same waveform, creating thickness.
-            // The spread is symmetric around the base frequency:
-            //   Voice 0: -spread/2
-            //   Voice 1: -spread/4
-            //   ...
-            //   Voice N/2: 0 (center)
-            //   ...
-            //   Voice N-1: +spread/2
-            for unison_idx in 0..target_unison {
-                if let Some(ref mut osc) = self.oscillators[i][unison_idx] {
-                    // Calculate unison detune spread
-                    // If target_unison == 1, no spread (unison_detune = 1.0)
-                    // If target_unison > 1, spread voices symmetrically around base frequency
-                    let unison_detune = if target_unison > 1 {
-                        // Spread parameter: cents to ratio (0-100 cents typical)
-                        let spread = param.unison_detune / 100.0;
-                        // Offset: Position of this voice in the unison array (-0.5 to +0.5)
-                        let offset = (unison_idx as f32 - (target_unison - 1) as f32 / 2.0)
-                            / (target_unison - 1) as f32;
-                        // Convert cents to frequency multiplier
-                        2.0_f32.powf(offset * spread / 12.0)
-                    } else {
-                        1.0
-                    };
+                for unison_idx in 0..target_unison {
+                    if let Some(ref mut osc) = self.oscillators[i][unison_idx] {
+                        let unison_detune = if target_unison > 1 {
+                            let spread = param.unison_detune / 100.0;
+                            let offset = (unison_idx as f32 - (target_unison - 1) as f32 / 2.0)
+                                / (target_unison - 1) as f32;
+                            2.0_f32.powf(offset * spread / 12.0)
+                        } else {
+                            1.0
+                        };
 
-                    // Set final frequency for this unison voice
-                    let freq = base_osc_freq * unison_detune;
-                    osc.set_frequency(freq);
-                    osc.set_waveform(param.waveform);
-                    osc.set_shape(param.shape);
+                        let freq = base_osc_freq * unison_detune;
+                        osc.set_frequency(freq);
+                        osc.set_waveform(param.waveform);
+                        osc.set_shape(param.shape);
 
-                    // Update additive harmonics if waveform is Additive
-                    if param.waveform == crate::params::Waveform::Additive {
-                        osc.set_additive_harmonics(param.additive_harmonics);
-                    }
+                        if param.waveform == crate::params::Waveform::Additive {
+                            osc.set_additive_harmonics(param.additive_harmonics);
+                        }
 
-                    // Update wavetable if waveform is Wavetable
-                    if param.waveform == crate::params::Waveform::Wavetable {
-                        osc.set_wavetable(param.wavetable_index, wavetable_library);
-                        osc.set_wavetable_position(param.wavetable_position);
-                    }
+                        if param.waveform == crate::params::Waveform::Wavetable {
+                            osc.set_wavetable(param.wavetable_index, wavetable_library);
+                            osc.set_wavetable_position(param.wavetable_position);
+                        }
 
-                    // Set phase offset for unison decorrelation.
-                    //
-                    // IMPORTANT: Avoid evenly-spaced phases (idx/N). For some waveforms
-                    // (especially near-sine content) this can cause systematic cancellation
-                    // and unnaturally low output at note start when unison is increased.
-                    //
-                    // Using a golden-ratio phase distribution yields well-spread phases
-                    // without the symmetry that produces strong nulls.
-                    const GOLDEN_FRACTION: f32 = 0.618_033_95;
-                    let phase_offset = (param.phase + (unison_idx as f32) * GOLDEN_FRACTION) % 1.0;
-                    osc.set_phase(phase_offset);
+                        const GOLDEN_FRACTION: f32 = 0.618_033_95;
+                        let phase_offset =
+                            (param.phase + (unison_idx as f32) * GOLDEN_FRACTION) % 1.0;
+                        osc.set_phase(phase_offset);
 
-                    // Apply the phase offset that was set above.
-                    // We already did a full reset() in note_on(), so now we just need to
-                    // apply the specific initial_phase for this oscillator's unison decorrelation.
-                    if self.needs_dsp_reset_on_update {
-                        osc.apply_initial_phase();
+                        if self.needs_dsp_reset_on_update {
+                            osc.apply_initial_phase();
+                        }
                     }
                 }
             }
 
-            // Step 6: Update filter parameters (base cutoff, no modulation yet)
-            // The actual cutoff will be modulated per-sample in process() by LFOs,
-            // key tracking, and velocity. Here we just set the starting point.
-            self.filters[i].set_filter_type(filter_params[i].filter_type);
-            self.filters[i].set_cutoff(filter_params[i].cutoff);
-            self.filters[i].set_resonance(filter_params[i].resonance);
+            if needs_filter_update {
+                self.filters[i].set_filter_type(filter_params[i].filter_type);
+                self.filters[i].set_resonance(filter_params[i].resonance);
+                self.filters[i].set_bandwidth(filter_params[i].bandwidth);
 
-            // Update filter envelope parameters
-            self.filter_envelopes[i].set_attack(filter_params[i].envelope.attack);
-            self.filter_envelopes[i].set_decay(filter_params[i].envelope.decay);
-            self.filter_envelopes[i].set_sustain(filter_params[i].envelope.sustain);
-            self.filter_envelopes[i].set_release(filter_params[i].envelope.release);
+                self.filter_envelopes[i].set_attack(filter_params[i].envelope.attack);
+                self.filter_envelopes[i].set_decay(filter_params[i].envelope.decay);
+                self.filter_envelopes[i].set_sustain(filter_params[i].envelope.sustain);
+                self.filter_envelopes[i].set_release(filter_params[i].envelope.release);
+            }
 
-            // Step 7: Update LFO parameters (rate and waveform)
-            let lfo = &lfo_params[i];
-            self.lfos[i].set_rate(lfo.rate);
-            self.lfos[i].set_waveform(lfo.waveform);
+            if needs_lfo_update {
+                let lfo = &lfo_params[i];
+                self.lfos[i].set_rate(lfo.rate);
+                self.lfos[i].set_waveform(lfo.waveform);
+            }
         }
 
-        // Step 7: Update envelope ADSR parameters
-        self.envelope.set_attack(envelope_params.attack);
-        self.envelope.set_decay(envelope_params.decay);
-        self.envelope.set_sustain(envelope_params.sustain);
-        self.envelope.set_release(envelope_params.release);
+        if needs_envelope_update {
+            self.envelope.set_attack(envelope_params.attack);
+            self.envelope.set_decay(envelope_params.decay);
+            self.envelope.set_sustain(envelope_params.sustain);
+            self.envelope.set_release(envelope_params.release);
+        }
+
+        if osc_params_changed {
+            self.last_applied_osc_params = *osc_params;
+        }
+        if filter_params_changed {
+            self.last_applied_filter_params = *filter_params;
+        }
+        if lfo_params_changed {
+            self.last_applied_lfo_params = *lfo_params;
+        }
+        if envelope_params_changed {
+            self.last_applied_envelope_params = *envelope_params;
+        }
+        if needs_osc_update {
+            self.last_applied_note = self.note;
+        }
 
         if self.needs_dsp_reset_on_update {
             self.needs_dsp_reset_on_update = false;
@@ -1130,7 +1157,6 @@ impl Voice {
             };
 
             self.filters[i].set_cutoff(cutoff_to_set);
-            self.filters[i].set_bandwidth(filter_params[i].bandwidth);
             let filtered = self.filters[i].process(driven_signal);
 
             // === STEP 6e.1: Apply post-filter drive (saturation after filtering) ===

@@ -93,7 +93,7 @@ impl EnvelopeEditor {
         let attack_end_x = self.attack_normalized * section_width;
 
         // Decay spans from section_width to 2*section_width (0.333 to 0.666)
-        let decay_start_x = section_width;
+        // let decay_start_x = section_width;
         let decay_end_x = section_width + (self.decay_normalized * section_width);
 
         // Release spans from 2*section_width to 1.0 (0.666 to 1.0)
