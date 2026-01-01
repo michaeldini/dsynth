@@ -2,6 +2,7 @@
 
 use crate::audio::output::EngineEvent;
 use crate::gui::vizia_gui::GuiMessage;
+use crate::gui::vizia_gui::messages::UiTab;
 use crate::params::SynthParams;
 use crate::plugin::gui_param_change::GuiParamChange;
 use crossbeam_channel::Sender;
@@ -42,6 +43,9 @@ pub struct GuiState {
     pub osc1_waveform: i32,
     pub osc2_waveform: i32,
     pub osc3_waveform: i32,
+
+    /// Active UI tab
+    pub active_tab: UiTab,
 }
 
 impl GuiState {
@@ -60,6 +64,7 @@ impl GuiState {
             osc1_waveform: 0, // Default: Sine
             osc2_waveform: 0,
             osc3_waveform: 0,
+            active_tab: UiTab::Oscillator,
         }
     }
 
@@ -80,6 +85,7 @@ impl GuiState {
             osc1_waveform: 0, // Default: Sine
             osc2_waveform: 0,
             osc3_waveform: 0,
+            active_tab: UiTab::Oscillator,
         }
     }
 
@@ -129,6 +135,11 @@ impl GuiState {
 impl Model for GuiState {
     fn event(&mut self, cx: &mut EventContext, event: &mut Event) {
         event.map(|msg, meta| match msg {
+            GuiMessage::SetActiveTab(tab) => {
+                self.active_tab = *tab;
+                cx.needs_redraw();
+                meta.consume();
+            }
             GuiMessage::ParamChanged(param_id, normalized) => {
                 self.update_param(*param_id, *normalized);
 

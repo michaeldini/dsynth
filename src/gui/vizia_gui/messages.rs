@@ -1,6 +1,14 @@
 // GUI messages for VIZIA event handling
 
 use std::path::PathBuf;
+use vizia::prelude::Data;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Data)]
+pub enum UiTab {
+    Oscillator,
+    FilterLfo,
+    Effects,
+}
 
 #[derive(Debug, Clone)]
 pub enum GuiMessage {
@@ -21,4 +29,7 @@ pub enum GuiMessage {
     RandomizeFilters,
     RandomizeEnvelope,
     RandomizeEffects,
+
+    // UI navigation
+    SetActiveTab(UiTab),
 }

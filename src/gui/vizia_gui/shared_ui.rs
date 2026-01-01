@@ -1,6 +1,7 @@
 // Shared UI layout for both CLAP plugin and standalone VIZIA GUI
 
 use crate::gui::vizia_gui::GuiState;
+use crate::gui::vizia_gui::messages::UiTab;
 use crate::gui::vizia_gui::widgets::{
     EnvelopeEditor, distortion_type_button, filter_type_button, fm_source_button,
     lfo_waveform_button, oscillator_waveform_button, param_checkbox, param_knob, param_vslider,
@@ -9,6 +10,21 @@ use crate::plugin::param_descriptor::*;
 use crate::plugin::param_registry;
 use crate::plugin::param_update::param_get;
 use vizia::prelude::*;
+
+fn tab_button(cx: &mut Context, label: &str, tab: UiTab, active_tab: UiTab) {
+    let is_active = tab == active_tab;
+    Button::new(cx, move |cx| Label::new(cx, label))
+        .on_press(move |cx| cx.emit(crate::gui::vizia_gui::GuiMessage::SetActiveTab(tab)))
+        .height(Pixels(32.0))
+        .padding(Pixels(8.0))
+        .background_color(if is_active {
+            Color::rgb(60, 60, 70)
+        } else {
+            Color::rgb(40, 40, 48)
+        })
+        .corner_radius(Pixels(4.0))
+        .cursor(CursorIcon::Hand);
+}
 
 /// Build the main UI layout - shared by plugin and standalone
 pub fn build_ui(cx: &mut Context) {
@@ -36,162 +52,184 @@ pub fn build_ui(cx: &mut Context) {
         .padding(Pixels(10.0))
         .background_color(Color::rgb(25, 25, 30));
 
+        // Tab bar
+        Binding::new(cx, GuiState::active_tab, |cx, active_tab| {
+            let active_tab = active_tab.get(cx);
+            HStack::new(cx, |cx| {
+                tab_button(cx, "Oscillator", UiTab::Oscillator, active_tab);
+                tab_button(cx, "Filter + LFO", UiTab::FilterLfo, active_tab);
+                tab_button(cx, "Effects", UiTab::Effects, active_tab);
+            })
+            .gap(Pixels(8.0))
+            .height(Pixels(44.0))
+            .width(Stretch(1.0))
+            .padding(Pixels(10.0))
+            .background_color(Color::rgb(25, 25, 30));
+        });
+
         // Scrollable content area
         ScrollView::new(cx, |cx| {
-            VStack::new(cx, |cx| {
-                // Row 1: Master + Envelope + Velocity
-                HStack::new(cx, |cx| {
-                    VStack::new(cx, |cx| {
-                        Label::new(cx, "Master")
-                            .font_size(16.0)
-                            .color(Color::rgb(200, 200, 210))
-                            .height(Pixels(24.0));
-                        build_master_section(cx);
-                    })
-                    .width(Stretch(1.0))
-                    .padding(Pixels(10.0))
-                    .gap(Pixels(6.0))
-                    .background_color(Color::rgb(35, 35, 40));
+            Binding::new(cx, GuiState::active_tab, move |cx, active_tab| {
+                let active_tab = active_tab.get(cx);
+                VStack::new(cx, |cx| match active_tab {
+                    UiTab::Oscillator => {
+                        // Row 1: Master + Envelope + Velocity
+                        HStack::new(cx, |cx| {
+                            VStack::new(cx, |cx| {
+                                Label::new(cx, "Master")
+                                    .font_size(16.0)
+                                    .color(Color::rgb(200, 200, 210))
+                                    .height(Pixels(24.0));
+                                build_master_section(cx);
+                            })
+                            .width(Stretch(1.0))
+                            .padding(Pixels(10.0))
+                            .gap(Pixels(6.0))
+                            .background_color(Color::rgb(35, 35, 40));
 
-                    VStack::new(cx, |cx| {
-                        Label::new(cx, "Envelope")
-                            .font_size(16.0)
-                            .color(Color::rgb(200, 200, 210))
-                            .height(Pixels(24.0));
-                        build_envelope_section(cx);
-                    })
-                    .width(Stretch(1.0))
-                    .padding(Pixels(10.0))
-                    .gap(Pixels(6.0))
-                    .background_color(Color::rgb(35, 35, 40));
+                            VStack::new(cx, |cx| {
+                                Label::new(cx, "Envelope")
+                                    .font_size(16.0)
+                                    .color(Color::rgb(200, 200, 210))
+                                    .height(Pixels(24.0));
+                                build_envelope_section(cx);
+                            })
+                            .width(Stretch(1.0))
+                            .padding(Pixels(10.0))
+                            .gap(Pixels(6.0))
+                            .background_color(Color::rgb(35, 35, 40));
 
-                    VStack::new(cx, |cx| {
-                        Label::new(cx, "Velocity")
-                            .font_size(16.0)
-                            .color(Color::rgb(200, 200, 210))
-                            .height(Pixels(24.0));
-                        build_velocity_section(cx);
-                    })
-                    .width(Stretch(1.0))
-                    .padding(Pixels(10.0))
-                    .gap(Pixels(6.0))
-                    .background_color(Color::rgb(35, 35, 40));
+                            VStack::new(cx, |cx| {
+                                Label::new(cx, "Velocity")
+                                    .font_size(16.0)
+                                    .color(Color::rgb(200, 200, 210))
+                                    .height(Pixels(24.0));
+                                build_velocity_section(cx);
+                            })
+                            .width(Stretch(1.0))
+                            .padding(Pixels(10.0))
+                            .gap(Pixels(6.0))
+                            .background_color(Color::rgb(35, 35, 40));
+                        })
+                        .gap(Pixels(COL_GAP))
+                        .height(Pixels(250.0));
+
+                        // Row 1.5: Voice Dynamics (Compressor + Transient Shaper)
+                        HStack::new(cx, |cx| {
+                            VStack::new(cx, |cx| {
+                                Label::new(cx, "Voice Compressor")
+                                    .font_size(16.0)
+                                    .color(Color::rgb(200, 200, 210))
+                                    .height(Pixels(24.0));
+                                build_voice_compressor_section(cx);
+                            })
+                            .width(Stretch(1.0))
+                            .padding(Pixels(10.0))
+                            .gap(Pixels(6.0))
+                            .background_color(Color::rgb(35, 35, 40));
+
+                            VStack::new(cx, |cx| {
+                                Label::new(cx, "Transient Shaper")
+                                    .font_size(16.0)
+                                    .color(Color::rgb(200, 200, 210))
+                                    .height(Pixels(24.0));
+                                build_transient_shaper_section(cx);
+                            })
+                            .width(Stretch(1.0))
+                            .padding(Pixels(10.0))
+                            .gap(Pixels(6.0))
+                            .background_color(Color::rgb(35, 35, 40));
+                        })
+                        .gap(Pixels(COL_GAP))
+                        .height(Pixels(125.0));
+
+                        // Row 2: Oscillators
+                        HStack::new(cx, |cx| {
+                            // Oscillator 1 column
+                            VStack::new(cx, |cx| {
+                                build_osc_section(cx, 1);
+                                build_waveform_specific_section(cx, 1);
+                            })
+                            .width(Pixels(OSC_COL_WIDTH))
+                            .height(Units::Auto)
+                            .padding(Pixels(10.0))
+                            .gap(Pixels(10.0))
+                            .background_color(Color::rgb(35, 35, 40));
+
+                            // Oscillator 2 column
+                            VStack::new(cx, |cx| {
+                                build_osc_section(cx, 2);
+                                build_waveform_specific_section(cx, 2);
+                            })
+                            .width(Pixels(OSC_COL_WIDTH))
+                            .height(Units::Auto)
+                            .padding(Pixels(10.0))
+                            .gap(Pixels(10.0))
+                            .background_color(Color::rgb(35, 35, 40));
+
+                            // Oscillator 3 column
+                            VStack::new(cx, |cx| {
+                                build_osc_section(cx, 3);
+                                build_waveform_specific_section(cx, 3);
+                            })
+                            .width(Pixels(OSC_COL_WIDTH))
+                            .height(Units::Auto)
+                            .padding(Pixels(10.0))
+                            .gap(Pixels(10.0))
+                            .background_color(Color::rgb(35, 35, 40));
+                        })
+                        .height(Pixels(550.0))
+                        .gap(Pixels(COL_GAP));
+                    }
+                    UiTab::FilterLfo => {
+                        // Row 3: Filters
+                        VStack::new(cx, |cx| {
+                            HStack::new(cx, |cx| {
+                                VStack::new(cx, |cx| build_filter_section(cx, 1))
+                                    .width(Pixels(OSC_COL_WIDTH))
+                                    .height(Units::Auto);
+                                VStack::new(cx, |cx| build_filter_section(cx, 2))
+                                    .width(Pixels(OSC_COL_WIDTH))
+                                    .height(Units::Auto);
+                                VStack::new(cx, |cx| build_filter_section(cx, 3))
+                                    .width(Pixels(OSC_COL_WIDTH))
+                                    .height(Units::Auto);
+                            })
+                            .height(Units::Auto)
+                            .gap(Pixels(COL_GAP));
+                        })
+                        .background_color(Color::rgb(35, 35, 40))
+                        .height(Pixels(275.0));
+
+                        // Row 4: LFOs
+                        VStack::new(cx, |cx| {
+                            HStack::new(cx, |cx| {
+                                VStack::new(cx, |cx| build_lfo_section(cx, 1))
+                                    .width(Pixels(OSC_COL_WIDTH))
+                                    .height(Units::Auto);
+                                VStack::new(cx, |cx| build_lfo_section(cx, 2))
+                                    .width(Pixels(OSC_COL_WIDTH))
+                                    .height(Units::Auto);
+                                VStack::new(cx, |cx| build_lfo_section(cx, 3))
+                                    .width(Pixels(OSC_COL_WIDTH))
+                                    .height(Units::Auto);
+                            })
+                            .height(Units::Auto)
+                            .gap(Pixels(COL_GAP));
+                        })
+                        .height(Pixels(250.0));
+                    }
+                    UiTab::Effects => {
+                        // Row 5: Effects
+                        build_effects_section(cx);
+                    }
                 })
-                .gap(Pixels(COL_GAP))
-                .height(Pixels(250.0));
-
-                // Row 1.5: Voice Dynamics (Compressor + Transient Shaper)
-                HStack::new(cx, |cx| {
-                    VStack::new(cx, |cx| {
-                        Label::new(cx, "Voice Compressor")
-                            .font_size(16.0)
-                            .color(Color::rgb(200, 200, 210))
-                            .height(Pixels(24.0));
-                        build_voice_compressor_section(cx);
-                    })
-                    .width(Stretch(1.0))
-                    .padding(Pixels(10.0))
-                    .gap(Pixels(6.0))
-                    .background_color(Color::rgb(35, 35, 40));
-
-                    VStack::new(cx, |cx| {
-                        Label::new(cx, "Transient Shaper")
-                            .font_size(16.0)
-                            .color(Color::rgb(200, 200, 210))
-                            .height(Pixels(24.0));
-                        build_transient_shaper_section(cx);
-                    })
-                    .width(Stretch(1.0))
-                    .padding(Pixels(10.0))
-                    .gap(Pixels(6.0))
-                    .background_color(Color::rgb(35, 35, 40));
-                })
-                .gap(Pixels(COL_GAP))
-                .height(Pixels(125.0));
-
-                // Row 2: Oscillators
-                HStack::new(cx, |cx| {
-                    // Oscillator 1 column
-                    VStack::new(cx, |cx| {
-                        build_osc_section(cx, 1);
-                        build_waveform_specific_section(cx, 1);
-                    })
-                    .width(Pixels(OSC_COL_WIDTH))
-                    .height(Units::Auto)
-                    .padding(Pixels(10.0))
-                    .gap(Pixels(10.0))
-                    .background_color(Color::rgb(35, 35, 40));
-
-                    // Oscillator 2 column
-                    VStack::new(cx, |cx| {
-                        build_osc_section(cx, 2);
-                        build_waveform_specific_section(cx, 2);
-                    })
-                    .width(Pixels(OSC_COL_WIDTH))
-                    .height(Units::Auto)
-                    .padding(Pixels(10.0))
-                    .gap(Pixels(10.0))
-                    .background_color(Color::rgb(35, 35, 40));
-
-                    // Oscillator 3 column
-                    VStack::new(cx, |cx| {
-                        build_osc_section(cx, 3);
-                        build_waveform_specific_section(cx, 3);
-                    })
-                    .width(Pixels(OSC_COL_WIDTH))
-                    .height(Units::Auto)
-                    .padding(Pixels(10.0))
-                    .gap(Pixels(10.0))
-                    .background_color(Color::rgb(35, 35, 40));
-                })
-                .height(Pixels(550.0))
-                .gap(Pixels(COL_GAP));
-
-                // Row 3: Filters
-                VStack::new(cx, |cx| {
-                    HStack::new(cx, |cx| {
-                        VStack::new(cx, |cx| build_filter_section(cx, 1))
-                            .width(Pixels(OSC_COL_WIDTH))
-                            .height(Units::Auto);
-                        VStack::new(cx, |cx| build_filter_section(cx, 2))
-                            .width(Pixels(OSC_COL_WIDTH))
-                            .height(Units::Auto);
-                        VStack::new(cx, |cx| build_filter_section(cx, 3))
-                            .width(Pixels(OSC_COL_WIDTH))
-                            .height(Units::Auto);
-                    })
-                    .height(Units::Auto)
-                    .gap(Pixels(COL_GAP));
-                })
-                .background_color(Color::rgb(35, 35, 40))
-                .height(Pixels(275.0));
-
-                // Row 4: LFOs
-                VStack::new(cx, |cx| {
-                    HStack::new(cx, |cx| {
-                        VStack::new(cx, |cx| build_lfo_section(cx, 1))
-                            .width(Pixels(OSC_COL_WIDTH))
-                            .height(Units::Auto);
-                        VStack::new(cx, |cx| build_lfo_section(cx, 2))
-                            .width(Pixels(OSC_COL_WIDTH))
-                            .height(Units::Auto);
-                        VStack::new(cx, |cx| build_lfo_section(cx, 3))
-                            .width(Pixels(OSC_COL_WIDTH))
-                            .height(Units::Auto);
-                    })
-                    .height(Units::Auto)
-                    .gap(Pixels(COL_GAP));
-                })
-                .height(Pixels(250.0));
-
-                // Row 5: Effects
-                build_effects_section(cx);
-            })
-            .width(Stretch(1.0))
-            .height(Units::Auto)
-            .min_height(Pixels(0.0))
-            .padding(Pixels(10.0))
-            .gap(Pixels(ROW_GAP));
+                .width(Stretch(1.0))
+                .height(Units::Auto)
+                .min_height(Pixels(0.0))
+                .padding(Pixels(10.0))
+                .gap(Pixels(ROW_GAP));
+            });
         })
         .show_horizontal_scrollbar(false)
         .show_vertical_scrollbar(true)
