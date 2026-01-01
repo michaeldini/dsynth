@@ -4,8 +4,8 @@
 
 #![cfg(feature = "clap")]
 
-use crate::gui::vizia_gui::shared_ui;
-use crate::gui::vizia_gui::GuiState;
+use crate::gui::shared_ui;
+use crate::gui::GuiState;
 use crate::params::SynthParams;
 use crate::plugin::gui_param_change::GuiParamChange;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle as RawHandle};

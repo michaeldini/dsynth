@@ -23,7 +23,7 @@ use dsynth::audio::output::EngineEvent;
 #[cfg(feature = "standalone")]
 use dsynth::audio::{engine::SynthEngine, output::AudioOutput};
 #[cfg(feature = "standalone")]
-use dsynth::gui::vizia_gui::run_standalone_gui;
+use dsynth::gui::run_standalone_gui;
 #[cfg(feature = "standalone")]
 use dsynth::midi::handler::MidiHandler;
 #[cfg(feature = "standalone")]

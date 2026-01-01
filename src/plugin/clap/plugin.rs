@@ -548,7 +548,7 @@ unsafe extern "C" fn gui_set_parent(
     };
 
     // Open the VIZIA window with proper parameter update buffer
-    match crate::gui::vizia_gui::plugin_window::open_editor(
+    match crate::gui::plugin_window::open_editor(
         raw_handle,
         instance.synth_params.clone(),
         instance.gui_param_producer.clone(),

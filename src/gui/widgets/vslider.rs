@@ -93,8 +93,8 @@ impl View for VSlider {
 
     fn event(&mut self, cx: &mut EventContext, event: &mut Event) {
         // Sync message (re-using existing knob sync message)
-        event.map(|gui_msg: &crate::gui::vizia_gui::GuiMessage, _meta| {
-            if let crate::gui::vizia_gui::GuiMessage::SyncKnobValue(param_id, normalized) = gui_msg
+        event.map(|gui_msg: &crate::gui::GuiMessage, _meta| {
+            if let crate::gui::GuiMessage::SyncKnobValue(param_id, normalized) = gui_msg
             {
                 if *param_id == self.param_id {
                     self.normalized_value = normalized.clamp(0.0, 1.0);
@@ -111,7 +111,7 @@ impl View for VSlider {
                 cx.capture();
                 cx.set_active(true);
 
-                cx.emit(crate::gui::vizia_gui::GuiMessage::ParamChanged(
+                cx.emit(crate::gui::GuiMessage::ParamChanged(
                     self.param_id,
                     self.normalized_value,
                 ));
@@ -124,7 +124,7 @@ impl View for VSlider {
                     let bounds = cx.cache.get_bounds(cx.current());
                     self.update_from_y(bounds, *y);
 
-                    cx.emit(crate::gui::vizia_gui::GuiMessage::ParamChanged(
+                    cx.emit(crate::gui::GuiMessage::ParamChanged(
                         self.param_id,
                         self.normalized_value,
                     ));
@@ -144,7 +144,7 @@ impl View for VSlider {
 
             WindowEvent::MouseDoubleClick(MouseButton::Left) => {
                 self.normalized_value = self.default_value;
-                cx.emit(crate::gui::vizia_gui::GuiMessage::ParamChanged(
+                cx.emit(crate::gui::GuiMessage::ParamChanged(
                     self.param_id,
                     self.normalized_value,
                 ));

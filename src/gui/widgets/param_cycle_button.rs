@@ -11,7 +11,7 @@ pub fn param_cycle_button(
     label: &str,
     options: &'static [&'static str],
 ) {
-    use crate::gui::vizia_gui::{GuiMessage, GuiState};
+    use crate::gui::{GuiMessage, GuiState};
 
     const CELL_WIDTH: f32 = 80.0;
     let num_options = options.len();

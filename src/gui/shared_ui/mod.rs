@@ -7,15 +7,16 @@ pub mod helpers;
 pub mod lfos;
 pub mod master;
 pub mod oscillators;
+pub mod traits;
 
-use crate::gui::vizia_gui::messages::UiTab;
-use crate::gui::vizia_gui::GuiState;
+use crate::gui::messages::UiTab;
+use crate::gui::GuiState;
 use vizia::prelude::*;
 
 fn tab_button(cx: &mut Context, label: &str, tab: UiTab, active_tab: UiTab) {
     let is_active = tab == active_tab;
     Button::new(cx, move |cx| Label::new(cx, label))
-        .on_press(move |cx| cx.emit(crate::gui::vizia_gui::GuiMessage::SetActiveTab(tab)))
+        .on_press(move |cx| cx.emit(crate::gui::GuiMessage::SetActiveTab(tab)))
         .height(Pixels(32.0))
         .padding(Pixels(8.0))
         .color(if is_active {

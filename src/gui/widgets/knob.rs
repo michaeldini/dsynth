@@ -89,8 +89,8 @@ impl View for Knob {
 
     fn event(&mut self, cx: &mut EventContext, event: &mut Event) {
         // Handle SyncKnobValue messages to update visual state
-        event.map(|gui_msg: &crate::gui::vizia_gui::GuiMessage, _meta| {
-            if let crate::gui::vizia_gui::GuiMessage::SyncKnobValue(param_id, normalized) = gui_msg
+        event.map(|gui_msg: &crate::gui::GuiMessage, _meta| {
+            if let crate::gui::GuiMessage::SyncKnobValue(param_id, normalized) = gui_msg
             {
                 if *param_id == self.param_id {
                     self.normalized_value = normalized.clamp(0.0, 1.0);
@@ -113,7 +113,7 @@ impl View for Knob {
                     let delta_y = *y - self.drag_start_y;
                     self.update_from_drag(delta_y, 1.0 / 200.0);
 
-                    cx.emit(crate::gui::vizia_gui::GuiMessage::ParamChanged(
+                    cx.emit(crate::gui::GuiMessage::ParamChanged(
                         self.param_id,
                         self.normalized_value,
                     ));
@@ -133,7 +133,7 @@ impl View for Knob {
 
             WindowEvent::MouseDoubleClick(MouseButton::Left) => {
                 self.normalized_value = self.default_value;
-                cx.emit(crate::gui::vizia_gui::GuiMessage::ParamChanged(
+                cx.emit(crate::gui::GuiMessage::ParamChanged(
                     self.param_id,
                     self.normalized_value,
                 ));

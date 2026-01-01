@@ -1,7 +1,7 @@
 // Master, envelope, and velocity sections
 
 use super::helpers::{current_normalized, default_normalized};
-use crate::gui::vizia_gui::widgets::{EnvelopeEditor, param_checkbox, param_knob};
+use crate::gui::widgets::{EnvelopeEditor, param_checkbox, param_knob};
 use crate::plugin::param_descriptor::*;
 use vizia::prelude::*;
 
@@ -34,7 +34,7 @@ pub fn build_master_section(cx: &mut Context) {
 
         // Randomize button
         Button::new(cx, |cx| Label::new(cx, "🎲 Randomize"))
-            .on_press(|cx| cx.emit(crate::gui::vizia_gui::GuiMessage::Randomize))
+            .on_press(|cx| cx.emit(crate::gui::GuiMessage::Randomize))
             .width(Pixels(100.0))
             .height(Pixels(32.0))
             .background_color(Color::rgb(60, 60, 70))

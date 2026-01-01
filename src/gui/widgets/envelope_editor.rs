@@ -194,7 +194,7 @@ impl EnvelopeEditor {
                 let section_width = 1.0 / 3.0;
                 let relative_pos = (nx / section_width).clamp(0.0, 1.0);
                 self.attack_normalized = relative_pos;
-                cx.emit(crate::gui::vizia_gui::GuiMessage::ParamChanged(
+                cx.emit(crate::gui::GuiMessage::ParamChanged(
                     self.attack_param_id,
                     self.attack_normalized,
                 ));
@@ -203,7 +203,7 @@ impl EnvelopeEditor {
             DraggedHandle::Decay => {
                 // Sustain level (vertical) - direct mapping
                 self.sustain_normalized = ny;
-                cx.emit(crate::gui::vizia_gui::GuiMessage::ParamChanged(
+                cx.emit(crate::gui::GuiMessage::ParamChanged(
                     self.sustain_param_id,
                     self.sustain_normalized,
                 ));
@@ -214,7 +214,7 @@ impl EnvelopeEditor {
                 let section_start = section_width;
                 let relative_pos = ((nx - section_start) / section_width).clamp(0.0, 1.0);
                 self.decay_normalized = relative_pos;
-                cx.emit(crate::gui::vizia_gui::GuiMessage::ParamChanged(
+                cx.emit(crate::gui::GuiMessage::ParamChanged(
                     self.decay_param_id,
                     self.decay_normalized,
                 ));
@@ -227,7 +227,7 @@ impl EnvelopeEditor {
                 let section_start = 2.0 * section_width;
                 let relative_pos = ((nx - section_start) / section_width).clamp(0.0, 1.0);
                 self.release_normalized = relative_pos;
-                cx.emit(crate::gui::vizia_gui::GuiMessage::ParamChanged(
+                cx.emit(crate::gui::GuiMessage::ParamChanged(
                     self.release_param_id,
                     self.release_normalized,
                 ));
@@ -244,8 +244,8 @@ impl View for EnvelopeEditor {
     fn event(&mut self, cx: &mut EventContext, event: &mut Event) {
         // Handle parameter sync messages from the audio thread
         event.map(
-            |gui_msg: &crate::gui::vizia_gui::GuiMessage, _meta| match gui_msg {
-                crate::gui::vizia_gui::GuiMessage::SyncKnobValue(param_id, normalized) => {
+            |gui_msg: &crate::gui::GuiMessage, _meta| match gui_msg {
+                crate::gui::GuiMessage::SyncKnobValue(param_id, normalized) => {
                     let value = normalized.clamp(0.0, 1.0);
                     if *param_id == self.attack_param_id {
                         self.attack_normalized = value;

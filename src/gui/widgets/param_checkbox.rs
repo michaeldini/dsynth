@@ -2,7 +2,7 @@ use vizia::prelude::*;
 
 /// A checkbox parameter control widget for boolean parameters
 pub fn param_checkbox(cx: &mut Context, param_id: u32, label: &str, _initial_checked: bool) {
-    use crate::gui::vizia_gui::{GuiMessage, GuiState};
+    use crate::gui::{GuiMessage, GuiState};
 
     const CELL_WIDTH: f32 = 80.0;
 

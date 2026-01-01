@@ -1,6 +1,6 @@
 // Helper functions for parameter normalization
 
-use crate::gui::vizia_gui::GuiState;
+use crate::gui::GuiState;
 use crate::plugin::param_registry;
 use crate::plugin::param_update::param_get;
 use vizia::prelude::*;

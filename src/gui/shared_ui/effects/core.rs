@@ -1,7 +1,7 @@
 // Core effects: distortion, chorus, delay, reverb
 
 use super::super::helpers::{current_normalized, default_normalized};
-use crate::gui::vizia_gui::widgets::{distortion_type_button, param_checkbox, param_knob};
+use crate::gui::widgets::{distortion_type_button, param_checkbox, param_knob};
 use crate::plugin::param_descriptor::*;
 use vizia::prelude::*;
 

@@ -1,8 +1,8 @@
 // VIZIA standalone window for desktop application
 
 use crate::audio::output::EngineEvent;
-use crate::gui::vizia_gui::GuiState;
-use crate::gui::vizia_gui::shared_ui;
+use crate::gui::GuiState;
+use crate::gui::shared_ui;
 use crate::params::SynthParams;
 use crate::plugin::gui_param_change::GuiParamChange;
 use crossbeam_channel::Sender;

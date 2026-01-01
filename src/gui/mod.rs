@@ -1,7 +1,18 @@
-// VIZIA GUI - unified for both CLAP plugin and standalone
-// vizia is now a non-optional dependency, always available
-pub mod vizia_gui;
+// VIZIA GUI module - unified GUI for both plugin and standalone targets
 
-// Re-export standalone entry point
+pub mod messages;
+pub mod shared_ui;
+pub mod state;
+pub mod widgets;
+
+pub use messages::GuiMessage;
+pub use state::GuiState;
+
+#[cfg(feature = "clap")]
+pub mod plugin_window;
+
 #[cfg(feature = "standalone")]
-pub use vizia_gui::run_standalone_gui;
+pub mod standalone_window;
+
+#[cfg(feature = "standalone")]
+pub use standalone_window::run_standalone_gui;
