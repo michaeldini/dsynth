@@ -185,6 +185,13 @@ pub struct Voice {
     /// Currently not used in voice stealing or processing logic.
     last_output: f32,
 
+    /// Last *final* output sample after all processing (including anti-click/crossfade).
+    ///
+    /// Stored so we can avoid discontinuities when retriggering a note while the voice is
+    /// still audible (e.g., fast repeated taps causing rapid release→attack restarts).
+    last_output_left: f32,
+    last_output_right: f32,
+
     /// One-shot flag: after note_on, we need to reset oscillator/filter running state
     /// once parameters (including unison phase offsets) have been applied.
     needs_dsp_reset_on_update: bool,
@@ -210,6 +217,36 @@ pub struct Voice {
     ///
     /// This value is calculated as: 0.002 * sample_rate
     anti_click_fade_samples: usize,
+
+    /// Retrigger crossfade samples remaining.
+    ///
+    /// When a note is retriggered while the voice still has audible output (typically during
+    /// the release tail), restarting the anti-click fade can cause a hard step (click):
+    /// previous sample is non-zero, next sample starts near zero.
+    ///
+    /// We fix that by crossfading from the last final output into the new restarted output over
+    /// a very short window.
+    retrigger_xfade_samples_remaining: usize,
+    retrigger_xfade_total_samples: usize,
+    retrigger_prev_left: f32,
+    retrigger_prev_right: f32,
+
+    /// Remaining samples for mono legato de-click smoothing.
+    ///
+    /// In monophonic mode, we can switch notes without retriggering the voice (legato).
+    /// A sudden note change can still cause a small click due to abrupt filter coefficient
+    /// changes from key tracking / velocity modulation. We apply a very short cutoff smoothing
+    /// window on legato note changes to keep the signal continuous.
+    mono_declick_samples_remaining: usize,
+
+    /// Total duration (in samples) of the mono legato de-click smoothing window.
+    mono_declick_total_samples: usize,
+
+    /// One-pole smoothing coefficient used during the mono de-click window.
+    mono_declick_cutoff_coeff: f32,
+
+    /// Per-filter smoothed cutoff frequency (Hz) used during mono legato transitions.
+    mono_smoothed_cutoff_hz: [f32; 3],
 }
 
 impl Voice {
@@ -283,12 +320,25 @@ impl Voice {
             rms_squared_ema: 0.0,
             peak_amplitude: 0.0,
             last_output: 0.0,
+            last_output_left: 0.0,
+            last_output_right: 0.0,
             needs_dsp_reset_on_update: false,
             osc_outputs_prev: [0.0; 3],
             osc1_phase_prev: 0.0, // Initialize hard sync phase tracking
             osc2_phase_prev: 0.0, // Initialize hard sync chain tracking
             anti_click_samples: 0,
             anti_click_fade_samples: (0.002 * sample_rate) as usize, // 2ms fade
+
+            retrigger_xfade_samples_remaining: 0,
+            retrigger_xfade_total_samples: (0.0015 * sample_rate) as usize, // 1.5ms
+            retrigger_prev_left: 0.0,
+            retrigger_prev_right: 0.0,
+
+            // Mono legato de-click smoothing (very short; intended to remove clicks without audible portamento).
+            mono_declick_samples_remaining: 0,
+            mono_declick_total_samples: (0.0015 * sample_rate) as usize, // 1.5ms
+            mono_declick_cutoff_coeff: (-1.0 / (0.0005 * sample_rate)).exp(), // 0.5ms time constant
+            mono_smoothed_cutoff_hz: [0.0; 3],
         }
     }
 
@@ -322,6 +372,18 @@ impl Voice {
     /// voice.note_on(72, 1.0);  // Play C5 at 100% velocity (forte)
     /// ```
     pub fn note_on(&mut self, note: u8, velocity: f32) {
+        // If we're retriggering while still audible (e.g., fast repeated taps),
+        // capture the last output so we can crossfade and avoid a step discontinuity.
+        let was_active = self.is_active;
+        if was_active {
+            let prev_peak = self.last_output_left.abs().max(self.last_output_right.abs());
+            if prev_peak > 1.0e-4 {
+                self.retrigger_prev_left = self.last_output_left;
+                self.retrigger_prev_right = self.last_output_right;
+                self.retrigger_xfade_samples_remaining = self.retrigger_xfade_total_samples;
+            }
+        }
+
         self.note = note;
         // Clamp velocity to valid range [0.0, 1.0] to handle edge cases
         // (e.g., MIDI controller sending out-of-spec values)
@@ -384,6 +446,10 @@ impl Voice {
         // preventing clicks when voices are stolen while still producing sound.
         self.anti_click_samples = 0;
 
+        // Any fresh note-on should start from a clean cutoff state.
+        self.mono_declick_samples_remaining = 0;
+        self.mono_smoothed_cutoff_hz = [0.0; 3];
+
         // Reset all DSP components IMMEDIATELY to prevent clicks from stale state.
         // This must happen in note_on() rather than being deferred to update_parameters()
         // because process() may be called multiple times before update_parameters() is called,
@@ -415,6 +481,21 @@ impl Voice {
         // update_parameters() to apply frequency and other parameter changes on the first
         // call after note_on().
         self.needs_dsp_reset_on_update = true;
+    }
+
+    /// Change the currently-playing note without hard-resetting DSP state.
+    ///
+    /// This is used for monophonic legato (last-note priority) when multiple keys are held.
+    /// Unlike `note_on()`, this does **not** reset envelope levels, filters, compressors, or
+    /// oscillator phase/buffers. That avoids a discontinuity (click/pop) that would otherwise
+    /// occur when switching notes while the voice is already producing sound.
+    pub fn note_change_legato(&mut self, note: u8, velocity: f32) {
+        self.note = note;
+        self.velocity = velocity.clamp(0.0, 1.0);
+        self.is_active = true;
+        self.mono_declick_samples_remaining = self.mono_declick_total_samples;
+        // Intentionally do not touch envelopes/LFOs/filters/anti-click state.
+        // Frequency changes are applied immediately by the caller via update_parameters().
     }
 
     /// Trigger a note-off event, starting this voice's release phase.
@@ -1028,7 +1109,24 @@ impl Voice {
             };
 
             // === STEP 6e: Update filter and apply to driven signal ===
-            self.filters[i].set_cutoff(modulated_cutoff);
+            // During mono legato note changes, smooth cutoff briefly to avoid a small
+            // click from instantaneous coefficient updates (key tracking / velocity).
+            let cutoff_to_set = if self.mono_declick_samples_remaining > 0 {
+                let prev = self.mono_smoothed_cutoff_hz[i];
+                let coeff = self.mono_declick_cutoff_coeff;
+                let smoothed = if prev <= 0.0 {
+                    modulated_cutoff
+                } else {
+                    coeff * prev + (1.0 - coeff) * modulated_cutoff
+                };
+                self.mono_smoothed_cutoff_hz[i] = smoothed;
+                smoothed
+            } else {
+                self.mono_smoothed_cutoff_hz[i] = modulated_cutoff;
+                modulated_cutoff
+            };
+
+            self.filters[i].set_cutoff(cutoff_to_set);
             self.filters[i].set_bandwidth(filter_params[i].bandwidth);
             let filtered = self.filters[i].process(driven_signal);
 
@@ -1195,6 +1293,27 @@ impl Voice {
 
             self.anti_click_samples += 1;
         }
+
+        // Very short crossfade on retrigger to avoid a step from release tail → restarted fade.
+        if self.retrigger_xfade_samples_remaining > 0 {
+            let total = self.retrigger_xfade_total_samples.max(1) as f32;
+            let remaining = self.retrigger_xfade_samples_remaining as f32;
+            let progress = 1.0 - (remaining / total);
+            let t = progress.clamp(0.0, 1.0);
+
+            output_left = self.retrigger_prev_left * (1.0 - t) + output_left * t;
+            output_right = self.retrigger_prev_right * (1.0 - t) + output_right * t;
+
+            self.retrigger_xfade_samples_remaining -= 1;
+        }
+
+        if self.mono_declick_samples_remaining > 0 {
+            self.mono_declick_samples_remaining -= 1;
+        }
+
+        // Store final output for click-free retriggers.
+        self.last_output_left = output_left;
+        self.last_output_right = output_right;
 
         // === STEP 12: Return stereo output pair ===
         (output_left, output_right)

@@ -102,8 +102,6 @@ impl WavetableLibrary {
             eprintln!("No wavetables loaded from embedded data, using built-in wavetables");
             return Ok(Self::with_builtin_wavetables());
         }
-
-        println!("Loaded {} wavetables from embedded data", loaded_count);
         Ok(library)
     }
 

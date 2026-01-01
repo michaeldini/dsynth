@@ -17,6 +17,11 @@ fn tab_button(cx: &mut Context, label: &str, tab: UiTab, active_tab: UiTab) {
         .on_press(move |cx| cx.emit(crate::gui::vizia_gui::GuiMessage::SetActiveTab(tab)))
         .height(Pixels(32.0))
         .padding(Pixels(8.0))
+        .color(if is_active {
+            Color::rgb(220, 220, 230)
+        } else {
+            Color::rgb(180, 180, 190)
+        })
         .background_color(if is_active {
             Color::rgb(60, 60, 70)
         } else {
@@ -112,7 +117,7 @@ pub fn build_ui(cx: &mut Context) {
                             .background_color(Color::rgb(35, 35, 40));
                         })
                         .gap(Pixels(COL_GAP))
-                        .height(Pixels(250.0));
+                        .height(Pixels(225.0));
 
                         // Row 1.5: Voice Dynamics (Compressor + Transient Shaper)
                         HStack::new(cx, |cx| {

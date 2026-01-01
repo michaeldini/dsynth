@@ -71,11 +71,14 @@ pub struct SynthEngine {
     /// from the triple-buffer (see param_update_interval below).
     current_params: SynthParams,
 
-    /// Stack of currently pressed notes in monophonic mode
+    /// Stack of currently pressed notes in monophonic mode.
     /// When multiple keys are held and you release one, we check this stack to see if
     /// there's another note to play. This implements "last-note priority":
     /// Hold C, press E, release E → plays C again automatically. Essential for keyboards.
-    note_stack: Vec<u8>,
+    ///
+    /// Stores `(note, velocity)` so that returning to a previously-held note preserves
+    /// its original velocity (instead of using a fixed fallback).
+    note_stack: Vec<(u8, f32)>,
 
     /// Counter for throttling parameter updates
     /// We don't check the parameter triple-buffer every sample (too expensive and unnecessary).
@@ -581,14 +584,26 @@ impl SynthEngine {
             return;
         }
         if self.current_params.monophonic {
-            // Monophonic mode: use only the first voice
-            // Add note to stack if not already present
-            if !self.note_stack.contains(&note) {
-                self.note_stack.push(note);
+            // Monophonic mode: last-note priority.
+            // If at least one key was already held, switching notes should be legato
+            // (no hard DSP reset), otherwise a fast note change can click/pop.
+            let had_held_note = !self.note_stack.is_empty();
+
+            // Add/update note in stack.
+            if let Some(existing) = self.note_stack.iter_mut().find(|(n, _)| *n == note) {
+                existing.1 = velocity;
+            } else {
+                self.note_stack.push((note, velocity));
             }
 
-            // Always trigger the first voice with the new note
-            self.voices[0].note_on(note, velocity);
+            if had_held_note {
+                self.voices[0].note_change_legato(note, velocity);
+            } else {
+                // No keys were held: treat this as a normal note-on (retrigger envelope).
+                self.voices[0].note_on(note, velocity);
+            }
+
+            // Apply parameter-dependent frequency/timbre immediately.
             self.voices[0].update_parameters(
                 &self.current_params.oscillators,
                 &self.current_params.filters,
@@ -663,14 +678,14 @@ impl SynthEngine {
     pub fn note_off(&mut self, note: u8) {
         if self.current_params.monophonic {
             // Monophonic mode: remove note from stack
-            if let Some(pos) = self.note_stack.iter().position(|&n| n == note) {
+            if let Some(pos) = self.note_stack.iter().position(|(n, _)| *n == note) {
                 self.note_stack.remove(pos);
             }
 
             // If there are still notes in the stack, retrigger the most recent one
-            if let Some(&last_note) = self.note_stack.last() {
-                // Retrigger the last note in the stack (last-note priority)
-                self.voices[0].note_on(last_note, 0.8); // Use default velocity for retriggered notes
+            if let Some(&(last_note, last_vel)) = self.note_stack.last() {
+                // Last-note priority, legato: switch pitch without hard-resetting DSP.
+                self.voices[0].note_change_legato(last_note, last_vel);
                 self.voices[0].update_parameters(
                     &self.current_params.oscillators,
                     &self.current_params.filters,
@@ -1240,6 +1255,83 @@ mod tests {
             max_peak <= 1.0,
             "Output should not clip (peak was {:.4})",
             max_peak
+        );
+    }
+
+    #[test]
+    fn test_monophonic_legato_note_change_does_not_zero_output() {
+        let (_producer, consumer) = create_parameter_buffer();
+        let mut engine = SynthEngine::new(44100.0, consumer);
+        engine.current_params.monophonic = true;
+
+        // Start a note and wait until we get a clearly non-zero sample.
+        engine.note_on(60, 1.0);
+        let mut prev = 0.0_f32;
+        let mut max_abs = 0.0_f32;
+        for _ in 0..20000 {
+            let s = engine.process();
+            max_abs = max_abs.max(s.abs());
+            if s.abs() > 0.01 {
+                prev = s;
+                break;
+            }
+        }
+        assert!(
+            prev.abs() > 0.01,
+            "Expected non-trivial output before legato switch (max_abs={:.6})",
+            max_abs
+        );
+
+        // Press another key while still holding the first (overlap => legato switch).
+        engine.note_on(64, 1.0);
+        let next = engine.process();
+
+        // The key property: we should not hard-drop to (near) silence on the very next sample.
+        // Use a relative check so the test doesn't assume any particular patch loudness.
+        assert!(
+            next.abs() >= 0.25 * prev.abs(),
+            "Mono legato note change should stay continuous: prev={:.6}, next={:.6}",
+            prev,
+            next
+        );
+    }
+
+    #[test]
+    fn test_monophonic_fast_retrigger_does_not_hard_drop() {
+        let (_producer, consumer) = create_parameter_buffer();
+        let mut engine = SynthEngine::new(44100.0, consumer);
+        engine.current_params.monophonic = true;
+
+        engine.note_on(60, 1.0);
+
+        // Let the voice get clearly above the noise floor.
+        let mut prev = 0.0_f32;
+        let mut max_abs = 0.0_f32;
+        for _ in 0..20000 {
+            let s = engine.process();
+            max_abs = max_abs.max(s.abs());
+            if s.abs() > 0.02 {
+                prev = s;
+                break;
+            }
+        }
+        assert!(
+            prev.abs() > 0.02,
+            "Expected non-trivial output before retrigger (max_abs={:.6})",
+            max_abs
+        );
+
+        // Release then immediately retrigger the same key (typical fast tapping).
+        engine.note_off(60);
+        engine.note_on(60, 1.0);
+        let next = engine.process();
+
+        // The key property: first sample after retrigger should not drop near zero.
+        assert!(
+            next.abs() >= 0.25 * prev.abs(),
+            "Fast retrigger should not hard-drop: prev={:.6}, next={:.6}",
+            prev,
+            next
         );
     }
 }

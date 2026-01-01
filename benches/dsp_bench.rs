@@ -69,7 +69,8 @@ fn benchmark_envelope(c: &mut Criterion) {
 
 fn benchmark_voice(c: &mut Criterion) {
     use dsynth::params::{
-        EnvelopeParams, FilterParams, LFOParams, OscillatorParams, VelocityParams,
+        EnvelopeParams, FilterParams, LFOParams, OscillatorParams, TransientShaperParams,
+        VelocityParams, VoiceCompressorParams,
     };
 
     let mut voice = Voice::new(44100.0);
@@ -78,6 +79,8 @@ fn benchmark_voice(c: &mut Criterion) {
     let lfo_params = [LFOParams::default(); 3];
     let envelope_params = EnvelopeParams::default();
     let velocity_params = VelocityParams::default();
+    let voice_comp_params = VoiceCompressorParams::default();
+    let transient_params = TransientShaperParams::default();
     let wavetable_library = dsynth::dsp::wavetable_library::WavetableLibrary::new();
 
     voice.note_on(60, 0.8);
@@ -91,7 +94,15 @@ fn benchmark_voice(c: &mut Criterion) {
 
     c.bench_function("voice_process", |b| {
         b.iter(|| {
-            black_box(voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params))
+            black_box(voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &velocity_params,
+                false,
+                &voice_comp_params,
+                &transient_params,
+            ))
         });
     });
 }
