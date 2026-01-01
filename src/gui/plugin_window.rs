@@ -5,6 +5,7 @@
 #![cfg(feature = "clap")]
 
 use crate::gui::shared_ui;
+use crate::gui::theme;
 use crate::gui::GuiState;
 use crate::params::SynthParams;
 use crate::plugin::gui_param_change::GuiParamChange;
@@ -30,8 +31,6 @@ unsafe impl HasRawWindowHandle for WindowHandleWrapper {
 // NOTE: This should match the CLAP gui_get_size() defaults so the parented
 // baseview surface fills the host-provided editor area instead of being
 // letterboxed (e.g. in REAPER).
-const WINDOW_WIDTH: usize = 1200;
-const WINDOW_HEIGHT: usize = 800;
 
 /// Opens a VIZIA-based plugin editor window.
 ///
@@ -61,7 +60,7 @@ pub fn open_editor(
         // Build the shared UI
         shared_ui::build_ui(cx);
     })
-    .inner_size((WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32))
+    .inner_size((theme::WINDOW_WIDTH, theme::WINDOW_HEIGHT))
     .open_parented(&window_wrapper);
 
     Some(EditorWindowHandle { _inner: handle })

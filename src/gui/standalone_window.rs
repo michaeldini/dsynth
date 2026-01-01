@@ -1,6 +1,7 @@
 // VIZIA standalone window for desktop application
 
 use crate::audio::output::EngineEvent;
+use crate::gui::theme;
 use crate::gui::GuiState;
 use crate::gui::shared_ui;
 use crate::params::SynthParams;
@@ -16,9 +17,6 @@ use vizia::prelude::*;
 // (vizia's prelude only exports Application when exactly one backend is enabled)
 use vizia_winit::application::Application;
 use vizia_winit::window_modifiers::WindowModifiers;
-
-const WINDOW_WIDTH: u32 = 1200;
-const WINDOW_HEIGHT: u32 = 800;
 
 /// Run standalone VIZIA GUI (blocking call - runs until window closes)
 pub fn run_standalone_gui(
@@ -48,7 +46,7 @@ pub fn run_standalone_gui(
         });
     })
     .title("DSynth")
-    .inner_size((WINDOW_WIDTH, WINDOW_HEIGHT))
+    .inner_size((theme::WINDOW_WIDTH, theme::WINDOW_HEIGHT))
     .run();
 
     Ok(())

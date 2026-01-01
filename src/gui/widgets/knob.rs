@@ -1,6 +1,7 @@
+use crate::gui::theme;
 use vizia::prelude::*;
 
-/// A simple reactive rotary knob widget
+/// A simple reactive rotary knob widget with optional label
 ///
 /// Visual feedback via CSS rotation of an indicator line.
 /// Drag vertically to change value, double-click to reset.
@@ -23,6 +24,9 @@ pub struct Knob {
 
     /// Value at start of drag
     drag_start_value: f32,
+
+    /// Optional label
+    label: Option<String>,
 }
 
 impl Knob {
@@ -32,8 +36,6 @@ impl Knob {
         param_id: u32,
         default_value: f32,
     ) -> Handle<'_, Self> {
-        const KNOB_SIZE: f32 = 54.0;
-
         Self {
             normalized_value: initial_value.clamp(0.0, 1.0),
             default_value: default_value.clamp(0.0, 1.0),
@@ -41,6 +43,7 @@ impl Knob {
             is_dragging: false,
             drag_start_y: 0.0,
             drag_start_value: 0.0,
+            label: None,
         }
         .build(cx, |cx| {
             // Outer circle (knob body) with indicator line inside
@@ -48,11 +51,11 @@ impl Knob {
                 // Background circle
                 Element::new(cx)
                     .class("knob-body")
-                    .width(Pixels(KNOB_SIZE))
-                    .height(Pixels(KNOB_SIZE))
-                    .background_color(Color::rgb(55, 55, 62))
+                    .width(Pixels(theme::KNOB_SIZE))
+                    .height(Pixels(theme::KNOB_SIZE))
+                    .background_color(theme::WIDGET_BG)
                     .border_width(Pixels(2.0))
-                    .border_color(Color::rgb(90, 90, 100))
+                    .border_color(theme::WIDGET_BORDER)
                     .corner_radius(Percentage(50.0));
 
                 // Indicator line - positioned to rotate around knob center
@@ -61,18 +64,24 @@ impl Knob {
                     .class("knob-indicator")
                     .width(Pixels(3.0))
                     .height(Pixels(20.0))
-                    .background_color(Color::rgb(200, 200, 210))
+                    .background_color(theme::WIDGET_ACCENT)
                     .corner_radius(Pixels(1.5))
-                    .left(Pixels(KNOB_SIZE / 2.0 - 1.5))
-                    .top(Pixels(KNOB_SIZE / 2.0 - 20.0))
+                    .left(Pixels(theme::KNOB_SIZE / 2.0 - 1.5))
+                    .top(Pixels(theme::KNOB_SIZE / 2.0 - 20.0))
                     .translate((Pixels(0.0), Pixels(10.0)))
                     .rotate(Knob::normalized_value.map(|v| Angle::Deg(v * 270.0 - 135.0)));
             })
-            .width(Pixels(KNOB_SIZE))
-            .height(Pixels(KNOB_SIZE));
+            .width(Pixels(theme::KNOB_SIZE))
+            .height(Pixels(theme::KNOB_SIZE));
         })
-        .width(Pixels(KNOB_SIZE))
-        .height(Pixels(KNOB_SIZE))
+        .width(Pixels(theme::KNOB_SIZE))
+        .height(Pixels(theme::KNOB_SIZE))
+    }
+
+    /// Builder method to add a label above the knob
+    pub fn with_label(mut self, label: impl Into<String>) -> Self {
+        self.label = Some(label.into());
+        self
     }
 
     /// Update value from vertical drag
@@ -142,4 +151,38 @@ impl View for Knob {
             _ => {}
         });
     }
+}
+
+/// Helper function to create a labeled knob (label + knob in VStack)
+pub fn param_knob(
+    cx: &mut Context,
+    param_id: u32,
+    label: &str,
+    initial_normalized: f32,
+    default_normalized: f32,
+) {
+    VStack::new(cx, move |cx| {
+        // Label at top
+        Label::new(cx, label)
+            .font_size(11.0)
+            .color(theme::TEXT_SECONDARY)
+            .width(Pixels(theme::KNOB_CELL_WIDTH))
+            .height(Pixels(theme::LABEL_HEIGHT))
+            .text_align(TextAlign::Center)
+            .text_wrap(false)
+            .text_overflow(TextOverflow::Ellipsis);
+
+        // Interactive knob with visual feedback
+        Knob::new(
+            cx,
+            initial_normalized.clamp(0.0, 1.0),
+            param_id,
+            default_normalized.clamp(0.0, 1.0),
+        )
+        .width(Pixels(theme::KNOB_SIZE))
+        .height(Pixels(theme::KNOB_SIZE));
+    })
+    .width(Pixels(theme::KNOB_CELL_WIDTH))
+    .height(Pixels(theme::LABEL_HEIGHT + 4.0 + theme::KNOB_SIZE)) // label + gap + knob
+    .gap(Pixels(4.0));
 }

@@ -198,21 +198,6 @@ fn diagnostic_polyphony_playback() {
             params.oscillators[0].gain * 0.6
         );
     }
-
-    // Save waveform data to file for external analysis (optional)
-    #[cfg(feature = "diagnostics")]
-    {
-        use std::fs::File;
-        use std::io::Write;
-
-        let mut file = File::create("diagnostic_waveform.txt").expect("Unable to create file");
-        for (i, sample) in samples.iter().enumerate() {
-            writeln!(file, "{},{}", i, sample).expect("Unable to write data");
-        }
-        println!("\n   Waveform data saved to: diagnostic_waveform.txt");
-        println!("   (You can plot this in Excel, Python, or any plotting tool)");
-    }
-
     println!("\n=== END DIAGNOSTIC TEST ===\n");
 
     // Don't fail the test, just provide information

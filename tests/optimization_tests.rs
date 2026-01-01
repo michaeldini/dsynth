@@ -177,7 +177,6 @@ mod optimization_tests {
         let lfo_params = Default::default();
         let envelope_params = EnvelopeParams::default();
         let wavetable_library = dsynth::dsp::wavetable_library::WavetableLibrary::new();
-        let wavetable_library = dsynth::dsp::wavetable_library::WavetableLibrary::new();
 
         // Change unison count from 1 to 7
         for unison_count in 1..=7 {
@@ -194,7 +193,8 @@ mod optimization_tests {
                 &osc_params,
                 &filter_params,
                 &lfo_params,
-                &Default::default(), false,
+                &Default::default(),
+                false,
                 &Default::default(), // voice_comp_params
                 &Default::default(), // transient_params
             );
@@ -213,7 +213,8 @@ mod optimization_tests {
             &osc_params,
             &filter_params,
             &lfo_params,
-            &Default::default(), false,
+            &Default::default(),
+            false,
             &Default::default(), // voice_comp_params
             &Default::default(), // transient_params
         );
@@ -252,8 +253,15 @@ mod optimization_tests {
         // Process multiple samples with all 7 unison voices active
         let mut max_output: f32 = 0.0;
         for _ in 0..100 {
-            let (left, right) =
-                voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params, false, &Default::default(), &Default::default());
+            let (left, right) = voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &velocity_params,
+                false,
+                &Default::default(),
+                &Default::default(),
+            );
             let output = (left.abs() + right.abs()) / 2.0;
             max_output = max_output.max(output);
             assert!(
@@ -303,7 +311,8 @@ mod optimization_tests {
                 &osc_params,
                 &filter_params,
                 &lfo_params,
-                &Default::default(), false,
+                &Default::default(),
+                false,
                 &Default::default(), // voice_comp_params
                 &Default::default(), // transient_params
             );
@@ -316,7 +325,8 @@ mod optimization_tests {
                 &osc_params,
                 &filter_params,
                 &lfo_params,
-                &Default::default(), false,
+                &Default::default(),
+                false,
                 &Default::default(), // voice_comp_params
                 &Default::default(), // transient_params
             );
@@ -412,8 +422,15 @@ mod optimization_tests {
             // Process samples and verify output
             let mut output_sum = 0.0;
             for _ in 0..100 {
-                let (left, right) =
-                    voice.process(&osc_params, &filter_params, &lfo_params, &velocity_params, false, &Default::default(), &Default::default());
+                let (left, right) = voice.process(
+                    &osc_params,
+                    &filter_params,
+                    &lfo_params,
+                    &velocity_params,
+                    false,
+                    &Default::default(),
+                    &Default::default(),
+                );
                 output_sum += (left.abs() + right.abs()) / 2.0;
                 assert!(
                     (left.is_finite() && right.is_finite()),

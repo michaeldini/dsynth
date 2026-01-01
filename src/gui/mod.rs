@@ -3,6 +3,7 @@
 pub mod messages;
 pub mod shared_ui;
 pub mod state;
+pub mod theme;
 pub mod widgets;
 
 pub use messages::GuiMessage;

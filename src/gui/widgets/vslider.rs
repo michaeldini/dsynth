@@ -1,3 +1,4 @@
+use crate::gui::theme;
 use vizia::prelude::*;
 
 /// A simple reactive vertical slider widget.
@@ -27,10 +28,6 @@ impl VSlider {
         param_id: u32,
         default_value: f32,
     ) -> Handle<'_, Self> {
-        const SLIDER_WIDTH: f32 = 18.0;
-        const SLIDER_HEIGHT: f32 = 90.0;
-        const HANDLE_HEIGHT: f32 = 8.0;
-
         Self {
             normalized_value: initial_value.clamp(0.0, 1.0),
             default_value: default_value.clamp(0.0, 1.0),
@@ -41,39 +38,41 @@ impl VSlider {
             ZStack::new(cx, move |cx| {
                 // Track
                 Element::new(cx)
-                    .width(Pixels(SLIDER_WIDTH))
-                    .height(Pixels(SLIDER_HEIGHT))
-                    .background_color(Color::rgb(55, 55, 62))
+                    .width(Pixels(theme::SLIDER_WIDTH))
+                    .height(Pixels(theme::SLIDER_HEIGHT))
+                    .background_color(theme::WIDGET_BG)
                     .border_width(Pixels(2.0))
-                    .border_color(Color::rgb(90, 90, 100))
+                    .border_color(theme::WIDGET_BORDER)
                     .corner_radius(Pixels(4.0));
 
                 // Fill (from bottom)
                 Element::new(cx)
-                    .width(Pixels(SLIDER_WIDTH - 4.0))
-                    .height(VSlider::normalized_value.map(move |v| Pixels(v * SLIDER_HEIGHT)))
+                    .width(Pixels(theme::SLIDER_WIDTH - 4.0))
+                    .height(
+                        VSlider::normalized_value.map(move |v| Pixels(v * theme::SLIDER_HEIGHT)),
+                    )
                     .bottom(Pixels(2.0))
-                    .background_color(Color::rgb(200, 200, 210))
+                    .background_color(theme::WIDGET_ACCENT)
                     .corner_radius(Pixels(3.0));
 
                 // Handle
                 Element::new(cx)
-                    .width(Pixels(SLIDER_WIDTH + 6.0))
-                    .height(Pixels(HANDLE_HEIGHT))
+                    .width(Pixels(theme::SLIDER_WIDTH + 6.0))
+                    .height(Pixels(theme::SLIDER_HANDLE_HEIGHT))
                     .left(Pixels(-(6.0 / 2.0)))
-                    .top(
-                        VSlider::normalized_value.map(move |v| {
-                            Pixels((1.0 - v) * (SLIDER_HEIGHT - HANDLE_HEIGHT) + 2.0)
-                        }),
-                    )
-                    .background_color(Color::rgb(120, 120, 130))
+                    .top(VSlider::normalized_value.map(move |v| {
+                        Pixels(
+                            (1.0 - v) * (theme::SLIDER_HEIGHT - theme::SLIDER_HANDLE_HEIGHT) + 2.0,
+                        )
+                    }))
+                    .background_color(theme::WIDGET_TRACK)
                     .corner_radius(Pixels(3.0));
             })
-            .width(Pixels(SLIDER_WIDTH))
-            .height(Pixels(SLIDER_HEIGHT));
+            .width(Pixels(theme::SLIDER_WIDTH))
+            .height(Pixels(theme::SLIDER_HEIGHT));
         })
-        .width(Pixels(SLIDER_WIDTH))
-        .height(Pixels(SLIDER_HEIGHT))
+        .width(Pixels(theme::SLIDER_WIDTH))
+        .height(Pixels(theme::SLIDER_HEIGHT))
         .cursor(CursorIcon::Hand)
     }
 
@@ -153,4 +152,35 @@ impl View for VSlider {
             _ => {}
         });
     }
+}
+
+/// Helper function to create a labeled vertical slider (label + slider in VStack)
+pub fn param_vslider(
+    cx: &mut Context,
+    param_id: u32,
+    label: &str,
+    initial_normalized: f32,
+    default_normalized: f32,
+) {
+    VStack::new(cx, move |cx| {
+        Label::new(cx, label)
+            .font_size(11.0)
+            .color(theme::TEXT_SECONDARY)
+            .width(Pixels(theme::SLIDER_CELL_WIDTH))
+            .height(Pixels(theme::LABEL_HEIGHT))
+            .text_align(TextAlign::Center)
+            .text_wrap(false)
+            .text_overflow(TextOverflow::Ellipsis);
+
+        VSlider::new(
+            cx,
+            initial_normalized.clamp(0.0, 1.0),
+            param_id,
+            default_normalized.clamp(0.0, 1.0),
+        )
+        .height(Pixels(theme::SLIDER_HEIGHT));
+    })
+    .width(Pixels(theme::SLIDER_CELL_WIDTH))
+    .height(Pixels(theme::LABEL_HEIGHT + 4.0 + theme::SLIDER_HEIGHT))
+    .gap(Pixels(4.0));
 }

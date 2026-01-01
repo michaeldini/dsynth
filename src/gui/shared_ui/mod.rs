@@ -10,6 +10,7 @@ pub mod oscillators;
 pub mod traits;
 
 use crate::gui::messages::UiTab;
+use crate::gui::theme;
 use crate::gui::GuiState;
 use vizia::prelude::*;
 
@@ -20,14 +21,14 @@ fn tab_button(cx: &mut Context, label: &str, tab: UiTab, active_tab: UiTab) {
         .height(Pixels(32.0))
         .padding(Pixels(8.0))
         .color(if is_active {
-            Color::rgb(220, 220, 230)
+            theme::BUTTON_TEXT_ACTIVE
         } else {
-            Color::rgb(180, 180, 190)
+            theme::BUTTON_TEXT_INACTIVE
         })
         .background_color(if is_active {
-            Color::rgb(60, 60, 70)
+            theme::BUTTON_BG_ACTIVE
         } else {
-            Color::rgb(40, 40, 48)
+            theme::BUTTON_BG_INACTIVE
         })
         .corner_radius(Pixels(4.0))
         .cursor(CursorIcon::Hand);
@@ -35,16 +36,12 @@ fn tab_button(cx: &mut Context, label: &str, tab: UiTab, active_tab: UiTab) {
 
 /// Build the main UI layout - shared by plugin and standalone
 pub fn build_ui(cx: &mut Context) {
-    const OSC_COL_WIDTH: f32 = 360.0;
-    const ROW_GAP: f32 = 12.0;
-    const COL_GAP: f32 = 12.0;
-
     VStack::new(cx, |cx| {
         // Title bar + live status text
         HStack::new(cx, |cx| {
             Label::new(cx, "DSynth")
                 .font_size(20.0)
-                .color(Color::rgb(220, 220, 230));
+                .color(theme::TEXT_PRIMARY);
 
             // Tab bar
             Binding::new(cx, GuiState::active_tab, |cx, active_tab| {
@@ -62,7 +59,7 @@ pub fn build_ui(cx: &mut Context) {
 
             Label::new(cx, GuiState::last_param_text)
                 .font_size(24.0)
-                .color(Color::rgb(180, 180, 190))
+                .color(theme::TEXT_TERTIARY)
                 .width(Stretch(1.0))
                 .text_align(TextAlign::Right)
                 .text_wrap(false)
@@ -71,7 +68,7 @@ pub fn build_ui(cx: &mut Context) {
         .height(Pixels(50.0))
         .width(Stretch(1.0))
         .padding(Pixels(10.0))
-        .background_color(Color::rgb(25, 25, 30));
+        .background_color(theme::BG_DARK);
 
         // Scrollable content area
         ScrollView::new(cx, |cx| {
@@ -84,28 +81,28 @@ pub fn build_ui(cx: &mut Context) {
                             VStack::new(cx, |cx| {
                                 Label::new(cx, "Master")
                                     .font_size(16.0)
-                                    .color(Color::rgb(200, 200, 210))
+                                    .color(theme::TEXT_SECONDARY)
                                     .height(Pixels(24.0));
                                 master::build_master_section(cx);
                             })
                             .width(Stretch(1.0))
                             .padding(Pixels(10.0))
                             .gap(Pixels(6.0))
-                            .background_color(Color::rgb(35, 35, 40));
+                            .background_color(theme::BG_SECTION);
 
                             VStack::new(cx, |cx| {
                                 Label::new(cx, "Envelope")
                                     .font_size(16.0)
-                                    .color(Color::rgb(200, 200, 210))
+                                    .color(theme::TEXT_SECONDARY)
                                     .height(Pixels(24.0));
                                 master::build_envelope_section(cx);
                             })
                             .width(Stretch(1.0))
                             .padding(Pixels(10.0))
                             .gap(Pixels(6.0))
-                            .background_color(Color::rgb(35, 35, 40));
+                            .background_color(theme::BG_SECTION);
                         })
-                        .gap(Pixels(COL_GAP))
+                        .gap(Pixels(theme::COL_GAP))
                         .height(Pixels(225.0));
 
                         // Row 1.5: Voice Dynamics (Compressor + Transient Shaper)
@@ -113,28 +110,28 @@ pub fn build_ui(cx: &mut Context) {
                             VStack::new(cx, |cx| {
                                 Label::new(cx, "Voice Compressor")
                                     .font_size(16.0)
-                                    .color(Color::rgb(200, 200, 210))
+                                    .color(theme::TEXT_SECONDARY)
                                     .height(Pixels(24.0));
                                 dynamics::build_voice_compressor_section(cx);
                             })
                             .width(Stretch(1.0))
                             .padding(Pixels(10.0))
                             .gap(Pixels(6.0))
-                            .background_color(Color::rgb(35, 35, 40));
+                            .background_color(theme::BG_SECTION);
 
                             VStack::new(cx, |cx| {
                                 Label::new(cx, "Transient Shaper")
                                     .font_size(16.0)
-                                    .color(Color::rgb(200, 200, 210))
+                                    .color(theme::TEXT_SECONDARY)
                                     .height(Pixels(24.0));
                                 dynamics::build_transient_shaper_section(cx);
                             })
                             .width(Stretch(1.0))
                             .padding(Pixels(10.0))
                             .gap(Pixels(6.0))
-                            .background_color(Color::rgb(35, 35, 40));
+                            .background_color(theme::BG_SECTION);
                         })
-                        .gap(Pixels(COL_GAP))
+                        .gap(Pixels(theme::COL_GAP))
                         .height(Pixels(125.0));
 
                         // Row 2: Oscillators
@@ -144,36 +141,36 @@ pub fn build_ui(cx: &mut Context) {
                                 oscillators::build_osc_section(cx, 1);
                                 oscillators::build_waveform_specific_section(cx, 1);
                             })
-                            .width(Pixels(OSC_COL_WIDTH))
+                            .width(Pixels(theme::OSC_COL_WIDTH))
                             .height(Units::Auto)
                             .padding(Pixels(10.0))
                             .gap(Pixels(10.0))
-                            .background_color(Color::rgb(35, 35, 40));
+                            .background_color(theme::BG_SECTION);
 
                             // Oscillator 2 column
                             VStack::new(cx, |cx| {
                                 oscillators::build_osc_section(cx, 2);
                                 oscillators::build_waveform_specific_section(cx, 2);
                             })
-                            .width(Pixels(OSC_COL_WIDTH))
+                            .width(Pixels(theme::OSC_COL_WIDTH))
                             .height(Units::Auto)
                             .padding(Pixels(10.0))
                             .gap(Pixels(10.0))
-                            .background_color(Color::rgb(35, 35, 40));
+                            .background_color(theme::BG_SECTION);
 
                             // Oscillator 3 column
                             VStack::new(cx, |cx| {
                                 oscillators::build_osc_section(cx, 3);
                                 oscillators::build_waveform_specific_section(cx, 3);
                             })
-                            .width(Pixels(OSC_COL_WIDTH))
+                            .width(Pixels(theme::OSC_COL_WIDTH))
                             .height(Units::Auto)
                             .padding(Pixels(10.0))
                             .gap(Pixels(10.0))
-                            .background_color(Color::rgb(35, 35, 40));
+                            .background_color(theme::BG_SECTION);
                         })
                         .height(Pixels(550.0))
-                        .gap(Pixels(COL_GAP));
+                        .gap(Pixels(theme::COL_GAP));
                     }
                     UiTab::FilterLfo => {
                         // Row 3: Filters
@@ -190,9 +187,9 @@ pub fn build_ui(cx: &mut Context) {
                                     .height(Units::Auto);
                             })
                             .height(Units::Auto)
-                            .gap(Pixels(COL_GAP));
+                            .gap(Pixels(theme::COL_GAP));
                         })
-                        .background_color(Color::rgb(35, 35, 40))
+                        .background_color(theme::BG_SECTION)
                         .height(Pixels(275.0));
 
                         // Row 4: LFOs
@@ -206,7 +203,7 @@ pub fn build_ui(cx: &mut Context) {
                                     .height(Units::Auto);
                             })
                             .height(Units::Auto)
-                            .gap(Pixels(COL_GAP));
+                            .gap(Pixels(theme::COL_GAP));
                         })
                         .height(Pixels(250.0));
                     }
@@ -219,16 +216,16 @@ pub fn build_ui(cx: &mut Context) {
                 .height(Units::Auto)
                 .min_height(Pixels(0.0))
                 .padding(Pixels(10.0))
-                .gap(Pixels(ROW_GAP));
+                .gap(Pixels(theme::ROW_GAP));
             });
         })
         .show_horizontal_scrollbar(false)
         .show_vertical_scrollbar(true)
         .width(Stretch(1.0))
         .height(Stretch(1.0))
-        .background_color(Color::rgb(30, 30, 35));
+        .background_color(theme::BG_DARK);
     })
     .width(Stretch(1.0))
     .height(Stretch(1.0))
-    .background_color(Color::rgb(30, 30, 35));
+    .background_color(theme::BG_DARK);
 }
