@@ -201,6 +201,9 @@ pub fn build_ui(cx: &mut Context) {
                                 VStack::new(cx, |cx| lfos::build_lfo_section(cx, 2))
                                     .width(Stretch(1.0))
                                     .height(Units::Auto);
+                                VStack::new(cx, |cx| lfos::build_lfo_section(cx, 3))
+                                    .width(Stretch(1.0))
+                                    .height(Units::Auto);
                             })
                             .height(Units::Auto)
                             .gap(Pixels(theme::COL_GAP));
