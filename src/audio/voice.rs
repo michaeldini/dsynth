@@ -376,7 +376,10 @@ impl Voice {
         // capture the last output so we can crossfade and avoid a step discontinuity.
         let was_active = self.is_active;
         if was_active {
-            let prev_peak = self.last_output_left.abs().max(self.last_output_right.abs());
+            let prev_peak = self
+                .last_output_left
+                .abs()
+                .max(self.last_output_right.abs());
             if prev_peak > 1.0e-4 {
                 self.retrigger_prev_left = self.last_output_left;
                 self.retrigger_prev_right = self.last_output_right;
