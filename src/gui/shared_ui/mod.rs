@@ -9,9 +9,9 @@ pub mod master;
 pub mod oscillators;
 pub mod traits;
 
+use crate::gui::GuiState;
 use crate::gui::messages::UiTab;
 use crate::gui::theme;
-use crate::gui::GuiState;
 use vizia::prelude::*;
 
 fn tab_button(cx: &mut Context, label: &str, tab: UiTab, active_tab: UiTab) {

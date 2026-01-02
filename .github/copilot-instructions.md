@@ -209,13 +209,27 @@ Each DSP component ([dsp/](src/dsp/)) follows this pattern:
 - CLAP plugins install to: `~/Library/Audio/Plug-Ins/CLAP/` (macOS), `%COMMONPROGRAMFILES%\CLAP\` (Windows), `~/.clap/` (Linux)
 
 ### GUI System
-- [gui/vizia_gui/](src/gui/vizia_gui/): Unified VIZIA GUI for both targets
-  - [plugin_window.rs](src/gui/vizia_gui/plugin_window.rs): CLAP plugin window integration (baseview)
-  - [standalone_window.rs](src/gui/vizia_gui/standalone_window.rs): Standalone window integration (winit)
-  - [shared_ui.rs](src/gui/vizia_gui/shared_ui.rs): **Shared UI layout** - oscillators, filters, ADSR, effects
-  - [state.rs](src/gui/vizia_gui/state.rs): GuiState with Arc<RwLock<SynthParams>>
-  - [messages.rs](src/gui/vizia_gui/messages.rs): GuiMessage enum (ParamChanged, PresetLoad, etc.)
-  - [widgets/param_knob.rs](src/gui/vizia_gui/widgets/param_knob.rs): Parameter control widget
+- [gui/](src/gui/): Unified VIZIA GUI for both targets
+  - [plugin_window.rs](src/gui/plugin_window.rs): CLAP plugin window integration (baseview)
+  - [standalone_window.rs](src/gui/standalone_window.rs): Standalone window integration (winit)
+  - [state.rs](src/gui/state.rs): GuiState with Arc<RwLock<SynthParams>>
+  - [messages.rs](src/gui/messages.rs): GuiMessage enum (ParamChanged, PresetLoad, etc.)
+  - [theme.rs](src/gui/theme.rs): VIZIA theme and styling
+  - [shared_ui/](src/gui/shared_ui/): Modularized UI components for all sections
+    - [oscillators.rs](src/gui/shared_ui/oscillators.rs): Oscillator control panel
+    - [filters.rs](src/gui/shared_ui/filters.rs): Filter control panel
+    - [dynamics.rs](src/gui/shared_ui/dynamics.rs): ADSR envelope and dynamics controls
+    - [lfos.rs](src/gui/shared_ui/lfos.rs): LFO control panel
+    - [master.rs](src/gui/shared_ui/master.rs): Master output and settings
+    - [effects/](src/gui/shared_ui/effects/): Effect sections for reverb, delay, etc.
+    - [helpers.rs](src/gui/shared_ui/helpers.rs): Utility functions for UI construction
+    - [traits.rs](src/gui/shared_ui/traits.rs): Common traits for UI components
+  - [widgets/](src/gui/widgets/): Reusable parameter control widgets
+    - [knob.rs](src/gui/widgets/knob.rs): Rotary knob widget for parameters
+    - [param_checkbox.rs](src/gui/widgets/param_checkbox.rs): Boolean toggle widget
+    - [param_cycle_button.rs](src/gui/widgets/param_cycle_button.rs): Cycle/enum selector widget
+    - [vslider.rs](src/gui/widgets/vslider.rs): Vertical slider widget
+    - [envelope_editor.rs](src/gui/widgets/envelope_editor.rs): Visual envelope editor
 
 ### Entry Points
 - [main.rs](src/main.rs): Standalone app entry point (GUI + audio + MIDI threads)
