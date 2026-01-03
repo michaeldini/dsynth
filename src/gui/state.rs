@@ -6,8 +6,9 @@ use crate::gui::messages::UiTab;
 use crate::params::SynthParams;
 use crate::plugin::gui_param_change::GuiParamChange;
 use crossbeam_channel::Sender;
+use parking_lot::{Mutex, RwLock};
 use std::collections::HashSet;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::Arc;
 use triple_buffer::Input;
 use vizia::prelude::*;
 
@@ -92,43 +93,40 @@ impl GuiState {
     /// Update parameter value and write to synth_params
     pub fn update_param(&mut self, param_id: u32, normalized_value: f32) {
         // Write to synth_params
-        if let Ok(mut params) = self.synth_params.write() {
-            crate::plugin::param_update::param_apply::apply_param(
-                &mut params,
-                param_id,
-                normalized_value,
-            );
+        let mut params = self.synth_params.write();
+        crate::plugin::param_update::param_apply::apply_param(
+            &mut params,
+            param_id,
+            normalized_value,
+        );
 
-            // Sync waveform fields for conditional rendering
-            use crate::plugin::param_descriptor::*;
-            match param_id {
-                PARAM_OSC1_WAVEFORM => {
-                    self.osc1_waveform = params.oscillators[0].waveform as i32;
-                }
-                PARAM_OSC2_WAVEFORM => {
-                    self.osc2_waveform = params.oscillators[1].waveform as i32;
-                }
-                PARAM_OSC3_WAVEFORM => {
-                    self.osc3_waveform = params.oscillators[2].waveform as i32;
-                }
-                _ => {}
+        // Sync waveform fields for conditional rendering
+        use crate::plugin::param_descriptor::*;
+        match param_id {
+            PARAM_OSC1_WAVEFORM => {
+                self.osc1_waveform = params.oscillators[0].waveform as i32;
             }
-
-            // For standalone: Write full SynthParams to the engine's triple-buffer
-            if let Some(ref producer) = self.params_producer {
-                if let Ok(mut p) = producer.lock() {
-                    p.write(*params);
-                }
+            PARAM_OSC2_WAVEFORM => {
+                self.osc2_waveform = params.oscillators[1].waveform as i32;
             }
-
-            // Also send single param change (for plugin use via ClapProcessor)
-            if let Ok(mut producer) = self.gui_param_producer.lock() {
-                producer.write(GuiParamChange {
-                    param_id,
-                    normalized: normalized_value.clamp(0.0, 1.0),
-                });
+            PARAM_OSC3_WAVEFORM => {
+                self.osc3_waveform = params.oscillators[2].waveform as i32;
             }
+            _ => {}
         }
+
+        // For standalone: Write full SynthParams to the engine's triple-buffer
+        if let Some(ref producer) = self.params_producer {
+            let mut p = producer.lock();
+            p.write(*params);
+        }
+
+        // Also send single param change (for plugin use via ClapProcessor)
+        let mut producer = self.gui_param_producer.lock();
+        producer.write(GuiParamChange {
+            param_id,
+            normalized: normalized_value.clamp(0.0, 1.0),
+        });
     }
 }
 
@@ -184,29 +182,26 @@ impl GuiState {
         let randomized = randomize_synth_params(&mut rng);
 
         // Write randomized params to shared state and audio thread
-        if let Ok(mut params) = self.synth_params.write() {
-            // Copy randomized values to the shared params
-            *params = randomized;
+        let mut params = self.synth_params.write();
+        // Copy randomized values to the shared params
+        *params = randomized;
 
-            // For standalone: Write full SynthParams to the engine's triple-buffer
-            if let Some(ref producer) = self.params_producer {
-                if let Ok(mut p) = producer.lock() {
-                    p.write(*params);
-                }
-            }
-
-            // For plugin: Send a dummy param change to trigger ClapProcessor to re-read
-            // (The plugin's ClapProcessor reads GuiParamChange and applies to its params)
-            // Use a random normalized value to avoid duplicate detection
-            if let Ok(mut producer) = self.gui_param_producer.lock() {
-                // Send a "full sync" signal - param_id 0xFFFFFFFF is a special marker
-                // Use random normalized to ensure each sync is unique (avoids duplicate detection)
-                producer.write(crate::plugin::gui_param_change::GuiParamChange {
-                    param_id: 0xFFFFFFFF,
-                    normalized: rand::random::<f32>(),
-                });
-            }
+        // For standalone: Write full SynthParams to the engine's triple-buffer
+        if let Some(ref producer) = self.params_producer {
+            let mut p = producer.lock();
+            p.write(*params);
         }
+
+        // For plugin: Send a dummy param change to trigger ClapProcessor to re-read
+        // (The plugin's ClapProcessor reads GuiParamChange and applies to its params)
+        // Use a random normalized value to avoid duplicate detection
+        let mut producer = self.gui_param_producer.lock();
+        // Send a "full sync" signal - param_id 0xFFFFFFFF is a special marker
+        // Use random normalized to ensure each sync is unique (avoids duplicate detection)
+        producer.write(crate::plugin::gui_param_change::GuiParamChange {
+            param_id: 0xFFFFFFFF,
+            normalized: rand::random::<f32>(),
+        });
     }
 
     /// Emit SyncKnobValue messages for all parameters to update UI visuals
@@ -217,24 +212,23 @@ impl GuiState {
 
         let registry = get_registry();
 
-        if let Ok(params) = self.synth_params.read() {
-            for param_id in registry.iter_ids() {
-                // Get denormalized value from params
-                let denorm = param_get::get_param(&params, param_id);
+        let params = self.synth_params.read();
+        for param_id in registry.iter_ids() {
+            // Get denormalized value from params
+            let denorm = param_get::get_param(&params, param_id);
 
-                // Normalize it
-                let normalized = if let Some(desc) = registry.get(param_id) {
-                    desc.normalize_value(denorm)
-                } else {
-                    0.0
-                };
+            // Normalize it
+            let normalized = if let Some(desc) = registry.get(param_id) {
+                desc.normalize_value(denorm)
+            } else {
+                0.0
+            };
 
-                // Emit sync message with Subtree propagation to reach all knobs
-                cx.emit_custom(
-                    Event::new(GuiMessage::SyncKnobValue(param_id, normalized))
-                        .propagate(Propagation::Subtree),
-                );
-            }
+            // Emit sync message with Subtree propagation to reach all knobs
+            cx.emit_custom(
+                Event::new(GuiMessage::SyncKnobValue(param_id, normalized))
+                    .propagate(Propagation::Subtree),
+            );
         }
     }
 }

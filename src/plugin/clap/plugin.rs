@@ -57,8 +57,8 @@ pub use descriptor::DESCRIPTOR;
 use crate::params::SynthParams;
 use crate::plugin::gui_param_change::GuiParamChange;
 use crate::plugin::param_update::ParamUpdateBuffer;
-use std::sync::Mutex;
-use std::sync::{Arc, RwLock};
+use parking_lot::{Mutex, RwLock};
+use std::sync::Arc;
 use triple_buffer::{Input, Output, TripleBuffer};
 
 /// DSynth CLAP Plugin instance
@@ -201,6 +201,15 @@ impl DSynthClapPlugin {
         true
     }
 
+    /// Deactivate the plugin's audio processing
+    ///
+    /// # Safety
+    ///
+    /// This function is an FFI boundary called by the CLAP host. Safety requirements:
+    /// - `plugin` must be a valid pointer to a DSynthClapPlugin instance
+    /// - Must be called on the main thread
+    /// - Must not be called while process() is running
+    /// - The plugin must be in activated state (activate() was called)
     unsafe extern "C" fn deactivate(plugin: *const clap_plugin) {
         if plugin.is_null() {
             return;
@@ -225,6 +234,15 @@ impl DSynthClapPlugin {
         // No special processing stop logic needed
     }
 
+    /// Reset plugin processing state
+    ///
+    /// # Safety
+    ///
+    /// This function is an FFI boundary called by the CLAP host. Safety requirements:
+    /// - `plugin` must be a valid pointer to a DSynthClapPlugin instance
+    /// - Must be called on the main thread
+    /// - Must not be called while process() is running
+    /// - Clears all audio buffers and resets DSP state
     unsafe extern "C" fn reset(plugin: *const clap_plugin) {
         if plugin.is_null() {
             return;
@@ -238,6 +256,16 @@ impl DSynthClapPlugin {
         }
     }
 
+    /// Process audio and MIDI events
+    ///
+    /// # Safety
+    ///
+    /// This function is an FFI boundary called by the CLAP host. Safety requirements:
+    /// - `plugin` must be a valid pointer to a DSynthClapPlugin instance
+    /// - `process` must be a valid pointer to a clap_process structure
+    /// - Called on the audio thread - must be real-time safe (no allocations, no locks)
+    /// - Must not be called concurrently with activate/deactivate/reset
+    /// - All pointers in the process structure must remain valid during the call
     unsafe extern "C" fn process(
         plugin: *const clap_plugin,
         process: *const clap_sys::process::clap_process,
@@ -256,6 +284,15 @@ impl DSynthClapPlugin {
         }
     }
 
+    /// Get plugin extension by ID
+    ///
+    /// # Safety
+    ///
+    /// This function is an FFI boundary called by the CLAP host. Safety requirements:
+    /// - `plugin` must be a valid pointer to a DSynthClapPlugin instance
+    /// - `id` must be a valid null-terminated C string pointer
+    /// - Can be called at any time after plugin creation
+    /// - Returned pointers are valid for the lifetime of the plugin instance
     unsafe extern "C" fn get_extension(
         plugin: *const clap_plugin,
         id: *const i8,
@@ -289,10 +326,27 @@ impl DSynthClapPlugin {
 
 // Audio Ports Extension
 
+/// Get audio port count
+///
+/// # Safety
+///
+/// This function is an FFI boundary called by the CLAP host. Safety requirements:
+/// - `_plugin` pointer is unused but must be valid per CLAP spec
+/// - Can be called at any time after plugin creation
+/// - This synthesizer has 0 audio inputs and 1 stereo output
 unsafe extern "C" fn audio_ports_count(_plugin: *const clap_plugin, is_input: bool) -> u32 {
     if is_input { 0 } else { 1 } // No audio input, one stereo output
 }
 
+/// Get audio port info
+///
+/// # Safety
+///
+/// This function is an FFI boundary called by the CLAP host. Safety requirements:
+/// - `_plugin` pointer is unused but must be valid per CLAP spec
+/// - `info` must be a valid pointer to a clap_audio_port_info struct that we can write to
+/// - Can be called at any time after plugin creation
+/// - The info structure must remain valid during the call
 unsafe extern "C" fn audio_ports_get(
     _plugin: *const clap_plugin,
     index: u32,

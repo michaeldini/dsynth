@@ -808,7 +808,7 @@ impl ParamRegistry {
                 0.001,
                 5.0,
                 0.01,
-                Some("ms")
+                Some("s")
             )
         );
         add_param!(
@@ -820,7 +820,7 @@ impl ParamRegistry {
                 0.001,
                 5.0,
                 0.1,
-                Some("ms")
+                Some("s")
             )
         );
         add_param!(
@@ -844,7 +844,7 @@ impl ParamRegistry {
                 0.001,
                 5.0,
                 0.2,
-                Some("ms")
+                Some("s")
             )
         );
 

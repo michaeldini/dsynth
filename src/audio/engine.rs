@@ -385,6 +385,7 @@ impl SynthEngine {
     }
 
     #[inline]
+    #[must_use]
     fn apply_output_limiter(&mut self, left: f32, right: f32) -> (f32, f32) {
         // Leave a small headroom margin so sample format conversion/interleaving
         // doesn’t accidentally exceed full scale due to rounding.
@@ -419,6 +420,7 @@ impl SynthEngine {
     }
 
     #[inline]
+    #[must_use]
     fn process_stereo_internal(&mut self) -> (f32, f32) {
         self.maybe_update_params();
 

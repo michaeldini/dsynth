@@ -7,7 +7,8 @@ use clap_sys::events::{clap_event_header, clap_event_note, clap_event_param_valu
 ///
 /// Handles audio processing callbacks from the CLAP host, integrating with SynthEngine.
 use clap_sys::process::{clap_process, clap_process_status};
-use std::sync::{Arc, RwLock};
+use parking_lot::RwLock;
+use std::sync::Arc;
 use triple_buffer::Input;
 use triple_buffer::Output;
 
@@ -99,10 +100,9 @@ impl ClapProcessor {
         // Copy the entire synth_params to current_params
         if change.param_id == 0xFFFFFFFF {
             if let Some(ref synth_params) = self.synth_params {
-                if let Ok(params) = synth_params.read() {
-                    self.current_params = *params;
-                    self.param_producer.write(self.current_params);
-                }
+                let params = synth_params.read();
+                self.current_params = *params;
+                self.param_producer.write(self.current_params);
             }
             return;
         }

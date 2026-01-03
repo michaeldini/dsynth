@@ -7,7 +7,7 @@ use vizia::prelude::*;
 
 pub fn current_normalized(cx: &mut Context, param_id: u32) -> f32 {
     let arc = GuiState::synth_params.get(cx);
-    let params = arc.read().unwrap();
+    let params = arc.read();
     let denorm = param_get::get_param(&params, param_id);
     let registry = param_registry::get_registry();
     if let Some(desc) = registry.get(param_id) {

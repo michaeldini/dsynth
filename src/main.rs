@@ -31,7 +31,8 @@ use dsynth::params::SynthParams;
 #[cfg(feature = "standalone")]
 use dsynth::plugin::gui_param_change::GuiParamChange;
 #[cfg(feature = "standalone")]
-use std::sync::{Arc, Mutex, RwLock};
+use parking_lot::{Mutex, RwLock};
+use std::sync::Arc;
 
 #[cfg(feature = "standalone")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {

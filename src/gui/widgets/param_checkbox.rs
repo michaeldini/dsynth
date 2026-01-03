@@ -11,11 +11,8 @@ pub fn param_checkbox(cx: &mut Context, param_id: u32, label: &str, _initial_che
         Button::new(cx, move |cx| {
             // Get current parameter value from the GUI state to determine if checked
             let current_value = GuiState::synth_params.map(move |params_arc| {
-                if let Ok(params) = params_arc.read() {
-                    crate::plugin::param_update::param_get::get_param(&params, param_id)
-                } else {
-                    0.0
-                }
+                let params = params_arc.read();
+                crate::plugin::param_update::param_get::get_param(&params, param_id)
             });
 
             let is_checked = current_value.map(|v| *v > 0.5);
@@ -36,10 +33,9 @@ pub fn param_checkbox(cx: &mut Context, param_id: u32, label: &str, _initial_che
         .on_press(move |cx| {
             // Get current state and toggle it
             let arc = GuiState::synth_params.get(cx);
-            let current_value = if let Ok(params) = arc.read() {
+            let current_value = {
+                let params = arc.read();
                 crate::plugin::param_update::param_get::get_param(&params, param_id)
-            } else {
-                0.0
             };
 
             // Toggle: if currently > 0.5 (ON), turn OFF (0.0), otherwise turn ON (1.0)

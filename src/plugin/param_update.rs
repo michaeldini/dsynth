@@ -13,7 +13,8 @@
 /// applied to a SynthParams struct and written to the triple-buffer producer.
 use super::param_descriptor::ParamId;
 use std::collections::VecDeque;
-use std::sync::{Arc, Mutex};
+use parking_lot::Mutex;
+use std::sync::Arc;
 
 /// Holds parameter updates with timing information
 #[derive(Clone)]
@@ -48,15 +49,14 @@ impl ParamUpdateBuffer {
     /// Called from the audio thread when a parameter is modulated by LFO, envelope, etc.
     /// The host can use this for automation recording or visualization.
     pub fn queue_automation(&self, param_id: ParamId, normalized_value: f32, sample_index: u32) {
-        if let Ok(mut queue) = self.automation_queue.lock() {
-            // Limit queue size to prevent unbounded growth
-            if queue.len() < 1000 {
-                queue.push_back(ParamUpdate {
-                    param_id,
-                    normalized_value,
-                    sample_index,
-                });
-            }
+        let mut queue = self.automation_queue.lock();
+        // Limit queue size to prevent unbounded growth
+        if queue.len() < 1000 {
+            queue.push_back(ParamUpdate {
+                param_id,
+                normalized_value,
+                sample_index,
+            });
         }
     }
 
@@ -65,11 +65,8 @@ impl ParamUpdateBuffer {
     /// Called from the host processing callback to retrieve any parameter
     /// changes that occurred during audio processing.
     pub fn poll_automation_updates(&self) -> Vec<ParamUpdate> {
-        if let Ok(mut queue) = self.automation_queue.lock() {
-            queue.drain(..).collect()
-        } else {
-            Vec::new()
-        }
+        let mut queue = self.automation_queue.lock();
+        queue.drain(..).collect()
     }
 }
 
@@ -1056,7 +1053,7 @@ mod tests {
     #[test]
     fn test_param_update_buffer_creation() {
         let buffer = ParamUpdateBuffer::new();
-        assert!(buffer.automation_queue.lock().unwrap().is_empty());
+        assert!(buffer.automation_queue.lock().is_empty());
     }
 
     #[test]

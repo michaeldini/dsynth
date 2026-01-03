@@ -27,6 +27,15 @@ fn log_to_file(msg: &str) {
 }
 
 /// Save plugin state to stream
+///
+/// # Safety
+///
+/// This function is an FFI boundary called by the CLAP host. Safety requirements:
+/// - `plugin` must be a valid pointer to a DSynthClapPlugin instance
+/// - `stream` must be a valid pointer to a clap_ostream with a valid `write` function pointer
+/// - Must only be called on the main thread (CLAP requirement for state extension)
+/// - The plugin instance must not be destroyed while this function executes
+/// - The stream must remain valid for the duration of this call
 pub unsafe extern "C" fn state_save(
     plugin: *const clap_sys::plugin::clap_plugin,
     stream: *const clap_ostream,
@@ -66,6 +75,16 @@ pub unsafe extern "C" fn state_save(
 }
 
 /// Load plugin state from stream
+///
+/// # Safety
+///
+/// This function is an FFI boundary called by the CLAP host. Safety requirements:
+/// - `plugin` must be a valid pointer to a DSynthClapPlugin instance
+/// - `stream` must be a valid pointer to a clap_istream with a valid `read` function pointer
+/// - Must only be called on the main thread (CLAP requirement for state extension)
+/// - The plugin instance must not be destroyed while this function executes
+/// - The stream must remain valid for the duration of this call
+/// - The caller must ensure the stream contains valid PluginState data
 pub unsafe extern "C" fn state_load(
     plugin: *const clap_sys::plugin::clap_plugin,
     stream: *const clap_istream,
@@ -92,9 +111,8 @@ pub unsafe extern "C" fn state_load(
                     instance.current_params = params;
 
                     // Update shared GUI state
-                    if let Ok(mut gui_params) = instance.synth_params.write() {
-                        *gui_params = params;
-                    }
+                    let mut gui_params = instance.synth_params.write();
+                    *gui_params = params;
 
                     // Apply to processor if active
                     if let Some(processor) = &mut instance.processor {

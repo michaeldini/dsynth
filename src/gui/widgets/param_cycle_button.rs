@@ -32,11 +32,8 @@ pub fn param_cycle_button(
             // Get current parameter value from the GUI state
             // get_param returns DENORMALIZED value (enum index: 0, 1, 2, ...)
             let current_value = GuiState::synth_params.map(move |params_arc| {
-                if let Ok(params) = params_arc.read() {
-                    crate::plugin::param_update::param_get::get_param(&params, param_id)
-                } else {
-                    0.0
-                }
+                let params = params_arc.read();
+                crate::plugin::param_update::param_get::get_param(&params, param_id)
             });
 
             // The denormalized value IS the index directly
@@ -54,10 +51,9 @@ pub fn param_cycle_button(
         .on_press(move |cx| {
             // Get current state and cycle to next option
             let arc = GuiState::synth_params.get(cx);
-            let current_value = if let Ok(params) = arc.read() {
+            let current_value = {
+                let params = arc.read();
                 crate::plugin::param_update::param_get::get_param(&params, param_id)
-            } else {
-                0.0
             };
 
             // current_value is the denormalized index (0, 1, 2, ...)

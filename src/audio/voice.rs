@@ -1443,6 +1443,8 @@ impl Voice {
     /// The method is called `get_rms()` for historical reasons (it used to return RMS),
     /// but it actually returns peak amplitude. Renaming would break the API, so the name
     /// remains but the implementation changed for performance.
+    #[inline]
+    #[must_use]
     pub fn peak_amplitude(&self) -> f32 {
         // Return peak amplitude seen since note on
         // This is a simple, fast metric that works well for voice stealing
@@ -1462,6 +1464,8 @@ impl Voice {
     ///
     /// - `true`: Voice is producing audio (note-on, sustain, or release phase)
     /// - `false`: Voice is idle, waiting to be assigned a note
+    #[inline]
+    #[must_use]
     pub fn is_active(&self) -> bool {
         self.is_active
     }
@@ -1482,6 +1486,8 @@ impl Voice {
     /// - 60 = C4 (middle C, ~261.63 Hz)
     /// - 69 = A4 (concert pitch, 440 Hz)
     /// - 127 = G9 (~12543 Hz)
+    #[inline]
+    #[must_use]
     pub fn note(&self) -> u8 {
         self.note
     }

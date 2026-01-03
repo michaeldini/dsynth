@@ -1292,6 +1292,7 @@ dependencies = [
  "hound",
  "image",
  "midir",
+ "parking_lot",
  "rand 0.8.5",
  "raw-window-handle 0.5.2",
  "rfd",

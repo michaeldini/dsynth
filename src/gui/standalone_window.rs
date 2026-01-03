@@ -8,8 +8,8 @@ use crate::params::SynthParams;
 use crate::plugin::gui_param_change::GuiParamChange;
 use crossbeam_channel::Sender;
 use std::collections::HashSet;
-use std::sync::Mutex;
-use std::sync::{Arc, RwLock};
+use parking_lot::{Mutex, RwLock};
+use std::sync::Arc;
 use triple_buffer::Input;
 use vizia::prelude::*;
 

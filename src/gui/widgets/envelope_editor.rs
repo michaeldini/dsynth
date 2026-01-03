@@ -243,23 +243,21 @@ impl View for EnvelopeEditor {
 
     fn event(&mut self, cx: &mut EventContext, event: &mut Event) {
         // Handle parameter sync messages from the audio thread
-        event.map(
-            |gui_msg: &crate::gui::GuiMessage, _meta| match gui_msg {
-                crate::gui::GuiMessage::SyncKnobValue(param_id, normalized) => {
-                    let value = normalized.clamp(0.0, 1.0);
-                    if *param_id == self.attack_param_id {
-                        self.attack_normalized = value;
-                    } else if *param_id == self.decay_param_id {
-                        self.decay_normalized = value;
-                    } else if *param_id == self.sustain_param_id {
-                        self.sustain_normalized = value;
-                    } else if *param_id == self.release_param_id {
-                        self.release_normalized = value;
-                    }
+        event.map(|gui_msg: &crate::gui::GuiMessage, _meta| match gui_msg {
+            crate::gui::GuiMessage::SyncKnobValue(param_id, normalized) => {
+                let value = normalized.clamp(0.0, 1.0);
+                if *param_id == self.attack_param_id {
+                    self.attack_normalized = value;
+                } else if *param_id == self.decay_param_id {
+                    self.decay_normalized = value;
+                } else if *param_id == self.sustain_param_id {
+                    self.sustain_normalized = value;
+                } else if *param_id == self.release_param_id {
+                    self.release_normalized = value;
                 }
-                _ => {}
-            },
-        );
+            }
+            _ => {}
+        });
 
         // Handle mouse events for interaction
         event.map(|window_event, meta| match window_event {

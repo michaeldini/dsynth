@@ -8,12 +8,27 @@ use super::super::{
 use clap_sys::ext::params::{CLAP_PARAM_IS_AUTOMATABLE, clap_param_info};
 
 /// Get parameter count
+///
+/// # Safety
+///
+/// This function is an FFI boundary called by the CLAP host. Safety requirements:
+/// - `_plugin` pointer is unused but must be valid per CLAP spec
+/// - Must be callable from the main thread
+/// - No plugin state is accessed, so this is safe to call at any time
 pub unsafe extern "C" fn params_count(_plugin: *const clap_sys::plugin::clap_plugin) -> u32 {
     let registry = param_registry::get_registry();
     registry.count() as u32
 }
 
 /// Get parameter info by index
+///
+/// # Safety
+///
+/// This function is an FFI boundary called by the CLAP host. Safety requirements:
+/// - `_plugin` pointer is unused but must be valid per CLAP spec
+/// - `param_info` must be a valid pointer to a clap_param_info struct that we can write to
+/// - Must be callable from the main thread
+/// - The param_info structure is owned by the host and must remain valid for the call duration
 pub unsafe extern "C" fn params_get_info(
     _plugin: *const clap_sys::plugin::clap_plugin,
     param_index: u32,
@@ -37,6 +52,14 @@ pub unsafe extern "C" fn params_get_info(
 }
 
 /// Get parameter value (normalized 0-1)
+///
+/// # Safety
+///
+/// This function is an FFI boundary called by the CLAP host. Safety requirements:
+/// - `plugin` must be a valid pointer to a DSynthClapPlugin instance
+/// - `out_value` must be a valid pointer to an f64 that we can write to
+/// - Can be called from main thread or audio thread (parameter queries are lock-free)
+/// - The plugin's parameter state must be properly initialized
 pub unsafe extern "C" fn params_get_value(
     plugin: *const clap_sys::plugin::clap_plugin,
     param_id: ParamId,
@@ -72,6 +95,14 @@ pub unsafe extern "C" fn params_get_value(
 }
 
 /// Convert parameter value to text (for display)
+///
+/// # Safety
+///
+/// This function is an FFI boundary called by the CLAP host. Safety requirements:
+/// - `_plugin` pointer is unused but must be valid per CLAP spec
+/// - `out_buffer` must point to a valid writable buffer of at least `out_buffer_capacity` bytes
+/// - Must be callable from the main thread
+/// - The buffer must remain valid for the duration of the call
 pub unsafe extern "C" fn params_value_to_text(
     _plugin: *const clap_sys::plugin::clap_plugin,
     param_id: ParamId,
@@ -95,6 +126,15 @@ pub unsafe extern "C" fn params_value_to_text(
 }
 
 /// Convert text to parameter value (for text input)
+///
+/// # Safety
+///
+/// This function is an FFI boundary called by the CLAP host. Safety requirements:
+/// - `_plugin` pointer is unused but must be valid per CLAP spec
+/// - `param_value_text` must be a valid null-terminated C string pointer
+/// - `out_value` must be a valid pointer to an f64 that we can write to
+/// - Must be callable from the main thread
+/// - The text string must remain valid for the duration of the call
 pub unsafe extern "C" fn params_text_to_value(
     _plugin: *const clap_sys::plugin::clap_plugin,
     param_id: ParamId,
@@ -126,6 +166,15 @@ pub unsafe extern "C" fn params_text_to_value(
 }
 
 /// Flush parameter changes (called before/after processing)
+///
+/// # Safety
+///
+/// This function is an FFI boundary called by the CLAP host. Safety requirements:
+/// - `plugin` must be a valid pointer to a DSynthClapPlugin instance
+/// - `in_events` must be a valid pointer to a clap_input_events structure
+/// - Can be called from main thread or audio thread
+/// - The plugin instance must not be destroyed during this call
+/// - Event pointers from in_events must remain valid during processing
 pub unsafe extern "C" fn params_flush(
     plugin: *const clap_sys::plugin::clap_plugin,
     in_events: *const clap_sys::events::clap_input_events,
@@ -165,9 +214,8 @@ pub unsafe extern "C" fn params_flush(
             param_apply::apply_param(&mut instance.current_params, param_id, normalized);
 
             // Update shared GUI state
-            if let Ok(mut gui_params) = instance.synth_params.write() {
-                param_apply::apply_param(&mut gui_params, param_id, normalized);
-            }
+            let mut gui_params = instance.synth_params.write();
+            param_apply::apply_param(&mut gui_params, param_id, normalized);
 
             // Also update processor if it exists
             if let Some(processor) = &mut instance.processor {
