@@ -1,8 +1,8 @@
 // GUI state for VIZIA - shared between plugin and standalone
 
 use crate::audio::output::EngineEvent;
-use crate::gui::GuiMessage;
 use crate::gui::messages::UiTab;
+use crate::gui::GuiMessage;
 use crate::params::SynthParams;
 use crate::plugin::gui_param_change::GuiParamChange;
 use crossbeam_channel::Sender;

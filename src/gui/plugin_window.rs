@@ -9,8 +9,8 @@ use crate::gui::theme;
 use crate::gui::GuiState;
 use crate::params::SynthParams;
 use crate::plugin::gui_param_change::GuiParamChange;
-use raw_window_handle::{HasRawWindowHandle, RawWindowHandle as RawHandle};
 use parking_lot::{Mutex, RwLock};
+use raw_window_handle::{HasRawWindowHandle, RawWindowHandle as RawHandle};
 use std::sync::Arc;
 use triple_buffer::Input;
 use vizia::prelude::*;
@@ -70,4 +70,3 @@ pub fn open_editor(
 pub struct EditorWindowHandle {
     _inner: ViziaBaseviewWindowHandle,
 }
-
