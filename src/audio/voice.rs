@@ -774,6 +774,9 @@ impl Voice {
             self.envelope.set_decay(envelope_params.decay);
             self.envelope.set_sustain(envelope_params.sustain);
             self.envelope.set_release(envelope_params.release);
+            self.envelope.set_attack_curve(envelope_params.attack_curve);
+            self.envelope.set_decay_curve(envelope_params.decay_curve);
+            self.envelope.set_release_curve(envelope_params.release_curve);
         }
 
         if osc_params_changed {

@@ -328,6 +328,9 @@ pub mod param_apply {
             PARAM_ENVELOPE_DECAY => params.envelope.decay = denorm,
             PARAM_ENVELOPE_SUSTAIN => params.envelope.sustain = denorm,
             PARAM_ENVELOPE_RELEASE => params.envelope.release = denorm,
+            PARAM_ENVELOPE_ATTACK_CURVE => params.envelope.attack_curve = denorm,
+            PARAM_ENVELOPE_DECAY_CURVE => params.envelope.decay_curve = denorm,
+            PARAM_ENVELOPE_RELEASE_CURVE => params.envelope.release_curve = denorm,
 
             // Velocity
             PARAM_VELOCITY_AMP => params.velocity.amp_sensitivity = denorm,
@@ -731,6 +734,9 @@ pub mod param_get {
             PARAM_ENVELOPE_DECAY => params.envelope.decay,
             PARAM_ENVELOPE_SUSTAIN => params.envelope.sustain,
             PARAM_ENVELOPE_RELEASE => params.envelope.release,
+            PARAM_ENVELOPE_ATTACK_CURVE => params.envelope.attack_curve,
+            PARAM_ENVELOPE_DECAY_CURVE => params.envelope.decay_curve,
+            PARAM_ENVELOPE_RELEASE_CURVE => params.envelope.release_curve,
 
             // Velocity
             PARAM_VELOCITY_AMP => params.velocity.amp_sensitivity,

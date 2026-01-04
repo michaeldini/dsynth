@@ -847,6 +847,42 @@ impl ParamRegistry {
                 Some("s")
             )
         );
+        add_param!(
+            PARAM_ENVELOPE_ATTACK_CURVE,
+            ParamDescriptor::float(
+                PARAM_ENVELOPE_ATTACK_CURVE,
+                "Attack Curve",
+                "Envelope",
+                -1.0,
+                1.0,
+                0.0,
+                Some("")
+            )
+        );
+        add_param!(
+            PARAM_ENVELOPE_DECAY_CURVE,
+            ParamDescriptor::float(
+                PARAM_ENVELOPE_DECAY_CURVE,
+                "Decay Curve",
+                "Envelope",
+                -1.0,
+                1.0,
+                0.0,
+                Some("")
+            )
+        );
+        add_param!(
+            PARAM_ENVELOPE_RELEASE_CURVE,
+            ParamDescriptor::float(
+                PARAM_ENVELOPE_RELEASE_CURVE,
+                "Release Curve",
+                "Envelope",
+                -1.0,
+                1.0,
+                0.0,
+                Some("")
+            )
+        );
 
         // Velocity
         add_param!(

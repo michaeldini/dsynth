@@ -126,10 +126,13 @@ impl Default for FilterParams {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct EnvelopeParams {
-    pub attack: f32,  // seconds, 0.001 to 5.0
-    pub decay: f32,   // seconds, 0.001 to 5.0
-    pub sustain: f32, // level, 0.0 to 1.0
-    pub release: f32, // seconds, 0.001 to 5.0
+    pub attack: f32,        // seconds, 0.001 to 5.0
+    pub decay: f32,         // seconds, 0.001 to 5.0
+    pub sustain: f32,       // level, 0.0 to 1.0
+    pub release: f32,       // seconds, 0.001 to 5.0
+    pub attack_curve: f32,  // -1.0 (logarithmic) to +1.0 (exponential)
+    pub decay_curve: f32,   // -1.0 (logarithmic) to +1.0 (exponential)
+    pub release_curve: f32, // -1.0 (logarithmic) to +1.0 (exponential)
 }
 
 impl Default for EnvelopeParams {
@@ -140,6 +143,9 @@ impl Default for EnvelopeParams {
             decay: 0.1,
             sustain: 0.9, // Raised from 0.7 for fuller sustained notes
             release: 0.2,
+            attack_curve: 0.0,  // Linear by default
+            decay_curve: 0.0,   // Linear by default
+            release_curve: 0.0, // Linear by default
         }
     }
 }

@@ -124,6 +124,9 @@ pub fn randomize_synth_params<R: Rng + ?Sized>(rng: &mut R) -> SynthParams {
     params.envelope.decay = rng.gen_range(0.05..=1.0); // 50ms-1s decay
     params.envelope.sustain = rng.gen_range(0.3..=0.9); // 30%-90% sustain
     params.envelope.release = rng.gen_range(0.1..=2.0); // 100ms-2s release
+    params.envelope.attack_curve = rng.gen_range(-1.0..=1.0); // Full curve range
+    params.envelope.decay_curve = rng.gen_range(-1.0..=1.0);
+    params.envelope.release_curve = rng.gen_range(-1.0..=1.0);
 
     // Master - slightly reduced range for safety
     params.master_gain = rng.gen_range(0.3..=0.6);

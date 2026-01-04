@@ -195,6 +195,9 @@ pub const PARAM_ENVELOPE_ATTACK: ParamId = make_param_id(MODULE_ENVELOPE, 0);
 pub const PARAM_ENVELOPE_DECAY: ParamId = make_param_id(MODULE_ENVELOPE, 1);
 pub const PARAM_ENVELOPE_SUSTAIN: ParamId = make_param_id(MODULE_ENVELOPE, 2);
 pub const PARAM_ENVELOPE_RELEASE: ParamId = make_param_id(MODULE_ENVELOPE, 3);
+pub const PARAM_ENVELOPE_ATTACK_CURVE: ParamId = make_param_id(MODULE_ENVELOPE, 4);
+pub const PARAM_ENVELOPE_DECAY_CURVE: ParamId = make_param_id(MODULE_ENVELOPE, 5);
+pub const PARAM_ENVELOPE_RELEASE_CURVE: ParamId = make_param_id(MODULE_ENVELOPE, 6);
 
 // Velocity sensitivity
 pub const PARAM_VELOCITY_AMP: ParamId = make_param_id(MODULE_VELOCITY, 0);

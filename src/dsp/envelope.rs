@@ -19,6 +19,17 @@ pub struct Envelope {
     sustain_level: f32,
     release_time: f32,
 
+    // Curve parameters (-1.0 to +1.0)
+    attack_curve: f32,
+    decay_curve: f32,
+    release_curve: f32,
+
+    // Linear progress tracking for curve application
+    linear_progress: f32,
+
+    // Release start level (level when note_off was called)
+    release_start_level: f32,
+
     // Computed increments per sample
     attack_increment: f32,
     decay_increment: f32,
@@ -39,6 +50,11 @@ impl Envelope {
             decay_time: 0.1,    // 100ms
             sustain_level: 0.7, // 70%
             release_time: 0.2,  // 200ms
+            attack_curve: 0.0,
+            decay_curve: 0.0,
+            release_curve: 0.0,
+            linear_progress: 0.0,
+            release_start_level: 0.0,
             attack_increment: 0.0,
             decay_increment: 0.0,
             release_increment: 0.0,
@@ -70,27 +86,69 @@ impl Envelope {
         self.update_increments();
     }
 
+    /// Set attack curve (-1.0 = logarithmic, 0.0 = linear, +1.0 = exponential)
+    pub fn set_attack_curve(&mut self, curve: f32) {
+        self.attack_curve = curve.clamp(-1.0, 1.0);
+    }
+
+    /// Set decay curve (-1.0 = logarithmic, 0.0 = linear, +1.0 = exponential)
+    pub fn set_decay_curve(&mut self, curve: f32) {
+        self.decay_curve = curve.clamp(-1.0, 1.0);
+    }
+
+    /// Set release curve (-1.0 = logarithmic, 0.0 = linear, +1.0 = exponential)
+    pub fn set_release_curve(&mut self, curve: f32) {
+        self.release_curve = curve.clamp(-1.0, 1.0);
+    }
+
     /// Update increment values based on current parameters
     fn update_increments(&mut self) {
         let attack_samples = self.attack_time * self.sample_rate;
         self.attack_increment = 1.0 / attack_samples;
 
         let decay_samples = self.decay_time * self.sample_rate;
-        self.decay_increment = (1.0 - self.sustain_level) / decay_samples;
+        self.decay_increment = 1.0 / decay_samples; // Normalized 0-1 progress
 
         let release_samples = self.release_time * self.sample_rate;
         self.release_increment = 1.0 / release_samples;
     }
 
+    /// Apply curve transformation to linear progress
+    /// 
+    /// # Arguments
+    /// * `progress` - Linear progress from 0.0 to 1.0
+    /// * `curve` - Curve amount: -1.0 (logarithmic) to +1.0 (exponential)
+    /// 
+    /// Returns curved value from 0.0 to 1.0
+    fn apply_curve(&self, progress: f32, curve: f32) -> f32 {
+        if curve.abs() < 0.01 {
+            // Linear (no curve)
+            progress
+        } else if curve > 0.0 {
+            // Exponential (fast→slow): use fractional power < 1
+            // powf(1.0 - curve * 0.67) gives smooth transition
+            // curve=0.5 → powf(0.67), curve=1.0 → powf(0.33)
+            // This creates fast initial rise that slows near the end
+            progress.powf(1.0 - curve * 0.67)
+        } else {
+            // Logarithmic (slow→fast): use power > 1
+            // This creates slow initial rise that accelerates near the end
+            progress.powf(1.0 - curve * 0.67)
+        }
+    }
+
     /// Trigger the envelope (note on)
     pub fn note_on(&mut self) {
         self.stage = EnvelopeStage::Attack;
+        self.linear_progress = 0.0;
         // Don't reset current_level to allow for retriggering
     }
 
     /// Release the envelope (note off)
     pub fn note_off(&mut self) {
         if self.stage != EnvelopeStage::Idle {
+            self.release_start_level = self.current_level;
+            self.linear_progress = 0.0;
             self.stage = EnvelopeStage::Release;
         }
     }
@@ -102,27 +160,41 @@ impl Envelope {
                 self.current_level = 0.0;
             }
             EnvelopeStage::Attack => {
-                self.current_level += self.attack_increment;
-                if self.current_level >= 1.0 {
+                self.linear_progress += self.attack_increment;
+                if self.linear_progress >= 1.0 {
                     self.current_level = 1.0;
+                    self.linear_progress = 0.0;
                     self.stage = EnvelopeStage::Decay;
+                } else {
+                    // Apply curve to linear progress
+                    self.current_level = self.apply_curve(self.linear_progress, self.attack_curve);
                 }
             }
             EnvelopeStage::Decay => {
-                self.current_level -= self.decay_increment;
-                if self.current_level <= self.sustain_level {
+                self.linear_progress += self.decay_increment;
+                if self.linear_progress >= 1.0 {
                     self.current_level = self.sustain_level;
+                    self.linear_progress = 0.0;
                     self.stage = EnvelopeStage::Sustain;
+                } else {
+                    // Apply curve: start at 1.0, end at sustain_level
+                    let curved_progress = self.apply_curve(self.linear_progress, self.decay_curve);
+                    self.current_level = 1.0 - curved_progress * (1.0 - self.sustain_level);
                 }
             }
             EnvelopeStage::Sustain => {
                 self.current_level = self.sustain_level;
             }
             EnvelopeStage::Release => {
-                self.current_level -= self.release_increment;
-                if self.current_level <= 0.0 {
+                self.linear_progress += self.release_increment;
+                if self.linear_progress >= 1.0 {
                     self.current_level = 0.0;
+                    self.linear_progress = 0.0;
                     self.stage = EnvelopeStage::Idle;
+                } else {
+                    // Apply curve: start at release_start_level, end at 0.0
+                    let curved_progress = self.apply_curve(self.linear_progress, self.release_curve);
+                    self.current_level = self.release_start_level * (1.0 - curved_progress);
                 }
             }
         }
@@ -157,6 +229,7 @@ impl Envelope {
     /// cause an audible click/pop).
     pub fn reset_level(&mut self) {
         self.current_level = 0.0;
+        self.linear_progress = 0.0;
     }
 }
 
@@ -466,5 +539,137 @@ mod tests {
                 samples_to_peak
             );
         }
+    }
+
+    #[test]
+    fn test_apply_curve_linear() {
+        let env = Envelope::new(44100.0);
+        // Linear curve (curve = 0.0) should return input unchanged
+        assert_relative_eq!(env.apply_curve(0.0, 0.0), 0.0, epsilon = 0.001);
+        assert_relative_eq!(env.apply_curve(0.5, 0.0), 0.5, epsilon = 0.001);
+        assert_relative_eq!(env.apply_curve(1.0, 0.0), 1.0, epsilon = 0.001);
+    }
+
+    #[test]
+    fn test_apply_curve_exponential() {
+        let env = Envelope::new(44100.0);
+        // Exponential curve (curve = 1.0) should produce fast→slow behavior
+        // At 50% progress, output should be > 50% (fast initial rise)
+        let result = env.apply_curve(0.5, 1.0);
+        assert!(
+            result > 0.5,
+            "Exponential curve at 50% progress should be > 50%, got {}",
+            result
+        );
+
+        // At 25% progress, should already be significantly higher
+        let result_early = env.apply_curve(0.25, 1.0);
+        assert!(
+            result_early > 0.35,
+            "Exponential curve at 25% progress should be > 35%, got {}",
+            result_early
+        );
+    }
+
+    #[test]
+    fn test_apply_curve_logarithmic() {
+        let env = Envelope::new(44100.0);
+        // Logarithmic curve (curve = -1.0) should produce slow→fast behavior
+        // At 50% progress, output should be < 50% (slow initial rise)
+        let result = env.apply_curve(0.5, -1.0);
+        assert!(
+            result < 0.5,
+            "Logarithmic curve at 50% progress should be < 50%, got {}",
+            result
+        );
+
+        // At 75% progress, should accelerate and be close to end
+        let result_late = env.apply_curve(0.75, -1.0);
+        assert!(
+            result_late > 0.5 && result_late < 0.85,
+            "Logarithmic curve at 75% progress should be between 50-85%, got {}",
+            result_late
+        );
+    }
+
+    #[test]
+    fn test_apply_curve_bounds() {
+        let env = Envelope::new(44100.0);
+        // Test extreme curve values stay within 0.0-1.0
+        for curve in [-1.0, -0.5, 0.0, 0.5, 1.0].iter() {
+            for progress in [0.0, 0.25, 0.5, 0.75, 1.0].iter() {
+                let result = env.apply_curve(*progress, *curve);
+                assert!(
+                    result >= 0.0 && result <= 1.0,
+                    "Curve {} at progress {} produced out-of-bounds result {}",
+                    curve,
+                    progress,
+                    result
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_envelope_with_exponential_attack_curve() {
+        let mut env = Envelope::new(44100.0);
+        env.set_attack(0.1); // 100ms
+        env.set_attack_curve(1.0); // Exponential (fast→slow)
+        env.note_on();
+
+        // With exponential curve, should reach 50% level faster than 50% of attack time
+        let half_attack_samples = (0.05 * 44100.0) as usize;
+        let mut level_at_half_time = 0.0;
+
+        for i in 0..half_attack_samples {
+            level_at_half_time = env.process();
+            if i == half_attack_samples - 1 {
+                break;
+            }
+        }
+
+        // Exponential attack should be > 50% at halfway point
+        assert!(
+            level_at_half_time > 0.5,
+            "Exponential attack should reach > 50% at halfway point, got {}",
+            level_at_half_time
+        );
+    }
+
+    #[test]
+    fn test_envelope_with_logarithmic_decay_curve() {
+        let mut env = Envelope::new(44100.0);
+        env.set_attack(0.001); // Very short attack
+        env.set_decay(0.2);    // 200ms decay
+        env.set_sustain(0.3);
+        env.set_decay_curve(-1.0); // Logarithmic (slow→fast, hangs at high levels)
+        env.note_on();
+
+        // Process through attack to reach decay stage
+        for _ in 0..(0.001 * 44100.0) as usize + 100 {
+            env.process();
+            if env.stage() == EnvelopeStage::Decay {
+                break;
+            }
+        }
+
+        // At halfway through decay, logarithmic should still be > 65%
+        // (hangs at high levels longer)
+        let half_decay_samples = (0.1 * 44100.0) as usize;
+        let mut level_at_half_decay = 0.0;
+
+        for i in 0..half_decay_samples {
+            level_at_half_decay = env.process();
+            if i == half_decay_samples - 1 {
+                break;
+            }
+        }
+
+        // Logarithmic decay should hang above 65% (linear would be at ~65%)
+        assert!(
+            level_at_half_decay > 0.65,
+            "Logarithmic decay should hang above 65% at halfway point, got {}",
+            level_at_half_decay
+        );
     }
 }

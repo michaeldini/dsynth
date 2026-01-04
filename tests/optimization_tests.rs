@@ -3,7 +3,7 @@
 
 #[cfg(test)]
 mod optimization_tests {
-    use dsynth::audio::engine::{SynthEngine, create_parameter_buffer};
+    use dsynth::audio::engine::{create_parameter_buffer, SynthEngine};
     use dsynth::audio::voice::Voice;
     use dsynth::dsp::filter::BiquadFilter;
     use dsynth::params::{EnvelopeParams, FilterType, OscillatorParams, SynthParams};
@@ -240,6 +240,9 @@ mod optimization_tests {
             decay: 0.001,
             sustain: 1.0,
             release: 0.2,
+            attack_curve: 0.0,
+            decay_curve: 0.0,
+            release_curve: 0.0,
         };
         let wavetable_library = dsynth::dsp::wavetable_library::WavetableLibrary::new();
         voice.update_parameters(
