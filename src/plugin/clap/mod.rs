@@ -1,27 +1,6 @@
 /// CLAP Plugin Module
 ///
 /// Entry point and exports for the CLAP plugin.
-use std::fs::OpenOptions;
-use std::io::Write;
-
-fn log_to_file(msg: &str) {
-    if let Ok(mut file) = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("/tmp/dsynth_clap.log")
-    {
-        let _ = writeln!(
-            file,
-            "[{}] {}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
-            msg
-        );
-        let _ = file.sync_all(); // Force flush to disk
-    }
-}
 
 #[cfg(feature = "clap")]
 pub mod descriptor;
@@ -34,9 +13,18 @@ pub mod processor;
 #[cfg(feature = "clap")]
 pub mod state;
 
+#[cfg(feature = "kick-clap")]
+pub mod kick_plugin;
+#[cfg(feature = "kick-clap")]
+pub mod kick_processor;
+
 #[cfg(feature = "clap")]
 pub use plugin::DSynthClapPlugin;
 
+#[cfg(feature = "kick-clap")]
+pub use kick_plugin::KickClapPlugin;
+
+// Main CLAP plugin entry point (polyphonic synth)
 #[cfg(feature = "clap")]
 use clap_sys::entry::clap_plugin_entry;
 #[cfg(feature = "clap")]
@@ -137,10 +125,13 @@ unsafe extern "C" fn entry_get_factory(factory_id: *const i8) -> *const c_void {
 
 // CLAP requires a static clap_entry symbol with C linkage.
 // We create it by returning a pointer to a static struct.
+#[cfg(feature = "clap")]
 use std::sync::OnceLock;
 
+#[cfg(feature = "clap")]
 static ENTRY: OnceLock<clap_plugin_entry> = OnceLock::new();
 
+#[cfg(feature = "clap")]
 #[unsafe(no_mangle)]
 pub extern "C" fn get_clap_entry() -> *const clap_plugin_entry {
     ENTRY.get_or_init(|| clap_plugin_entry {
@@ -152,6 +143,7 @@ pub extern "C" fn get_clap_entry() -> *const clap_plugin_entry {
 }
 
 // The actual C-linkage symbol that CLAP hosts look for
+#[cfg(feature = "clap")]
 #[unsafe(no_mangle)]
 #[unsafe(link_section = "__DATA,__data")]
 pub static clap_entry: clap_plugin_entry = clap_plugin_entry {

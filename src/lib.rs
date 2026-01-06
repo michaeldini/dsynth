@@ -81,7 +81,12 @@ pub mod dsp;
 /// The GUI communicates with the audio engine through:
 /// 1. **Parameter producer**: Sends parameter updates (filter cutoff, volume, etc.)
 /// 2. **Event channel**: Sends user-triggered events (note on/off from keyboard)
-#[cfg(feature = "standalone")]
+#[cfg(any(
+    feature = "standalone",
+    feature = "kick-synth",
+    feature = "clap",
+    feature = "kick-clap"
+))]
 pub mod gui;
 
 /// The **midi** module handles incoming MIDI input from hardware controllers and software.
@@ -96,6 +101,19 @@ pub mod gui;
 /// modulate parameters in real-time. In standalone mode, this is how external keyboards
 /// and controllers are connected. In VST mode, the DAW provides MIDI routing.
 pub mod midi;
+
+/// The **params_kick** module defines parameters for the specialized kick drum synthesizer.
+///
+/// This is a simplified parameter set optimized for kick drum synthesis:
+/// - Two oscillators with pitch envelopes (body + click)
+/// - Amplitude envelope (no sustain)
+/// - Filter with envelope modulation
+/// - Distortion/saturation
+/// - Master controls
+///
+/// Conditionally compiled when the "kick-synth" or "kick-clap" feature is enabled.
+#[cfg(any(feature = "kick-synth", feature = "kick-clap"))]
+pub mod params_kick;
 
 /// The **params** module defines all synthesizer parameters and their metadata.
 ///
@@ -139,9 +157,13 @@ pub mod randomize;
 /// - GuiParamChange for lock-free parameter updates (shared)
 /// - CLAP plugin interface (clap feature only)
 /// - State serialization for presets and DAW projects (clap feature only)
-#[cfg(any(feature = "clap", feature = "standalone"))]
+#[cfg(any(feature = "clap", feature = "standalone", feature = "kick-clap"))]
 pub mod plugin;
 
 // Re-export CLAP entry point at crate root so it's in the dylib symbol table
 #[cfg(feature = "clap")]
 pub use plugin::clap::clap_entry;
+
+// Re-export kick drum CLAP entry point (kick_plugin exports its own clap_entry function)
+#[cfg(feature = "kick-clap")]
+pub use plugin::clap::kick_plugin::clap_entry;

@@ -1,19 +1,64 @@
-// VIZIA GUI module - unified GUI for both plugin and standalone targets
+// VIZIA GUI module
 
+// Shared pieces used by multiple targets (including kick-clap)
+#[cfg(any(
+    feature = "clap",
+    feature = "standalone",
+    feature = "kick-clap",
+    feature = "kick-synth"
+))]
 pub mod messages;
-pub mod shared_ui;
-pub mod state;
+
+#[cfg(any(
+    feature = "clap",
+    feature = "standalone",
+    feature = "kick-clap",
+    feature = "kick-synth"
+))]
 pub mod theme;
+
+#[cfg(any(
+    feature = "clap",
+    feature = "standalone",
+    feature = "kick-clap",
+    feature = "kick-synth"
+))]
 pub mod widgets;
 
+#[cfg(any(
+    feature = "clap",
+    feature = "standalone",
+    feature = "kick-clap",
+    feature = "kick-synth"
+))]
 pub use messages::GuiMessage;
+
+// Main poly synth UI/state (not needed for kick-clap)
+#[cfg(any(feature = "clap", feature = "standalone"))]
+pub mod shared_ui;
+
+#[cfg(any(feature = "clap", feature = "standalone"))]
+pub mod state;
+
+#[cfg(any(feature = "clap", feature = "standalone"))]
 pub use state::GuiState;
 
+// Window backends
 #[cfg(feature = "clap")]
 pub mod plugin_window;
+
+#[cfg(feature = "kick-clap")]
+pub mod kick_plugin_window;
 
 #[cfg(feature = "standalone")]
 pub mod standalone_window;
 
 #[cfg(feature = "standalone")]
 pub use standalone_window::run_standalone_gui;
+
+// Standalone kick GUI (kept for dsynth-kick binary)
+#[cfg(feature = "kick-synth")]
+pub mod kick_gui;
+
+#[cfg(feature = "kick-synth")]
+pub use kick_gui::run_kick_gui;

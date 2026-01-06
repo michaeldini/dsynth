@@ -527,14 +527,18 @@ impl ParamDescriptor {
 
     /// Denormalize a value (0.0-1.0) to the actual parameter range
     pub fn denormalize(&self, normalized: f32) -> f32 {
-        match &self.param_type {
+        // Clamp normalized value to valid range to prevent inf/NaN
+        let normalized = normalized.clamp(0.0, 1.0);
+        
+        let result = match &self.param_type {
             ParamType::Float { min, max, skew } => match skew {
                 ValueSkew::Linear => min + (max - min) * normalized,
                 ValueSkew::Logarithmic => {
-                    if *min <= 0.0 {
+                    if *min <= 0.0 || *max <= 0.0 || *max <= *min {
                         // Fallback to linear for invalid ranges
                         min + (max - min) * normalized
                     } else {
+                        // Logarithmic interpolation: min * (max/min)^t
                         min * (max / min).powf(normalized)
                     }
                 }
@@ -551,18 +555,34 @@ impl ParamDescriptor {
             }
             ParamType::Enum { variants } => {
                 let index = (normalized * (variants.len() - 1) as f32).round() as usize;
-                index as f32
+                index.min(variants.len().saturating_sub(1)) as f32
             }
             ParamType::Int { min, max } => {
                 let range = max - min;
                 ((normalized * range as f32).round() as i32 + min) as f32
+            }
+        };
+        
+        // Safety check: ensure result is finite
+        if result.is_finite() {
+            result
+        } else {
+            // Return default value if something went wrong
+            match &self.param_type {
+                ParamType::Float { min, max, .. } => (min + max) / 2.0,
+                _ => 0.0,
             }
         }
     }
 
     /// Normalize a denormalized value back to 0.0-1.0 range
     pub fn normalize_value(&self, value: f32) -> f32 {
-        match &self.param_type {
+        // Ensure input is finite
+        if !value.is_finite() {
+            return 0.5; // Return middle value for invalid input
+        }
+        
+        let result = match &self.param_type {
             ParamType::Float { min, max, skew } => match skew {
                 ValueSkew::Linear => Self::normalize(value, *min, *max),
                 ValueSkew::Logarithmic => Self::normalize_log(value, *min, *max),
@@ -593,6 +613,13 @@ impl ParamDescriptor {
                     ((value - *min as f32) / range).clamp(0.0, 1.0)
                 }
             }
+        };
+        
+        // Ensure result is finite and clamped
+        if result.is_finite() {
+            result.clamp(0.0, 1.0)
+        } else {
+            0.5 // Return middle value if something went wrong
         }
     }
 
@@ -607,10 +634,16 @@ impl ParamDescriptor {
 
     /// Normalize a value to 0.0-1.0 range (logarithmic)
     fn normalize_log(value: f32, min: f32, max: f32) -> f32 {
-        if min <= 0.0 || max <= 0.0 {
+        if min <= 0.0 || max <= 0.0 || max <= min || !value.is_finite() {
             Self::normalize(value, min, max)
         } else {
-            ((value / min).ln() / (max / min).ln()).clamp(0.0, 1.0)
+            let value = value.max(min).min(max); // Clamp to range
+            let result = (value / min).ln() / (max / min).ln();
+            if result.is_finite() {
+                result.clamp(0.0, 1.0)
+            } else {
+                Self::normalize(value, min, max)
+            }
         }
     }
 

@@ -13,6 +13,8 @@ default = ["simd", "standalone"]
 simd = []
 standalone = ["vizia_winit", "cpal", "midir", "rfd"]
 clap = ["vizia_baseview", "clap-sys"]
+kick-synth = ["vizia_winit", "cpal", "midir"]  # Kick drum synth (monophonic)
+kick-clap = ["vizia_baseview", "clap-sys"]  # Kick drum CLAP plugin
 
 [dependencies]
 # VIZIA from git with both backends - baseview for CLAP plugin, winit for standalone
@@ -36,6 +38,10 @@ rand = "0.8"
 image = "0.25"
 hound = "3.5"
 
+[target.'cfg(target_os = "macos")'.dependencies]
+cocoa = "0.26"
+objc = "0.2"
+
 [dev-dependencies]
 approx = "0.5"
 criterion = "0.5"
@@ -49,3 +55,15 @@ harness = false
 [[bench]]
 name = "optimization_bench"
 harness = false
+
+# Standalone binary for main polyphonic synthesizer
+[[bin]]
+name = "dsynth"
+path = "src/main.rs"
+required-features = ["standalone"]
+
+# Standalone binary for kick drum synthesizer
+[[bin]]
+name = "dsynth-kick"
+path = "src/main_kick.rs"
+required-features = ["kick-synth"]

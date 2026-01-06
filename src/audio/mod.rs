@@ -114,6 +114,30 @@ pub mod output;
 /// Voices are kept separate so they can process independently and in parallel.
 pub mod voice;
 
+/// The **kick_engine** module implements a specialized monophonic kick drum synthesizer.
+///
+/// This is a simplified synthesis engine optimized specifically for kick drum sounds with:
+/// - Single voice (monophonic)
+/// - Two oscillators with pitch envelopes (body + click/transient)
+/// - Simplified parameter set focused on kick drums
+/// - Lower CPU overhead than the full polyphonic engine
+///
+/// Conditionally compiled when the "kick-synth" or "kick-clap" feature is enabled.
+#[cfg(any(feature = "kick-synth", feature = "kick-clap"))]
+pub mod kick_engine;
+
+/// The **kick_voice** module implements a single kick drum voice.
+///
+/// Unlike the polyphonic Voice, this is optimized for kick drum synthesis with:
+/// - Pitch envelope for each oscillator (exponential decay)
+/// - No sustain phase (kicks are percussive)
+/// - Built-in distortion/saturation
+/// - Simpler parameter set
+///
+/// Conditionally compiled when the "kick-synth" or "kick-clap" feature is enabled.
+#[cfg(any(feature = "kick-synth", feature = "kick-clap"))]
+pub mod kick_voice;
+
 /// Re-export `create_parameter_buffer` for convenient access from outside the audio module.
 ///
 /// This function creates the lock-free triple-buffer used for parameter updates.

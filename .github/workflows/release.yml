@@ -76,6 +76,16 @@ jobs:
           CARGO_NET_RETRY: 10
         run: cargo build --release --lib --features clap --target ${{ matrix.target }} -v
 
+      - name: Build Kick CLAP Plugin
+        timeout-minutes: 90
+        id: kick_clap_build
+        env:
+          CARGO_INCREMENTAL: 0
+          RUST_BACKTRACE: 1
+          CARGO_NET_GIT_FETCH_WITH_CLI: true
+          CARGO_NET_RETRY: 10
+        run: cargo build --release --lib --no-default-features --features kick-clap --target ${{ matrix.target }} -v
+
       - name: Create Plugin Bundles (macOS)
         if: matrix.os == 'macos-latest'
         run: |
@@ -120,6 +130,50 @@ jobs:
           cd bundles
           tar -czf DSynth-${{ matrix.target }}-clap.tar.gz DSynth.clap
 
+      - name: Create Kick Plugin Bundles (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          mkdir -p bundles
+
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          # CLAP Bundle (Kick)
+          CLAP_BUNDLE="bundles/DSynthKick.clap"
+          mkdir -p "$CLAP_BUNDLE/Contents/MacOS"
+          cp "target/${{ matrix.target }}/release/libdsynth.dylib" "$CLAP_BUNDLE/Contents/MacOS/DSynthKick"
+          echo "BNDL????" > "$CLAP_BUNDLE/Contents/PkgInfo"
+
+          cat > "$CLAP_BUNDLE/Contents/Info.plist" << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>DSynthKick</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.dsynth.kick.clap</string>
+              <key>CFBundleName</key>
+              <string>DSynthKick</string>
+              <key>CFBundlePackageType</key>
+              <string>BNDL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>__VERSION__</string>
+          </dict>
+          </plist>
+          EOF
+
+          perl -pi -e "s/__VERSION__/$VERSION/g" "$CLAP_BUNDLE/Contents/Info.plist"
+
+          # Code sign the bundle (ad-hoc signing)
+          codesign --force --deep --sign - "$CLAP_BUNDLE"
+
+          # Verify signature
+          codesign -dv "$CLAP_BUNDLE" 2>&1
+
+          # Create archive
+          cd bundles
+          tar -czf DSynthKick-${{ matrix.target }}-clap.tar.gz DSynthKick.clap
+
       - name: Create Plugin Bundles (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
@@ -157,11 +211,54 @@ jobs:
           
           Write-Host "Successfully created bundles\DSynth-${{ matrix.target }}-clap.zip"
 
+      - name: Create Kick Plugin Bundles (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path bundles
+
+          $version = "${{ github.ref_name }}" -replace '^v',''
+
+          # CLAP Bundle - Windows CLAP is just the DLL with .clap extension
+          $clapBundle = "bundles\DSynthKick.clap"
+          New-Item -ItemType Directory -Force -Path $clapBundle
+
+          # Verify the DLL exists
+          if (-Not (Test-Path "target\${{ matrix.target }}\release\dsynth.dll")) {
+            Write-Error "dsynth.dll not found!"
+            exit 1
+          }
+
+          Copy-Item "target\${{ matrix.target }}\release\dsynth.dll" "$clapBundle\DSynthKick.clap"
+
+          # Verify the copy succeeded
+          if (-Not (Test-Path "$clapBundle\DSynthKick.clap")) {
+            Write-Error "Failed to create DSynthKick.clap!"
+            exit 1
+          }
+
+          # Create archive
+          Compress-Archive -Path "$clapBundle\*" -DestinationPath "bundles\DSynthKick-${{ matrix.target }}-clap.zip" -Force
+
+          # Verify archive was created
+          if (-Not (Test-Path "bundles\DSynthKick-${{ matrix.target }}-clap.zip")) {
+            Write-Error "Failed to create archive!"
+            exit 1
+          }
+
+          Write-Host "Successfully created bundles\DSynthKick-${{ matrix.target }}-clap.zip"
+
       - name: Upload CLAP Plugin
         uses: actions/upload-artifact@v4
         with:
           name: DSynth-${{ matrix.target }}-clap
           path: bundles/DSynth-${{ matrix.target }}-clap.*
+
+      - name: Upload Kick CLAP Plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: DSynthKick-${{ matrix.target }}-clap
+          path: bundles/DSynthKick-${{ matrix.target }}-clap.*
 
   create-release:
     needs: build
@@ -191,7 +288,8 @@ jobs:
             - `dsynth-windows-x86_64.exe` - Windows 64-bit
             
             ### CLAP Plugins
-            - `DSynth-*-clap.tar.gz` / `.zip` - CLAP plugins for macOS and Windows
+            - `DSynth-*-clap.tar.gz` / `.zip` - DSynth CLAP plugin for macOS and Windows
+            - `DSynthKick-*-clap.tar.gz` / `.zip` - DSynth Kick CLAP plugin for macOS and Windows
             
             ### Installation
             
