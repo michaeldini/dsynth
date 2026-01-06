@@ -12,28 +12,6 @@ use std::sync::Arc;
 use triple_buffer::Input;
 use triple_buffer::Output;
 
-#[allow(dead_code)]
-fn log_to_file(msg: &str) {
-    use std::fs::OpenOptions;
-    use std::io::Write;
-    if let Ok(mut file) = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("/tmp/dsynth_clap.log")
-    {
-        let _ = writeln!(
-            file,
-            "[{}] {}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
-            msg
-        );
-        let _ = file.sync_all();
-    }
-}
-
 /// Audio processor state
 pub struct ClapProcessor {
     /// The synthesis engine

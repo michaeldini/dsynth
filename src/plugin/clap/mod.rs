@@ -32,13 +32,36 @@ use clap_sys::host::clap_host;
 #[cfg(feature = "clap")]
 use clap_sys::plugin::{clap_plugin, clap_plugin_descriptor};
 #[cfg(feature = "clap")]
-use clap_sys::plugin_factory::{CLAP_PLUGIN_FACTORY_ID, clap_plugin_factory};
+use clap_sys::plugin_factory::{clap_plugin_factory, CLAP_PLUGIN_FACTORY_ID};
 #[cfg(feature = "clap")]
 use clap_sys::version::CLAP_VERSION;
 #[cfg(feature = "clap")]
 use std::ffi::CStr;
 #[cfg(feature = "clap")]
 use std::os::raw::c_void;
+
+#[cfg(feature = "clap")]
+pub(crate) fn log_to_file(msg: &str) {
+    use std::fs::OpenOptions;
+    use std::io::Write;
+
+    if let Ok(mut file) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/tmp/dsynth_clap.log")
+    {
+        let _ = writeln!(
+            file,
+            "[{}] {}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs(),
+            msg
+        );
+        let _ = file.sync_all();
+    }
+}
 
 #[cfg(feature = "clap")]
 unsafe extern "C" fn plugin_factory_get_plugin_count(_factory: *const clap_plugin_factory) -> u32 {

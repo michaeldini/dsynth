@@ -4,27 +4,7 @@ use super::super::state::PluginState;
 /// Handles plugin state save/load using the PluginState serialization system.
 use clap_sys::ext::state::clap_plugin_state;
 use clap_sys::stream::{clap_istream, clap_ostream};
-
-fn log_to_file(msg: &str) {
-    use std::fs::OpenOptions;
-    use std::io::Write;
-    if let Ok(mut file) = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("/tmp/dsynth_clap.log")
-    {
-        let _ = writeln!(
-            file,
-            "[{}] STATE: {}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
-            msg
-        );
-        let _ = file.sync_all();
-    }
-}
+use super::log_to_file;
 
 /// Save plugin state to stream
 ///
