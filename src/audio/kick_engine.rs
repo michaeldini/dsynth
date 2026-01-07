@@ -40,9 +40,9 @@ impl KickEngine {
         let mut queue = self.note_queue.lock();
         for event in queue.drain(..) {
             match event {
-                MidiEvent::NoteOn { velocity, .. } => {
-                    // Trigger kick on any note
-                    self.voice.trigger(velocity, params);
+                MidiEvent::NoteOn { note, velocity } => {
+                    // Trigger kick with note number for key tracking
+                    self.voice.trigger(note, velocity, params);
                 }
                 MidiEvent::NoteOff { .. } => {
                     // Kicks typically ignore note-off, but we'll implement it anyway
@@ -92,7 +92,7 @@ impl KickEngine {
     /// Trigger kick directly (for testing or non-MIDI use)
     pub fn trigger(&mut self, velocity: f32) {
         let params = self.params.lock();
-        self.voice.trigger(velocity, &params);
+        self.voice.trigger(60, velocity, &params); // Use C4 (60) as default note
     }
 
     /// Get current sample rate

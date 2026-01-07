@@ -9,10 +9,13 @@ pub mod stereo_widener;
 // New effects
 pub mod auto_pan;
 pub mod bitcrusher;
+pub mod clipper;
 pub mod comb_filter;
 pub mod compressor;
+pub mod crossover;
 pub mod exciter;
 pub mod flanger;
+pub mod multiband_compressor;
 pub mod phaser;
 pub mod ring_modulator;
 pub mod tremolo;
@@ -29,10 +32,13 @@ pub use stereo_widener::StereoWidener;
 // New effect exports
 pub use auto_pan::AutoPan;
 pub use bitcrusher::Bitcrusher;
+pub use clipper::Clipper;
 pub use comb_filter::CombFilter;
 pub use compressor::Compressor;
+pub use crossover::LR2Crossover;
 pub use exciter::Exciter;
 pub use flanger::Flanger;
+pub use multiband_compressor::MultibandCompressor;
 pub use phaser::Phaser;
 pub use ring_modulator::RingModulator;
 pub use tremolo::Tremolo;

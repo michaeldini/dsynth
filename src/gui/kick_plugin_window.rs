@@ -179,19 +179,108 @@ pub struct EditorWindowHandle {
     _inner: ViziaBaseviewWindowHandle,
 }
 
+#[derive(Lens)]
+struct KickToggle {
+    checked: bool,
+    default_checked: bool,
+    param_id: ParamId,
+}
+
+impl KickToggle {
+    fn new(cx: &mut Context, initial_checked: bool, param_id: ParamId, default_checked: bool) -> Handle<Self> {
+        Self {
+            checked: initial_checked,
+            default_checked,
+            param_id,
+        }
+        .build(cx, |cx| {
+            Binding::new(cx, KickToggle::checked, |cx, checked| {
+                let is_checked = checked.get(cx);
+                Label::new(cx, if is_checked { "✓" } else { "✗" })
+                    .font_size(18.0)
+                    .color(if is_checked {
+                        theme::TEXT_PRIMARY
+                    } else {
+                        theme::TEXT_TERTIARY
+                    })
+                    .text_align(TextAlign::Center)
+                    .width(Stretch(1.0))
+                    .height(Stretch(1.0));
+            });
+        })
+        .width(Pixels(theme::KNOB_SIZE))
+        .height(Pixels(theme::KNOB_SIZE))
+        .background_color(theme::WIDGET_BG)
+        .border_width(Pixels(2.0))
+        .border_color(theme::WIDGET_BORDER)
+        .corner_radius(Pixels(6.0))
+        .cursor(CursorIcon::Hand)
+    }
+}
+
+impl View for KickToggle {
+    fn element(&self) -> Option<&'static str> {
+        Some("kick-toggle")
+    }
+
+    fn event(&mut self, cx: &mut EventContext, event: &mut Event) {
+        event.map(|gui_msg: &crate::gui::GuiMessage, _meta| {
+            if let crate::gui::GuiMessage::SyncKnobValue(param_id, normalized) = gui_msg {
+                if *param_id == self.param_id {
+                    self.checked = *normalized >= 0.5;
+                }
+            }
+        });
+
+        event.map(|window_event, meta| match window_event {
+            WindowEvent::MouseDown(MouseButton::Left) => {
+                self.checked = !self.checked;
+                cx.emit(crate::gui::GuiMessage::ParamChanged(
+                    self.param_id,
+                    if self.checked { 1.0 } else { 0.0 },
+                ));
+                meta.consume();
+            }
+
+            WindowEvent::MouseDoubleClick(MouseButton::Left) => {
+                self.checked = self.default_checked;
+                cx.emit(crate::gui::GuiMessage::ParamChanged(
+                    self.param_id,
+                    if self.checked { 1.0 } else { 0.0 },
+                ));
+                meta.consume();
+            }
+
+            _ => {}
+        });
+    }
+}
+
 fn build_section(cx: &mut Context, title: &str, content: impl FnOnce(&mut Context) + 'static) {
+    // Baseview + ScrollView can mis-measure Auto-sized children, leading to
+    // collapsed sections (0 height), overlapping headers, and no scrolling.
+    // Since each section here is exactly one knob row, give the section a
+    // deterministic height so layout is stable.
+    const TITLE_H: f32 = 22.0;
+    const SECTION_PAD: f32 = 12.0;
+    const SECTION_GAP: f32 = 10.0;
+    let row_h = theme::LABEL_HEIGHT + 4.0 + theme::KNOB_SIZE;
+    let section_h = TITLE_H + SECTION_GAP + row_h + (SECTION_PAD * 2.0);
+
     VStack::new(cx, move |cx| {
         Label::new(cx, title)
             .font_size(14.0)
             .color(theme::TEXT_SECONDARY)
-            .background_color(theme::BG_DARK)
-            .height(Pixels(20.0));
+            // .background_color(theme::BG_DARK)
+            .height(Pixels(TITLE_H))
+            .width(Stretch(1.0));
         content(cx);
     })
-    .height(Pixels(125.0))
-    .padding(Pixels(10.0))
-    .gap(Pixels(8.0))
-    // .background_color(theme::BG_SECTION)
+    .width(Stretch(1.0))
+    .height(Pixels(section_h))
+    .padding(Pixels(12.0))
+    .gap(Pixels(10.0))
+    .background_color(theme::BG_SECTION)
     .corner_radius(Pixels(6.0));
 }
 
@@ -201,7 +290,73 @@ fn build_knob_row(cx: &mut Context, items: &[(ParamId, &str, f32, f32)]) {
             param_knob(cx, *param_id, label, *initial, *default);
         }
     })
-    .height(Pixels(125.0))
+    .width(Stretch(1.0))
+    // Critical: without an explicit row height, the flex layout can treat this as
+    // having ~0 height in some backends, causing subsequent section headers to
+    // overlap the knob content (and breaking scroll height calculation).
+    .height(Pixels(theme::LABEL_HEIGHT + 4.0 + theme::KNOB_SIZE))
+    .gap(Pixels(10.0));
+}
+
+fn build_toggle_row(cx: &mut Context, items: Vec<(ParamId, &'static str, bool, bool)>) {
+    HStack::new(cx, move |cx| {
+        for item in items.iter() {
+            let (param_id, label, initial_checked, default_checked) = *item;
+            VStack::new(cx, move |cx| {
+                Label::new(cx, label)
+                    .font_size(11.0)
+                    .background_color(theme::BG_DARK)
+                    .color(theme::TEXT_SECONDARY)
+                    .width(Pixels(theme::KNOB_CELL_WIDTH))
+                    .height(Pixels(theme::LABEL_HEIGHT))
+                    .text_align(TextAlign::Center)
+                    .text_wrap(false)
+                    .text_overflow(TextOverflow::Ellipsis);
+
+                KickToggle::new(cx, initial_checked, param_id, default_checked);
+            })
+            .width(Pixels(theme::KNOB_CELL_WIDTH))
+            .height(Pixels(theme::LABEL_HEIGHT + 4.0 + theme::KNOB_SIZE))
+            .gap(Pixels(4.0));
+        }
+    })
+    .width(Stretch(1.0))
+    .height(Pixels(theme::LABEL_HEIGHT + 4.0 + theme::KNOB_SIZE))
+    .gap(Pixels(10.0));
+}
+
+fn build_mixed_row(
+    cx: &mut Context,
+    knobs: Vec<(ParamId, &'static str, f32, f32)>,
+    toggles: Vec<(ParamId, &'static str, bool, bool)>,
+) {
+    HStack::new(cx, move |cx| {
+        for item in knobs.iter() {
+            let (param_id, label, initial, default) = *item;
+            param_knob(cx, param_id, label, initial, default);
+        }
+        for item in toggles.iter() {
+            let (param_id, label, initial_checked, default_checked) = *item;
+            VStack::new(cx, move |cx| {
+                Label::new(cx, label)
+                    .font_size(11.0)
+                    .background_color(theme::BG_DARK)
+                    .color(theme::TEXT_SECONDARY)
+                    .width(Pixels(theme::KNOB_CELL_WIDTH))
+                    .height(Pixels(theme::LABEL_HEIGHT))
+                    .text_align(TextAlign::Center)
+                    .text_wrap(false)
+                    .text_overflow(TextOverflow::Ellipsis);
+
+                KickToggle::new(cx, initial_checked, param_id, default_checked);
+            })
+            .width(Pixels(theme::KNOB_CELL_WIDTH))
+            .height(Pixels(theme::LABEL_HEIGHT + 4.0 + theme::KNOB_SIZE))
+            .gap(Pixels(4.0));
+        }
+    })
+    .width(Stretch(1.0))
+    .height(Pixels(theme::LABEL_HEIGHT + 4.0 + theme::KNOB_SIZE))
     .gap(Pixels(10.0));
 }
 
@@ -224,6 +379,12 @@ fn build_kick_ui(cx: &mut Context, kick_params: Arc<Mutex<KickParams>>) {
         let initial = registry.get_param(&params_snapshot, id) as f32;
         let default = default_normalized(registry, id);
         (id, label, initial, default)
+    };
+
+    let toggle = |id: ParamId, label: &'static str| -> (ParamId, &'static str, bool, bool) {
+        let initial = (registry.get_param(&params_snapshot, id) as f32).clamp(0.0, 1.0);
+        let default = default_normalized(registry, id);
+        (id, label, initial >= 0.5, default >= 0.5)
     };
 
     let body_row = [
@@ -302,7 +463,7 @@ fn build_kick_ui(cx: &mut Context, kick_params: Arc<Mutex<KickParams>>) {
         ),
     ];
 
-    let dist_row = [
+    let dist_knobs = [
         item(
             crate::plugin::kick_param_registry::PARAM_KICK_DISTORTION_AMOUNT,
             "Amount",
@@ -313,7 +474,12 @@ fn build_kick_ui(cx: &mut Context, kick_params: Arc<Mutex<KickParams>>) {
         ),
     ];
 
-    let master_row = [
+    let dist_toggles = [toggle(
+        crate::plugin::kick_param_registry::PARAM_KICK_DISTORTION_ENABLED,
+        "Enable",
+    )];
+
+    let master_knobs = [
         item(
             crate::plugin::kick_param_registry::PARAM_KICK_MASTER_LEVEL,
             "Level",
@@ -323,6 +489,168 @@ fn build_kick_ui(cx: &mut Context, kick_params: Arc<Mutex<KickParams>>) {
             "Vel",
         ),
     ];
+
+    // Treat key tracking as an on/off toggle in the UI (0.0 = off, 1.0 = on)
+    let master_toggles = [toggle(
+        crate::plugin::kick_param_registry::PARAM_KICK_KEY_TRACKING,
+        "KeyTrack",
+    )];
+
+    // Multiband Compression - Crossovers
+    let mb_xover_knobs = [
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_MB_XOVER_LOW,
+            "Low Xover",
+        ),
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_MB_XOVER_HIGH,
+            "High Xover",
+        ),
+        item(crate::plugin::kick_param_registry::PARAM_KICK_MB_MIX, "Mix"),
+    ];
+
+    let mb_xover_toggles = [toggle(
+        crate::plugin::kick_param_registry::PARAM_KICK_MB_ENABLED,
+        "Enable",
+    )];
+
+    // Multiband Compression - Sub Band
+    let mb_sub_knobs = [
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_MB_SUB_THRESHOLD,
+            "Thresh",
+        ),
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_MB_SUB_RATIO,
+            "Ratio",
+        ),
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_MB_SUB_ATTACK,
+            "Attack",
+        ),
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_MB_SUB_RELEASE,
+            "Release",
+        ),
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_MB_SUB_GAIN,
+            "Gain",
+        ),
+    ];
+
+    let mb_sub_toggles = [toggle(
+        crate::plugin::kick_param_registry::PARAM_KICK_MB_SUB_BYPASS,
+        "Bypass",
+    )];
+
+    // Multiband Compression - Body Band
+    let mb_body_knobs = [
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_MB_BODY_THRESHOLD,
+            "Thresh",
+        ),
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_MB_BODY_RATIO,
+            "Ratio",
+        ),
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_MB_BODY_ATTACK,
+            "Attack",
+        ),
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_MB_BODY_RELEASE,
+            "Release",
+        ),
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_MB_BODY_GAIN,
+            "Gain",
+        ),
+    ];
+
+    let mb_body_toggles = [toggle(
+        crate::plugin::kick_param_registry::PARAM_KICK_MB_BODY_BYPASS,
+        "Bypass",
+    )];
+
+    // Multiband Compression - Click Band
+    let mb_click_knobs = [
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_MB_CLICK_THRESHOLD,
+            "Thresh",
+        ),
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_MB_CLICK_RATIO,
+            "Ratio",
+        ),
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_MB_CLICK_ATTACK,
+            "Attack",
+        ),
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_MB_CLICK_RELEASE,
+            "Release",
+        ),
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_MB_CLICK_GAIN,
+            "Gain",
+        ),
+    ];
+
+    let mb_click_toggles = [toggle(
+        crate::plugin::kick_param_registry::PARAM_KICK_MB_CLICK_BYPASS,
+        "Bypass",
+    )];
+
+    // Exciter
+    let exciter_knobs = [
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_EXCITER_FREQUENCY,
+            "Frequency",
+        ),
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_EXCITER_DRIVE,
+            "Drive",
+        ),
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_EXCITER_MIX,
+            "Mix",
+        ),
+    ];
+
+    let exciter_toggles = [toggle(
+        crate::plugin::kick_param_registry::PARAM_KICK_EXCITER_ENABLED,
+        "Enable",
+    )];
+
+    // Transient Shaper
+    let transient_knobs = [
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_TRANSIENT_ATTACK_BOOST,
+            "Attack Boost",
+        ),
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_TRANSIENT_SUSTAIN_REDUCTION,
+            "Sustain Reduce",
+        ),
+    ];
+
+    let transient_toggles = [toggle(
+        crate::plugin::kick_param_registry::PARAM_KICK_TRANSIENT_ENABLED,
+        "Enable",
+    )];
+
+    // Clipper
+    let clipper_knobs = [
+        item(
+            crate::plugin::kick_param_registry::PARAM_KICK_CLIPPER_THRESHOLD,
+            "Threshold",
+        ),
+    ];
+
+    let clipper_toggles = [toggle(
+        crate::plugin::kick_param_registry::PARAM_KICK_CLIPPER_ENABLED,
+        "Enable",
+    )];
 
     ZStack::new(cx, move |cx| {
         // Background image layer.
@@ -373,16 +701,54 @@ fn build_kick_ui(cx: &mut Context, kick_params: Arc<Mutex<KickParams>>) {
                     });
 
                     build_section(cx, "Distortion", move |cx| {
-                        build_knob_row(cx, &dist_row);
+                        build_mixed_row(cx, dist_knobs.to_vec(), dist_toggles.to_vec());
                     });
 
                     build_section(cx, "Master", move |cx| {
-                        build_knob_row(cx, &master_row);
+                        build_mixed_row(cx, master_knobs.to_vec(), master_toggles.to_vec());
+                    });
+
+                    // Multiband Compression Section
+                    build_section(cx, "Multiband Comp - Crossovers", move |cx| {
+                        build_mixed_row(cx, mb_xover_knobs.to_vec(), mb_xover_toggles.to_vec());
+                    });
+
+                    build_section(cx, "MB Comp - Sub Band (40-150Hz)", move |cx| {
+                        build_mixed_row(cx, mb_sub_knobs.to_vec(), mb_sub_toggles.to_vec());
+                    });
+
+                    build_section(cx, "MB Comp - Body Band (150-800Hz)", move |cx| {
+                        build_mixed_row(cx, mb_body_knobs.to_vec(), mb_body_toggles.to_vec());
+                    });
+
+                    build_section(cx, "MB Comp - Click Band (800Hz+)", move |cx| {
+                        build_mixed_row(cx, mb_click_knobs.to_vec(), mb_click_toggles.to_vec());
+                    });
+
+                    // Exciter Section
+                    build_section(cx, "Exciter", move |cx| {
+                        build_mixed_row(cx, exciter_knobs.to_vec(), exciter_toggles.to_vec());
+                    });
+
+                    // Transient Shaper Section
+                    build_section(cx, "Transient Shaper", move |cx| {
+                        build_mixed_row(cx, transient_knobs.to_vec(), transient_toggles.to_vec());
+                    });
+
+                    // Clipper Section
+                    build_section(cx, "Clipper", move |cx| {
+                        build_mixed_row(cx, clipper_knobs.to_vec(), clipper_toggles.to_vec());
                     });
                 })
-                .gap(Pixels(10.0))
-                .padding(Pixels(10.0));
+                .width(Stretch(1.0))
+                .height(Units::Auto)
+                .min_height(Pixels(0.0))
+                .gap(Pixels(18.0))
+                .padding(Pixels(12.0));
             })
+            .show_horizontal_scrollbar(false)
+            .show_vertical_scrollbar(true)
+            .background_color(theme::BG_DARK)
             // Ensure the scroll area fills the remaining editor space.
             // Without this, the content can be clipped instead of scrollable.
             .width(Stretch(1.0))

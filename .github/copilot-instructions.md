@@ -100,6 +100,180 @@ DSynth is a **high-performance polyphonic synthesizer** built in Rust with three
     - [widgets/](src/gui/vizia_gui/widgets/): Custom parameter controls
 - **Core**: [audio/engine.rs](src/audio/engine.rs) is format-agnostic, just processes samples
 
+## DSynth Kick: Simplified Kick Drum Synthesizer
+
+The project includes a **separate kick drum synthesizer** (`DSynthKick`) optimized for electronic music kick drum synthesis. It shares architectural patterns with the main synth but is simplified and specialized.
+
+### Key Differences from Main Synth
+
+**Simplified Voice Model:**
+- **Single monophonic voice** (no polyphony/voice stealing) - kicks are typically one-shot
+- **2 oscillators** instead of 3 (Body/Tone + Click/Transient)
+- **Exponential pitch envelopes** for classic 808-style pitch sweeps (start_pitch → end_pitch over decay time)
+- **Single filter** with envelope modulation
+- **Distortion module** with 4 types (Soft, Hard, Tube, Foldback)
+
+**Specialized Parameters:**
+- Oscillator parameters use **absolute Hz values** (not MIDI note conversion by default)
+- Pitch envelopes are separate from amplitude envelope (independent decay times)
+- Filter envelope is simplified (fast attack, adjustable decay, no sustain)
+- Velocity sensitivity controls amplitude scaling
+
+**Key Tracking System:**
+- Added in v0.3.0 to enable chromatic kick playback
+- `key_tracking` parameter (0.0-1.0): scales pitch envelope by MIDI note frequency
+- Formula: `key_tracking_mult = (note_freq / ref_freq).powf(key_tracking)`
+- Reference note: C4 (60) = 261.63 Hz
+- At `key_tracking=0.0`: All notes trigger same pitch (default 808 behavior)
+- At `key_tracking=1.0`: Full chromatic tracking (C5 = 2× C4 pitch)
+- Preserves pitch envelope sweep ratio (start/end ratio constant across notes)
+
+### Kick Synth Architecture Files
+
+**Core Audio Engine:**
+- [audio/kick_engine.rs](src/audio/kick_engine.rs): Monophonic engine, MIDI event handling, direct trigger method
+- [audio/kick_voice.rs](src/audio/kick_voice.rs): Single voice with pitch envelopes, key tracking math, distortion
+  - `trigger(note: u8, velocity: f32, params: &KickParams)`: Note-on with key tracking
+  - `midi_note_to_freq()`: Equal temperament conversion (A4=440Hz)
+  - `calculate_pitch_envelope()`: Exponential decay formula
+
+**Parameters:**
+- [params_kick.rs](src/params_kick.rs): `KickParams` struct with 20 parameters
+  - Osc 1: `pitch_start`, `pitch_end`, `pitch_decay`, `level`
+  - Osc 2: `pitch_start`, `pitch_end`, `pitch_decay`, `level`
+  - Envelope: `amp_attack`, `amp_decay`, `amp_sustain`, `amp_release`
+  - Filter: `cutoff`, `resonance`, `env_amount`, `env_decay`
+  - Distortion: `amount`, `type` (enum)
+  - Master: `level`, `velocity_sensitivity`, `key_tracking`
+  - Includes preset methods: `preset_808()`, `preset_techno()`, `preset_sub()`
+
+**CLAP Plugin:**
+- [plugin/kick_param_registry.rs](src/plugin/kick_param_registry.rs): Parameter descriptors and registry
+  - Namespace: `0x0200_xxxx` (separate from main synth `0x0100_xxxx`)
+  - `apply_param()` and `get_param()` for parameter synchronization
+  - Logarithmic scaling for pitch/time parameters
+- [plugin/clap/kick_plugin.rs](src/plugin/clap/kick_plugin.rs): CLAP plugin entry point and lifecycle
+- [plugin/clap/kick_processor.rs](src/plugin/clap/kick_processor.rs): Audio processing callback
+
+**GUI:**
+- [gui/kick_plugin_window.rs](src/gui/kick_plugin_window.rs): VIZIA GUI for kick plugin
+  - Uses same pattern as main synth: `param_knob()` helper, section builders
+  - Sections: Body Osc, Click Osc, Envelope, Filter, Distortion, Master
+  - Background image embedded as `KICK_BG_JPG` constant
+- [gui/kick_gui.rs](src/gui/kick_gui.rs): Standalone kick GUI (simplified placeholder)
+
+**Entry Points:**
+- [main_kick.rs](src/main_kick.rs): Standalone kick app entry point
+- [lib.rs](src/lib.rs): Exports kick plugin via `clap_entry` macro when `kick-clap` feature enabled
+
+### Building Kick Synth
+
+```bash
+# Kick CLAP Plugin
+cargo build --release --lib --features kick-clap
+./bundle_kick_clap.sh  # macOS - creates DSynthKick.clap
+cp -r target/bundled/DSynthKick.clap ~/Library/Audio/Plug-Ins/CLAP/
+
+# Kick Standalone (experimental)
+cargo build --release --bin dsynth-kick --features kick-synth
+```
+
+### Adding Parameters to Kick Synth
+
+Follow this pattern (example: adding `key_tracking`):
+
+1. **Add to KickParams** ([params_kick.rs](src/params_kick.rs)):
+   ```rust
+   pub struct KickParams {
+       // ... existing fields ...
+       pub key_tracking: f32, // 0.0-1.0
+   }
+   ```
+   - Add to `Default` impl with sensible default
+   - Add to all preset methods to maintain compatibility
+
+2. **Register in KickParamRegistry** ([kick_param_registry.rs](src/plugin/kick_param_registry.rs)):
+   ```rust
+   pub const PARAM_KICK_KEY_TRACKING: ParamId = 0x0200_0052;
+   
+   add_param!(
+       PARAM_KICK_KEY_TRACKING,
+       ParamDescriptor::float(
+           PARAM_KICK_KEY_TRACKING,
+           "Key Tracking",
+           "Master",
+           0.0, 1.0, 0.0,  // min, max, default
+           Some("%")
+       )
+   );
+   ```
+   - Add case to `apply_param()` match statement
+   - Add case to `get_param()` match statement
+
+3. **Implement in Voice** ([kick_voice.rs](src/audio/kick_voice.rs)):
+   - Access parameter in `process()` method
+   - Apply DSP logic (e.g., key tracking multiplier calculation)
+
+4. **Add GUI Control** ([kick_plugin_window.rs](src/gui/kick_plugin_window.rs)):
+   ```rust
+   let master_row = [
+       item(PARAM_KICK_KEY_TRACKING, "KeyTrack"),
+       // ... other params ...
+   ];
+   ```
+
+5. **Write Tests** ([kick_voice.rs](src/audio/kick_voice.rs) `#[cfg(test)]`):
+   - Test parameter behavior in `tests` module
+   - Use `approx::assert_relative_eq!` for DSP accuracy
+
+### Kick Synth Testing
+
+Tests are in [audio/kick_voice.rs](src/audio/kick_voice.rs) `#[cfg(test)]` module:
+```bash
+cargo test --lib --features kick-synth
+```
+
+Current test coverage:
+- `test_kick_voice_creation`: Voice initialization
+- `test_trigger_activates_voice`: Note-on activation
+- `test_pitch_envelope_decay`: Exponential pitch envelope accuracy
+- `test_process_generates_audio`: Audio generation verification
+- `test_voice_eventually_stops`: Envelope deactivation
+- `test_distortion_types`: All distortion modes produce valid audio
+- `test_velocity_sensitivity`: Velocity → amplitude scaling
+- `test_key_tracking`: Chromatic pitch scaling (C5 = 2× C4)
+- `test_key_tracking_disabled`: Default behavior (no tracking)
+- `test_midi_note_to_freq`: MIDI conversion accuracy (A4=440Hz)
+
+### Common Patterns for Kick Synth
+
+**Pitch Envelope Usage:**
+```rust
+// Classic 808 kick: high → low pitch sweep
+osc1_pitch_start: 150.0,  // Starting tone
+osc1_pitch_end: 55.0,     // Fundamental pitch
+osc1_pitch_decay: 100.0,  // Sweep time (ms)
+```
+
+**Key Tracking Integration:**
+```rust
+// Scale pitch envelope by note frequency
+let key_tracking_mult = if params.key_tracking > 0.0 {
+    let note_freq = Self::midi_note_to_freq(self.note);
+    let ref_freq = Self::midi_note_to_freq(60); // C4
+    (note_freq / ref_freq).powf(params.key_tracking)
+} else {
+    1.0  // No tracking
+};
+let tracked_start = params.osc1_pitch_start * key_tracking_mult;
+```
+
+**MIDI Note Handling:**
+- Engine captures note number from `NoteOn` events
+- Passes to `voice.trigger(note, velocity, params)`
+- Voice stores `note: u8` field for key tracking calculation
+- Non-MIDI `trigger()` uses C4 (60) as default
+
 ## Development Workflows
 
 ### Building

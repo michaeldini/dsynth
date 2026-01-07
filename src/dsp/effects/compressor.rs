@@ -83,9 +83,19 @@ impl Compressor {
         self.threshold_db = threshold_db.clamp(-60.0, 0.0);
     }
 
+    /// Get current threshold in dB
+    pub fn threshold(&self) -> f32 {
+        self.threshold_db
+    }
+
     /// Set compression ratio (1:1 to 20:1)
     pub fn set_ratio(&mut self, ratio: f32) {
         self.ratio = ratio.clamp(1.0, 20.0);
+    }
+
+    /// Get current compression ratio
+    pub fn ratio(&self) -> f32 {
+        self.ratio
     }
 
     /// Set attack time in milliseconds

@@ -1,5 +1,6 @@
 /// Kick Drum Voice
 /// Single voice optimized for kick drum synthesis with pitch and amplitude envelopes
+use crate::dsp::effects::{Clipper, Exciter, MultibandCompressor};
 use crate::dsp::envelope::{Envelope, EnvelopeStage};
 use crate::dsp::filter::BiquadFilter;
 use crate::dsp::oscillator::Oscillator;
@@ -22,9 +23,15 @@ pub struct KickVoice {
     osc1_pitch_phase: f32,
     osc2_pitch_phase: f32,
 
+    // New transient/dynamics effects
+    exciter: Exciter, // High-frequency transient enhancement (before filter)
+    multiband_comp: MultibandCompressor, // 3-band compression (after distortion)
+    clipper: Clipper, // Brick-wall limiting (final stage)
+
     // Voice state
     is_active: bool,
     velocity: f32,
+    note: u8, // MIDI note number (0-127) for key tracking
     sample_rate: f32,
 }
 
@@ -38,16 +45,21 @@ impl KickVoice {
             filter_envelope: Envelope::new(sample_rate),
             osc1_pitch_phase: 0.0,
             osc2_pitch_phase: 0.0,
+            exciter: Exciter::new(sample_rate),
+            multiband_comp: MultibandCompressor::new(sample_rate),
+            clipper: Clipper::new(0.95),
             is_active: false,
             velocity: 0.0,
+            note: 60, // Default to C4
             sample_rate,
         }
     }
 
     /// Trigger the kick with a note-on event
-    pub fn trigger(&mut self, velocity: f32, params: &KickParams) {
+    pub fn trigger(&mut self, note: u8, velocity: f32, params: &KickParams) {
         self.is_active = true;
         self.velocity = velocity;
+        self.note = note;
 
         // Reset pitch envelope phases
         self.osc1_pitch_phase = 0.0;
@@ -83,24 +95,47 @@ impl KickVoice {
         self.is_active && self.amp_envelope.is_active()
     }
 
+    /// Convert MIDI note number to frequency in Hz
+    /// Uses equal temperament tuning: A4 (note 69) = 440 Hz
+    fn midi_note_to_freq(note: u8) -> f32 {
+        440.0 * 2.0_f32.powf((note as f32 - 69.0) / 12.0)
+    }
+
     /// Process one sample
     pub fn process(&mut self, params: &KickParams) -> f32 {
         if !self.is_active {
             return 0.0;
         }
 
+        // Calculate key tracking multiplier
+        // At key_tracking=0.0: mult=1.0 (no change, current behavior)
+        // At key_tracking=1.0: mult scales with note frequency (chromatic)
+        let key_tracking_mult = if params.key_tracking > 0.0 {
+            let note_freq = Self::midi_note_to_freq(self.note);
+            let reference_freq = Self::midi_note_to_freq(60); // C4 reference (261.63 Hz)
+            (note_freq / reference_freq).powf(params.key_tracking)
+        } else {
+            1.0
+        };
+
+        // Apply key tracking to pitch envelope start/end values
+        let osc1_start = params.osc1_pitch_start * key_tracking_mult;
+        let osc1_end = params.osc1_pitch_end * key_tracking_mult;
+        let osc2_start = params.osc2_pitch_start * key_tracking_mult;
+        let osc2_end = params.osc2_pitch_end * key_tracking_mult;
+
         // Calculate pitch envelope values (exponential decay)
         let osc1_pitch = Self::calculate_pitch_envelope(
             self.osc1_pitch_phase,
-            params.osc1_pitch_start,
-            params.osc1_pitch_end,
+            osc1_start,
+            osc1_end,
             params.osc1_pitch_decay / 1000.0, // Convert ms to seconds
         );
 
         let osc2_pitch = Self::calculate_pitch_envelope(
             self.osc2_pitch_phase,
-            params.osc2_pitch_start,
-            params.osc2_pitch_end,
+            osc2_start,
+            osc2_end,
             params.osc2_pitch_decay / 1000.0,
         );
 
@@ -128,7 +163,16 @@ impl KickVoice {
             1.0 - params.velocity_sensitivity + (params.velocity_sensitivity * self.velocity);
         mixed *= amp_env_value * velocity_mod;
 
-        // Apply filter with envelope modulation
+        // STEP 1: Apply exciter (before filter for aggressive high-frequency enhancement)
+        if params.exciter_enabled {
+            self.exciter.set_frequency(params.exciter_frequency);
+            self.exciter.set_drive(params.exciter_drive);
+            self.exciter.set_mix(params.exciter_mix);
+            let (excited_l, _excited_r) = self.exciter.process(mixed, mixed);
+            mixed = excited_l; // Use left channel directly (both channels identical for mono)
+        }
+
+        // STEP 2: Apply filter with envelope modulation
         let filter_env_value = self.filter_envelope.process();
         let modulated_cutoff =
             params.filter_cutoff * (1.0 + params.filter_env_amount * filter_env_value);
@@ -138,10 +182,60 @@ impl KickVoice {
         self.filter.set_resonance(params.filter_resonance);
         mixed = self.filter.process(mixed);
 
-        // Apply distortion
-        if params.distortion_amount > 0.0 {
+        // STEP 3: Apply distortion
+        if params.distortion_enabled && params.distortion_amount > 0.0 {
             mixed = Self::apply_distortion(mixed, params.distortion_amount, params.distortion_type);
         }
+
+        // STEP 4: Apply multiband compression (after distortion, before transient shaper)
+        self.multiband_comp.set_xover_low(params.mb_xover_low);
+        self.multiband_comp.set_xover_high(params.mb_xover_high);
+        self.multiband_comp
+            .set_sub_threshold(params.mb_sub_threshold);
+        self.multiband_comp.set_sub_ratio(params.mb_sub_ratio);
+        self.multiband_comp.set_sub_attack(params.mb_sub_attack);
+        self.multiband_comp.set_sub_release(params.mb_sub_release);
+        self.multiband_comp.set_sub_gain(params.mb_sub_gain);
+        self.multiband_comp.set_sub_bypass(params.mb_sub_bypass);
+        self.multiband_comp
+            .set_body_threshold(params.mb_body_threshold);
+        self.multiband_comp.set_body_ratio(params.mb_body_ratio);
+        self.multiband_comp.set_body_attack(params.mb_body_attack);
+        self.multiband_comp.set_body_release(params.mb_body_release);
+        self.multiband_comp.set_body_gain(params.mb_body_gain);
+        self.multiband_comp.set_body_bypass(params.mb_body_bypass);
+        self.multiband_comp
+            .set_click_threshold(params.mb_click_threshold);
+        self.multiband_comp.set_click_ratio(params.mb_click_ratio);
+        self.multiband_comp.set_click_attack(params.mb_click_attack);
+        self.multiband_comp
+            .set_click_release(params.mb_click_release);
+        self.multiband_comp.set_click_gain(params.mb_click_gain);
+        self.multiband_comp.set_click_bypass(params.mb_click_bypass);
+        self.multiband_comp.set_mix(params.mb_mix);
+        self.multiband_comp.set_enabled(params.mb_enabled);
+        mixed = self.multiband_comp.process(mixed);
+
+        // STEP 5: Apply transient shaper (envelope-based gain modulation)
+        if params.transient_enabled {
+            let transient_gain_mult = match self.amp_envelope.stage() {
+                EnvelopeStage::Attack => {
+                    // Boost attack transient (0.0-1.0 → 1x to 2x gain)
+                    1.0 + params.transient_attack_boost
+                }
+                EnvelopeStage::Sustain | EnvelopeStage::Decay => {
+                    // Reduce sustain/decay (0.0-1.0 → 1x to 0x gain)
+                    1.0 - params.transient_sustain_reduction
+                }
+                _ => 1.0, // No change for release/idle
+            };
+            mixed *= transient_gain_mult;
+        }
+
+        // STEP 6: Apply clipper (final stage for maximum loudness)
+        self.clipper.set_threshold(params.clipper_threshold);
+        self.clipper.set_enabled(params.clipper_enabled);
+        mixed = self.clipper.process(mixed);
 
         // Kicks are typically one-shot. If sustain is zero, the ADSR envelope will enter the
         // Sustain stage at level 0.0 and would otherwise remain "active" forever.
@@ -239,7 +333,7 @@ mod tests {
         let mut voice = KickVoice::new(44100.0);
         let params = KickParams::default();
 
-        voice.trigger(1.0, &params);
+        voice.trigger(60, 1.0, &params);
         assert!(voice.is_active());
     }
 
@@ -268,7 +362,7 @@ mod tests {
         let mut voice = KickVoice::new(44100.0);
         let params = KickParams::default();
 
-        voice.trigger(1.0, &params);
+        voice.trigger(60, 1.0, &params);
 
         // Process first sample
         let sample = voice.process(&params);
@@ -286,7 +380,7 @@ mod tests {
         params.amp_decay = 10.0; // 10ms
         params.amp_release = 5.0; // 5ms
 
-        voice.trigger(1.0, &params);
+        voice.trigger(60, 1.0, &params);
 
         // Process enough samples to finish envelope (20ms at 44.1kHz = 882 samples)
         for _ in 0..1000 {
@@ -325,13 +419,83 @@ mod tests {
 
         params.velocity_sensitivity = 1.0; // Full velocity sensitivity
 
-        voice1.trigger(1.0, &params); // Full velocity
-        voice2.trigger(0.5, &params); // Half velocity
+        voice1.trigger(60, 1.0, &params); // Full velocity
+        voice2.trigger(60, 0.5, &params); // Half velocity
 
         let sample1 = voice1.process(&params);
         let sample2 = voice2.process(&params);
 
         // Full velocity should be louder
         assert!(sample1.abs() > sample2.abs());
+    }
+
+    #[test]
+    fn test_key_tracking() {
+        let mut voice_c4 = KickVoice::new(44100.0);
+        let mut voice_c5 = KickVoice::new(44100.0);
+        let mut params = KickParams::default();
+
+        params.key_tracking = 1.0; // Full key tracking
+        params.osc1_pitch_start = 100.0;
+        params.osc1_pitch_end = 50.0;
+
+        // Trigger C4 (note 60) and C5 (note 72, one octave higher)
+        voice_c4.trigger(60, 1.0, &params);
+        voice_c5.trigger(72, 1.0, &params);
+
+        // With full key tracking, C5 should have ~2× the pitch multiplier of C4
+        // Calculate what the pitch envelope start values should be
+        let c4_freq = KickVoice::midi_note_to_freq(60);
+        let c5_freq = KickVoice::midi_note_to_freq(72);
+        let ref_freq = KickVoice::midi_note_to_freq(60);
+
+        let c4_mult = (c4_freq / ref_freq).powf(params.key_tracking);
+        let c5_mult = (c5_freq / ref_freq).powf(params.key_tracking);
+
+        // C5 multiplier should be ~2× C4 multiplier (octave higher)
+        assert_relative_eq!(c5_mult / c4_mult, 2.0, epsilon = 0.01);
+
+        // Verify the multipliers are applied correctly
+        assert_relative_eq!(c4_mult, 1.0, epsilon = 0.01); // C4 is the reference
+        assert_relative_eq!(c5_mult, 2.0, epsilon = 0.01); // C5 is one octave up
+    }
+
+    #[test]
+    fn test_key_tracking_disabled() {
+        let mut voice_c4 = KickVoice::new(44100.0);
+        let mut voice_c5 = KickVoice::new(44100.0);
+        let mut params = KickParams::default();
+
+        params.key_tracking = 0.0; // No key tracking (default)
+
+        // Trigger different notes
+        voice_c4.trigger(60, 1.0, &params);
+        voice_c5.trigger(72, 1.0, &params);
+
+        // With no key tracking, the multiplier should be 1.0 for both
+        let c4_freq = KickVoice::midi_note_to_freq(60);
+        let c5_freq = KickVoice::midi_note_to_freq(72);
+        let ref_freq = KickVoice::midi_note_to_freq(60);
+
+        let c4_mult = (c4_freq / ref_freq).powf(params.key_tracking);
+        let c5_mult = (c5_freq / ref_freq).powf(params.key_tracking);
+
+        // Both should be 1.0 (no tracking)
+        assert_relative_eq!(c4_mult, 1.0, epsilon = 0.01);
+        assert_relative_eq!(c5_mult, 1.0, epsilon = 0.01);
+    }
+
+    #[test]
+    fn test_midi_note_to_freq() {
+        // Test standard tuning: A4 (note 69) = 440 Hz
+        assert_relative_eq!(KickVoice::midi_note_to_freq(69), 440.0, epsilon = 0.1);
+
+        // Test C4 (middle C, note 60) ≈ 261.63 Hz
+        assert_relative_eq!(KickVoice::midi_note_to_freq(60), 261.63, epsilon = 0.1);
+
+        // Test octave relationship: C5 (72) should be 2× C4 (60)
+        let c4_freq = KickVoice::midi_note_to_freq(60);
+        let c5_freq = KickVoice::midi_note_to_freq(72);
+        assert_relative_eq!(c5_freq / c4_freq, 2.0, epsilon = 0.01);
     }
 }

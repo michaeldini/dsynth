@@ -165,7 +165,7 @@ pub fn param_knob(
         // Label at top
         Label::new(cx, label)
             .font_size(11.0)
-            .background_color(theme::BG_DARK)
+            // .background_color(theme::BG_DARK)
             .color(theme::TEXT_SECONDARY)
             .width(Pixels(theme::KNOB_CELL_WIDTH))
             .height(Pixels(theme::LABEL_HEIGHT))
