@@ -13,7 +13,6 @@ default = ["simd", "standalone"]
 simd = []
 standalone = ["vizia_winit", "cpal", "midir", "rfd"]
 clap = ["vizia_baseview", "clap-sys"]
-kick-synth = ["vizia_winit", "cpal", "midir"]  # Kick drum synth (monophonic)
 kick-clap = ["vizia_baseview", "clap-sys"]  # Kick drum CLAP plugin
 
 [dependencies]
@@ -61,9 +60,3 @@ harness = false
 name = "dsynth"
 path = "src/main.rs"
 required-features = ["standalone"]
-
-# Standalone binary for kick drum synthesizer
-[[bin]]
-name = "dsynth-kick"
-path = "src/main_kick.rs"
-required-features = ["kick-synth"]

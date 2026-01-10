@@ -160,10 +160,8 @@ The project includes a **separate kick drum synthesizer** (`DSynthKick`) optimiz
   - Uses same pattern as main synth: `param_knob()` helper, section builders
   - Sections: Body Osc, Click Osc, Envelope, Filter, Distortion, Master
   - Background image embedded as `KICK_BG_JPG` constant
-- [gui/kick_gui.rs](src/gui/kick_gui.rs): Standalone kick GUI (simplified placeholder)
 
 **Entry Points:**
-- [main_kick.rs](src/main_kick.rs): Standalone kick app entry point
 - [lib.rs](src/lib.rs): Exports kick plugin via `clap_entry` macro when `kick-clap` feature enabled
 
 ### Building Kick Synth
@@ -173,9 +171,6 @@ The project includes a **separate kick drum synthesizer** (`DSynthKick`) optimiz
 cargo build --release --lib --features kick-clap
 ./bundle_kick_clap.sh  # macOS - creates DSynthKick.clap
 cp -r target/bundled/DSynthKick.clap ~/Library/Audio/Plug-Ins/CLAP/
-
-# Kick Standalone (experimental)
-cargo build --release --bin dsynth-kick --features kick-synth
 ```
 
 ### Adding Parameters to Kick Synth
@@ -230,7 +225,7 @@ Follow this pattern (example: adding `key_tracking`):
 
 Tests are in [audio/kick_voice.rs](src/audio/kick_voice.rs) `#[cfg(test)]` module:
 ```bash
-cargo test --lib --features kick-synth
+cargo test --lib --features kick-clap
 ```
 
 Current test coverage:

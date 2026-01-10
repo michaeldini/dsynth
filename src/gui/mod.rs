@@ -55,10 +55,3 @@ pub mod standalone_window;
 
 #[cfg(feature = "standalone")]
 pub use standalone_window::run_standalone_gui;
-
-// Standalone kick GUI (kept for dsynth-kick binary)
-#[cfg(feature = "kick-synth")]
-pub mod kick_gui;
-
-#[cfg(feature = "kick-synth")]
-pub use kick_gui::run_kick_gui;
