@@ -1,36 +1,16 @@
 // VIZIA GUI module
 
 // Shared pieces used by multiple targets (including kick-clap)
-#[cfg(any(
-    feature = "clap",
-    feature = "standalone",
-    feature = "kick-clap",
-    feature = "kick-synth"
-))]
+#[cfg(any(feature = "clap", feature = "standalone", feature = "kick-clap",))]
 pub mod messages;
 
-#[cfg(any(
-    feature = "clap",
-    feature = "standalone",
-    feature = "kick-clap",
-    feature = "kick-synth"
-))]
+#[cfg(any(feature = "clap", feature = "standalone", feature = "kick-clap",))]
 pub mod theme;
 
-#[cfg(any(
-    feature = "clap",
-    feature = "standalone",
-    feature = "kick-clap",
-    feature = "kick-synth"
-))]
+#[cfg(any(feature = "clap", feature = "standalone", feature = "kick-clap",))]
 pub mod widgets;
 
-#[cfg(any(
-    feature = "clap",
-    feature = "standalone",
-    feature = "kick-clap",
-    feature = "kick-synth"
-))]
+#[cfg(any(feature = "clap", feature = "standalone", feature = "kick-clap",))]
 pub use messages::GuiMessage;
 
 // Main poly synth UI/state (not needed for kick-clap)
