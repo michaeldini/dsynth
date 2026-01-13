@@ -776,7 +776,8 @@ impl Voice {
             self.envelope.set_release(envelope_params.release);
             self.envelope.set_attack_curve(envelope_params.attack_curve);
             self.envelope.set_decay_curve(envelope_params.decay_curve);
-            self.envelope.set_release_curve(envelope_params.release_curve);
+            self.envelope
+                .set_release_curve(envelope_params.release_curve);
         }
 
         if osc_params_changed {
@@ -1275,9 +1276,9 @@ impl Voice {
             .count();
 
         if active_osc_count > 1 {
-            // Simple division by N to prevent clipping when stacking oscillators
-            // This maintains clean headroom for the engine's polyphonic mixing
-            let osc_normalization = 1.0 / active_osc_count as f32;
+            // Gentler normalization (0.6 exponent) to maintain loudness with limiter protection
+            // Less aggressive than linear division, allowing more signal through while staying safe
+            let osc_normalization = 1.0 / (active_osc_count as f32).powf(0.6);
             output_left *= osc_normalization;
             output_right *= osc_normalization;
         }

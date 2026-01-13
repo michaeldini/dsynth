@@ -4,6 +4,7 @@ use crate::dsp::effects::{
     MultibandDistortion, Phaser, Reverb, RingModulator, StereoDelay, StereoWidener, Tremolo,
     Waveshaper,
 };
+use crate::dsp::lookahead_limiter::LookAheadLimiter;
 use crate::dsp::wavetable_library::WavetableLibrary;
 use crate::params::SynthParams;
 use triple_buffer::{Input, Output, TripleBuffer};
@@ -119,6 +120,9 @@ pub struct SynthEngine {
     /// Smoothing coefficient when poly_gain needs to increase (less attenuation).
     poly_gain_release_coeff: f32,
 
+    /// Look-ahead limiter for transparent peak limiting with minimal artifacts
+    lookahead_limiter: LookAheadLimiter,
+
     /// Effects chain - processed after voice mixing
     reverb: Reverb,
     delay: StereoDelay,
@@ -195,6 +199,10 @@ impl SynthEngine {
             WavetableLibrary::with_builtin_wavetables()
         });
 
+        // Initialize look-ahead limiter
+        // 5ms look-ahead, 0.99 threshold, 0.5ms attack, 50ms release
+        let lookahead_limiter = LookAheadLimiter::new(sample_rate, 5.0, 0.99, 0.5, 50.0);
+
         Self {
             sample_rate,
             voices,
@@ -209,6 +217,7 @@ impl SynthEngine {
             poly_gain: 1.0,
             poly_gain_attack_coeff,
             poly_gain_release_coeff,
+            lookahead_limiter,
             reverb: Reverb::new(sample_rate),
             delay: StereoDelay::new(sample_rate),
             chorus: Chorus::new(sample_rate),
@@ -448,8 +457,9 @@ impl SynthEngine {
         // Polyphonic gain compensation: prevent distortion when many keys are pressed.
         // IMPORTANT: smooth changes in this gain. A step change when active_count changes
         // (e.g., pressing a second key) can be audible as a click.
+        // Uses gentler exponent (0.35 vs 0.5) to maintain perceived loudness with limiter protection
         let target_poly_gain = if active_count > 1 {
-            1.0 / (active_count as f32).sqrt()
+            1.0 / (active_count as f32).powf(0.35)
         } else {
             1.0
         };
@@ -535,8 +545,8 @@ impl SynthEngine {
             (out_l, out_r) = self.reverb.process(out_l, out_r);
         }
 
-        // Transparent limiter to prevent clipping without harmonic distortion.
-        self.apply_output_limiter(out_l, out_r)
+        // Look-ahead limiter for transparent peak limiting with minimal artifacts
+        self.lookahead_limiter.process(out_l, out_r)
     }
 
     /// Trigger a note on (MIDI note event).

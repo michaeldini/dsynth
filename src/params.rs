@@ -781,7 +781,7 @@ impl Default for SynthParams {
             effects: EffectsParams::default(),
             voice_compressor: VoiceCompressorParams::default(),
             transient_shaper: TransientShaperParams::default(),
-            master_gain: 0.85, // Higher default to utilize headroom (was 0.5 = -6dB)
+            master_gain: 1.0, // Utilize available headroom - limiter protects at 0.98 threshold
             monophonic: false,
             hard_sync_enabled: false, // Hard sync disabled by default
         }

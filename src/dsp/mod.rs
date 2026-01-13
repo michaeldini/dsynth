@@ -3,6 +3,7 @@ pub mod effects;
 pub mod envelope;
 pub mod filter;
 pub mod lfo;
+pub mod lookahead_limiter;
 pub mod oscillator;
 pub mod waveform;
 pub mod wavetable;
