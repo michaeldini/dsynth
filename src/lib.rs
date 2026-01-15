@@ -81,11 +81,7 @@ pub mod dsp;
 /// The GUI communicates with the audio engine through:
 /// 1. **Parameter producer**: Sends parameter updates (filter cutoff, volume, etc.)
 /// 2. **Event channel**: Sends user-triggered events (note on/off from keyboard)
-#[cfg(any(
-    feature = "standalone",
-    feature = "clap",
-    feature = "kick-clap"
-))]
+#[cfg(any(feature = "standalone", feature = "clap", feature = "kick-clap"))]
 pub mod gui;
 
 /// The **midi** module handles incoming MIDI input from hardware controllers and software.
