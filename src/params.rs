@@ -281,6 +281,31 @@ impl From<DistortionType> for crate::dsp::effects::distortion::DistortionType {
     }
 }
 
+/// LFO destination routing (per oscillator or global)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum LfoDestination {
+    /// Route to all oscillators (default, current behavior)
+    #[default]
+    Global,
+    /// Route to oscillator 1 only
+    Osc1,
+    /// Route to oscillator 2 only
+    Osc2,
+    /// Route to oscillator 3 only
+    Osc3,
+}
+
+impl fmt::Display for LfoDestination {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LfoDestination::Global => write!(f, "Global"),
+            LfoDestination::Osc1 => write!(f, "Osc1"),
+            LfoDestination::Osc2 => write!(f, "Osc2"),
+            LfoDestination::Osc3 => write!(f, "Osc3"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct LFOParams {
     pub waveform: LFOWaveform,
@@ -302,6 +327,9 @@ pub struct LFOParams {
 
     #[serde(default)]
     pub pwm_amount: f32, // PWM/shape modulation, 0.0 to 1.0 (bipolar: ±1.0)
+
+    #[serde(default)]
+    pub destination: LfoDestination, // Routing destination (Global/Osc1/Osc2/Osc3)
 }
 
 impl Default for LFOParams {
@@ -316,6 +344,7 @@ impl Default for LFOParams {
             gain_amount: 0.0,          // Disabled by default
             pan_amount: 0.0,           // Disabled by default
             pwm_amount: 0.0,           // Disabled by default
+            destination: LfoDestination::Global, // Default: route to all oscillators
         }
     }
 }

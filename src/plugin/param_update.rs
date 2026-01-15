@@ -301,6 +301,11 @@ pub mod param_apply {
             PARAM_LFO1_GAIN_AMOUNT => params.lfos[0].gain_amount = denorm,
             PARAM_LFO1_PAN_AMOUNT => params.lfos[0].pan_amount = denorm,
             PARAM_LFO1_PWM_AMOUNT => params.lfos[0].pwm_amount = denorm,
+            PARAM_LFO1_DESTINATION => {
+                if let Some(dest) = denorm_to_lfo_destination(denorm) {
+                    params.lfos[0].destination = dest;
+                }
+            }
 
             PARAM_LFO2_WAVEFORM => {
                 if let Some(lw) = denorm_to_lfo_waveform(denorm) {
@@ -319,6 +324,11 @@ pub mod param_apply {
             PARAM_LFO2_GAIN_AMOUNT => params.lfos[1].gain_amount = denorm,
             PARAM_LFO2_PAN_AMOUNT => params.lfos[1].pan_amount = denorm,
             PARAM_LFO2_PWM_AMOUNT => params.lfos[1].pwm_amount = denorm,
+            PARAM_LFO2_DESTINATION => {
+                if let Some(dest) = denorm_to_lfo_destination(denorm) {
+                    params.lfos[1].destination = dest;
+                }
+            }
 
             PARAM_LFO3_WAVEFORM => {
                 if let Some(lw) = denorm_to_lfo_waveform(denorm) {
@@ -337,6 +347,11 @@ pub mod param_apply {
             PARAM_LFO3_GAIN_AMOUNT => params.lfos[2].gain_amount = denorm,
             PARAM_LFO3_PAN_AMOUNT => params.lfos[2].pan_amount = denorm,
             PARAM_LFO3_PWM_AMOUNT => params.lfos[2].pwm_amount = denorm,
+            PARAM_LFO3_DESTINATION => {
+                if let Some(dest) = denorm_to_lfo_destination(denorm) {
+                    params.lfos[2].destination = dest;
+                }
+            }
 
             // Envelope
             PARAM_ENVELOPE_ATTACK => params.envelope.attack = denorm,
@@ -542,6 +557,18 @@ pub mod param_apply {
             1 => Some(LFOWaveform::Triangle),
             2 => Some(LFOWaveform::Square),
             3 => Some(LFOWaveform::Saw),
+            _ => None,
+        }
+    }
+
+    fn denorm_to_lfo_destination(denorm: f32) -> Option<crate::params::LfoDestination> {
+        use crate::params::LfoDestination;
+        // denorm is already the enum index (0-3) from registry.denormalize()
+        match denorm.round() as i32 {
+            0 => Some(LfoDestination::Global),
+            1 => Some(LfoDestination::Osc1),
+            2 => Some(LfoDestination::Osc2),
+            3 => Some(LfoDestination::Osc3),
             _ => None,
         }
     }
@@ -772,6 +799,7 @@ pub mod param_get {
             PARAM_LFO1_GAIN_AMOUNT => params.lfos[0].gain_amount,
             PARAM_LFO1_PAN_AMOUNT => params.lfos[0].pan_amount,
             PARAM_LFO1_PWM_AMOUNT => params.lfos[0].pwm_amount,
+            PARAM_LFO1_DESTINATION => lfo_destination_to_denorm(params.lfos[0].destination),
 
             PARAM_LFO2_WAVEFORM => lfo_waveform_to_denorm(params.lfos[1].waveform),
             PARAM_LFO2_RATE => params.lfos[1].rate,
@@ -782,6 +810,7 @@ pub mod param_get {
             PARAM_LFO2_GAIN_AMOUNT => params.lfos[1].gain_amount,
             PARAM_LFO2_PAN_AMOUNT => params.lfos[1].pan_amount,
             PARAM_LFO2_PWM_AMOUNT => params.lfos[1].pwm_amount,
+            PARAM_LFO2_DESTINATION => lfo_destination_to_denorm(params.lfos[1].destination),
 
             PARAM_LFO3_WAVEFORM => lfo_waveform_to_denorm(params.lfos[2].waveform),
             PARAM_LFO3_RATE => params.lfos[2].rate,
@@ -792,6 +821,7 @@ pub mod param_get {
             PARAM_LFO3_GAIN_AMOUNT => params.lfos[2].gain_amount,
             PARAM_LFO3_PAN_AMOUNT => params.lfos[2].pan_amount,
             PARAM_LFO3_PWM_AMOUNT => params.lfos[2].pwm_amount,
+            PARAM_LFO3_DESTINATION => lfo_destination_to_denorm(params.lfos[2].destination),
 
             // Envelope
             PARAM_ENVELOPE_ATTACK => params.envelope.attack,
@@ -1116,6 +1146,17 @@ pub mod param_get {
             LFOWaveform::Triangle => 1.0,
             LFOWaveform::Square => 2.0,
             LFOWaveform::Saw => 3.0,
+        }
+    }
+
+    fn lfo_destination_to_denorm(dest: crate::params::LfoDestination) -> f32 {
+        use crate::params::LfoDestination;
+        // Return enum index (0, 1, 2, 3) which will be normalized by CLAP
+        match dest {
+            LfoDestination::Global => 0.0,
+            LfoDestination::Osc1 => 1.0,
+            LfoDestination::Osc2 => 2.0,
+            LfoDestination::Osc3 => 3.0,
         }
     }
 

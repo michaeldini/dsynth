@@ -812,6 +812,22 @@ impl ParamRegistry {
                 base_id + 8,
                 ParamDescriptor::float(base_id + 8, "PWM Amount", &module, 0.0, 1.0, 0.0, Some(""))
             );
+
+            add_param!(
+                base_id + 9,
+                ParamDescriptor::enum_param(
+                    base_id + 9,
+                    "Destination",
+                    &module,
+                    vec![
+                        "Global".into(),
+                        "Osc1".into(),
+                        "Osc2".into(),
+                        "Osc3".into(),
+                    ],
+                    0 // Default: Global
+                )
+            );
         }
 
         // Envelope (ADSR)

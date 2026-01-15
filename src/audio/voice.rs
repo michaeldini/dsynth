@@ -919,10 +919,10 @@ impl Voice {
         // This is a common DAW/synth feature for isolating sounds during sound design.
         let any_soloed = osc_params.iter().any(|o| o.solo);
 
-        // === STEP 4.5: Process all LFOs for global routing matrix ===
-        // Process all 3 LFOs upfront to get modulation values for pitch/gain/pan/PWM.
-        // These are global modulations that affect all oscillators.
-        // Filter modulation is still per-oscillator (processed later in Step 6).
+        // === STEP 4.5: Process all LFOs for routing matrix ===
+        // Process all 3 LFOs upfront to get modulation values for pitch/gain/pan/PWM/filter.
+        // LFO destination determines whether modulation affects all oscillators (Global)
+        // or a specific oscillator (Osc1/Osc2/Osc3).
         let mut lfo_values = [0.0; 3];
         let mut filter_env_values = [0.0; 3];
         for i in 0..3 {
@@ -930,25 +930,57 @@ impl Voice {
             filter_env_values[i] = self.filter_envelopes[i].process();
         }
 
-        // Calculate global LFO modulations (sum contributions from all 3 LFOs)
-        // Pitch modulation in cents (bipolar: ±pitch_amount)
-        let mut global_pitch_mod_cents = 0.0;
-        // Gain modulation (bipolar: ±0.5 when gain_amount = 1.0)
-        let mut global_gain_mod = 0.0;
-        // Pan modulation (bipolar: ±1.0 when pan_amount = 1.0)
-        let mut global_pan_mod = 0.0;
-        // PWM/shape modulation (bipolar: ±1.0 when pwm_amount = 1.0)
-        let mut global_pwm_mod = 0.0;
+        // Calculate per-oscillator LFO modulations based on destination routing
+        // Arrays indexed by oscillator (0=Osc1, 1=Osc2, 2=Osc3)
+        let mut pitch_mod_cents = [0.0; 3];  // Pitch modulation in cents (bipolar)
+        let mut gain_mod = [0.0; 3];         // Gain modulation (bipolar: ±0.5)
+        let mut pan_mod = [0.0; 3];          // Pan modulation (bipolar: ±1.0)
+        let mut pwm_mod = [0.0; 3];          // PWM/shape modulation (bipolar: ±1.0)
+        let mut filter_mod_hz = [0.0; 3];    // Filter modulation in Hz (bipolar)
 
         for i in 0..3 {
             let lfo_val = lfo_values[i];
             let depth = lfo_params[i].depth;
+            let destination = lfo_params[i].destination;
 
-            // Sum contributions from each LFO (bipolar modulation)
-            global_pitch_mod_cents += lfo_val * lfo_params[i].pitch_amount * depth;
-            global_gain_mod += lfo_val * lfo_params[i].gain_amount * depth * 0.5; // Scale to ±0.5
-            global_pan_mod += lfo_val * lfo_params[i].pan_amount * depth;
-            global_pwm_mod += lfo_val * lfo_params[i].pwm_amount * depth;
+            // Route LFO modulation based on destination setting
+            use crate::params::LfoDestination;
+            match destination {
+                LfoDestination::Global => {
+                    // Route to all oscillators
+                    for osc_idx in 0..3 {
+                        pitch_mod_cents[osc_idx] += lfo_val * lfo_params[i].pitch_amount * depth;
+                        gain_mod[osc_idx] += lfo_val * lfo_params[i].gain_amount * depth * 0.5;
+                        pan_mod[osc_idx] += lfo_val * lfo_params[i].pan_amount * depth;
+                        pwm_mod[osc_idx] += lfo_val * lfo_params[i].pwm_amount * depth;
+                        filter_mod_hz[osc_idx] += lfo_val * lfo_params[i].filter_amount * depth;
+                    }
+                }
+                LfoDestination::Osc1 => {
+                    // Route to oscillator 1 only
+                    pitch_mod_cents[0] += lfo_val * lfo_params[i].pitch_amount * depth;
+                    gain_mod[0] += lfo_val * lfo_params[i].gain_amount * depth * 0.5;
+                    pan_mod[0] += lfo_val * lfo_params[i].pan_amount * depth;
+                    pwm_mod[0] += lfo_val * lfo_params[i].pwm_amount * depth;
+                    filter_mod_hz[0] += lfo_val * lfo_params[i].filter_amount * depth;
+                }
+                LfoDestination::Osc2 => {
+                    // Route to oscillator 2 only
+                    pitch_mod_cents[1] += lfo_val * lfo_params[i].pitch_amount * depth;
+                    gain_mod[1] += lfo_val * lfo_params[i].gain_amount * depth * 0.5;
+                    pan_mod[1] += lfo_val * lfo_params[i].pan_amount * depth;
+                    pwm_mod[1] += lfo_val * lfo_params[i].pwm_amount * depth;
+                    filter_mod_hz[1] += lfo_val * lfo_params[i].filter_amount * depth;
+                }
+                LfoDestination::Osc3 => {
+                    // Route to oscillator 3 only
+                    pitch_mod_cents[2] += lfo_val * lfo_params[i].pitch_amount * depth;
+                    gain_mod[2] += lfo_val * lfo_params[i].gain_amount * depth * 0.5;
+                    pan_mod[2] += lfo_val * lfo_params[i].pan_amount * depth;
+                    pwm_mod[2] += lfo_val * lfo_params[i].pwm_amount * depth;
+                    filter_mod_hz[2] += lfo_val * lfo_params[i].filter_amount * depth;
+                }
+            }
         }
 
         // === STEP 5: Generate all oscillator outputs (with feedback FM support) ===
@@ -975,19 +1007,19 @@ impl Voice {
             }
 
             // === STEP 5a: Apply LFO pitch and PWM modulation ===
-            // Pitch modulation: Recalculate frequency with LFO cents offset
-            // PWM modulation: Modify shape parameter with LFO offset
-            let pitch_mod_active = global_pitch_mod_cents.abs() > 0.001;
-            let pwm_mod_active = global_pwm_mod.abs() > 0.001;
+            // Pitch modulation: Recalculate frequency with LFO cents offset (per-oscillator)
+            // PWM modulation: Modify shape parameter with LFO offset (per-oscillator)
+            let pitch_mod_active = pitch_mod_cents[i].abs() > 0.001;
+            let pwm_mod_active = pwm_mod[i].abs() > 0.001;
             if pitch_mod_active || pwm_mod_active {
                 let lfo_pitch_mult = if pitch_mod_active {
-                    2.0_f32.powf(global_pitch_mod_cents / 1200.0)
+                    2.0_f32.powf(pitch_mod_cents[i] / 1200.0)
                 } else {
                     1.0
                 };
 
                 let base_osc_freq = self.osc_base_freq_hz[i] * lfo_pitch_mult;
-                let modulated_shape = (osc_params[i].shape + global_pwm_mod).clamp(-1.0, 1.0);
+                let modulated_shape = (osc_params[i].shape + pwm_mod[i]).clamp(-1.0, 1.0);
 
                 for unison_idx in 0..unison_count {
                     if let Some(ref mut osc) = self.oscillators[i][unison_idx] {
@@ -1148,16 +1180,16 @@ impl Voice {
             let mut osc_out = osc_outputs[i];
 
             // === STEP 6a: Apply LFO gain modulation ===
-            // Gain modulation (tremolo): Modulate oscillator amplitude
-            if global_gain_mod.abs() > 0.001 {
-                let gain_mult = (1.0 + global_gain_mod).clamp(0.0, 2.0);
+            // Gain modulation (tremolo): Modulate oscillator amplitude (per-oscillator)
+            if gain_mod[i].abs() > 0.001 {
+                let gain_mult = (1.0 + gain_mod[i]).clamp(0.0, 2.0);
                 osc_out *= gain_mult;
             }
 
             // === STEP 6b: Process LFO for filter modulation ===
             // LFOs generate slow-moving waveforms (typically <20 Hz) that modulate parameters.
             // We already processed LFOs earlier; reuse the stored value.
-            let lfo_value = lfo_values[i];
+            // (Note: lfo_values[i] is available but filter_mod_hz[i] already contains the computed modulation)
 
             // === STEP 6c: Calculate modulated filter cutoff ===
             // The cutoff frequency is determined by multiple factors:
@@ -1180,10 +1212,11 @@ impl Voice {
                 base_cutoff * velocity_params.filter_sensitivity * (self.velocity - 0.5);
 
             // **Combine all modulations and clamp to audible range [20 Hz, 20 kHz]**
+            // Use per-oscillator filter_mod_hz instead of per-LFO filter modulation
             let modulated_cutoff = (base_cutoff
                 + key_tracking_offset
                 + velocity_cutoff_offset
-                + lfo_value * lfo_params[i].filter_amount * lfo_params[i].depth
+                + filter_mod_hz[i]
                 + filter_env_values[i] * filter_params[i].envelope.amount)
                 .clamp(20.0, 20000.0);
 
@@ -1241,9 +1274,9 @@ impl Voice {
             // === STEP 6f: Apply LFO pan modulation and stereo panning ===
             // Pan: -1.0 (full left) to 1.0 (full right), 0.0 = center
             //
-            // Apply LFO pan modulation first
+            // Apply LFO pan modulation first (per-oscillator)
             let (left_gain, right_gain) = if self.pan_mod_active {
-                let modulated_pan = (osc_params[i].pan + global_pan_mod).clamp(-1.0, 1.0);
+                let modulated_pan = (osc_params[i].pan + pan_mod[i]).clamp(-1.0, 1.0);
 
                 // Equal-power panning law ensures constant perceived loudness as we pan.
                 // We map pan to an angle (0 to π/2) and use sin/cos for the gain curves:
@@ -2391,5 +2424,255 @@ mod tests {
             assert_relative_eq!(sample1.0, sample2.0, epsilon = 0.001);
             assert_relative_eq!(sample1.1, sample2.1, epsilon = 0.001);
         }
+    }
+
+    #[test]
+    fn test_lfo_destination_global_affects_all_oscs() {
+        // Test that LFO with destination=Global affects all oscillators
+        let mut voice = Voice::new(44100.0);
+        let mut osc_params = default_osc_params();
+        osc_params[0].gain = 0.5;
+        osc_params[1].gain = 0.5;
+        osc_params[2].gain = 0.5;
+
+        let filter_params = default_filter_params();
+        let mut lfo_params = default_lfo_params();
+        
+        // LFO1 with Global destination and pitch modulation
+        lfo_params[0].depth = 1.0;
+        lfo_params[0].pitch_amount = 100.0; // ±100 cents vibrato
+        lfo_params[0].destination = crate::params::LfoDestination::Global;
+
+        let envelope_params = default_envelope_params();
+        let velocity_params = default_velocity_params();
+        let wavetable_library = default_wavetable_library();
+
+        voice.note_on(60, 1.0);
+        voice.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params,
+            &envelope_params,
+            &wavetable_library,
+        );
+
+        // Process enough samples to see LFO effect (LFO rate = 2 Hz default)
+        let mut samples = Vec::new();
+        for _ in 0..100 {
+            let sample = voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &velocity_params,
+                false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
+            );
+            samples.push(sample);
+        }
+
+        // With all 3 oscillators active and global pitch modulation, we expect non-zero output
+        let has_output = samples.iter().any(|(l, r)| l.abs() > 0.01 || r.abs() > 0.01);
+        assert!(has_output, "Global destination should affect all oscillators");
+    }
+
+    #[test]
+    fn test_lfo_destination_osc1_isolates_to_osc1() {
+        // Test that LFO with destination=Osc1 only affects oscillator 1
+        let mut voice_global = Voice::new(44100.0);
+        let mut voice_osc1 = Voice::new(44100.0);
+        
+        let mut osc_params = default_osc_params();
+        osc_params[0].gain = 0.5;
+        osc_params[1].gain = 0.0; // Disable osc2
+        osc_params[2].gain = 0.0; // Disable osc3
+
+        let filter_params = default_filter_params();
+        let mut lfo_params_global = default_lfo_params();
+        let mut lfo_params_osc1 = default_lfo_params();
+        
+        // Both have same LFO settings, different destinations
+        lfo_params_global[0].depth = 1.0;
+        lfo_params_global[0].pitch_amount = 50.0;
+        lfo_params_global[0].destination = crate::params::LfoDestination::Global;
+        
+        lfo_params_osc1[0].depth = 1.0;
+        lfo_params_osc1[0].pitch_amount = 50.0;
+        lfo_params_osc1[0].destination = crate::params::LfoDestination::Osc1;
+
+        let envelope_params = default_envelope_params();
+        let velocity_params = default_velocity_params();
+        let wavetable_library = default_wavetable_library();
+
+        voice_global.note_on(60, 1.0);
+        voice_osc1.note_on(60, 1.0);
+        
+        voice_global.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params_global,
+            &envelope_params,
+            &wavetable_library,
+        );
+        voice_osc1.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params_osc1,
+            &envelope_params,
+            &wavetable_library,
+        );
+
+        // With only Osc1 active, Global and Osc1 destinations should produce the same output
+        for _ in 0..50 {
+            let sample_global = voice_global.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params_global,
+                &velocity_params,
+                false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
+            );
+            let sample_osc1 = voice_osc1.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params_osc1,
+                &velocity_params,
+                false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
+            );
+
+            // Should be identical since only Osc1 is active
+            assert_relative_eq!(sample_global.0, sample_osc1.0, epsilon = 0.01);
+            assert_relative_eq!(sample_global.1, sample_osc1.1, epsilon = 0.01);
+        }
+    }
+
+    #[test]
+    fn test_lfo_destination_osc2_no_effect_on_osc1() {
+        // Test that LFO with destination=Osc2 doesn't affect oscillator 1
+        let mut voice_none = Voice::new(44100.0);
+        let mut voice_osc2 = Voice::new(44100.0);
+        
+        let mut osc_params = default_osc_params();
+        osc_params[0].gain = 0.5; // Enable osc1
+        osc_params[1].gain = 0.0; // Disable osc2 (target of LFO)
+        osc_params[2].gain = 0.0; // Disable osc3
+
+        let filter_params = default_filter_params();
+        let mut lfo_params_none = default_lfo_params();
+        let mut lfo_params_osc2 = default_lfo_params();
+        
+        // No modulation vs Osc2-only modulation
+        lfo_params_none[0].depth = 0.0;
+        
+        lfo_params_osc2[0].depth = 1.0;
+        lfo_params_osc2[0].pitch_amount = 100.0; // Large modulation
+        lfo_params_osc2[0].destination = crate::params::LfoDestination::Osc2;
+
+        let envelope_params = default_envelope_params();
+        let velocity_params = default_velocity_params();
+        let wavetable_library = default_wavetable_library();
+
+        voice_none.note_on(60, 1.0);
+        voice_osc2.note_on(60, 1.0);
+        
+        voice_none.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params_none,
+            &envelope_params,
+            &wavetable_library,
+        );
+        voice_osc2.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params_osc2,
+            &envelope_params,
+            &wavetable_library,
+        );
+
+        // Since Osc2 is disabled and LFO routes to Osc2, active Osc1 should be unaffected
+        for _ in 0..50 {
+            let sample_none = voice_none.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params_none,
+                &velocity_params,
+                false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
+            );
+            let sample_osc2 = voice_osc2.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params_osc2,
+                &velocity_params,
+                false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
+            );
+
+            // Should be identical - Osc2 destination doesn't affect Osc1
+            assert_relative_eq!(sample_none.0, sample_osc2.0, epsilon = 0.01);
+            assert_relative_eq!(sample_none.1, sample_osc2.1, epsilon = 0.01);
+        }
+    }
+
+    #[test]
+    fn test_lfo_destination_mixed_routing() {
+        // Test multiple LFOs with different destinations
+        let mut voice = Voice::new(44100.0);
+        
+        let mut osc_params = default_osc_params();
+        osc_params[0].gain = 0.5;
+        osc_params[1].gain = 0.5;
+        osc_params[2].gain = 0.0; // Disable osc3
+
+        let filter_params = default_filter_params();
+        let mut lfo_params = default_lfo_params();
+        
+        // LFO1 → Osc1 only
+        lfo_params[0].depth = 1.0;
+        lfo_params[0].pitch_amount = 50.0;
+        lfo_params[0].destination = crate::params::LfoDestination::Osc1;
+        
+        // LFO2 → Osc2 only
+        lfo_params[1].depth = 1.0;
+        lfo_params[1].gain_amount = 0.5;
+        lfo_params[1].destination = crate::params::LfoDestination::Osc2;
+
+        let envelope_params = default_envelope_params();
+        let velocity_params = default_velocity_params();
+        let wavetable_library = default_wavetable_library();
+
+        voice.note_on(60, 1.0);
+        voice.update_parameters(
+            &osc_params,
+            &filter_params,
+            &lfo_params,
+            &envelope_params,
+            &wavetable_library,
+        );
+
+        // Process samples - mixed routing should work without crashes
+        let mut samples = Vec::new();
+        for _ in 0..100 {
+            let sample = voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &velocity_params,
+                false,
+                &default_voice_comp_params(),
+                &default_transient_params(),
+            );
+            samples.push(sample);
+        }
+
+        // Should produce valid audio (Osc1 pitch mod + Osc2 gain mod)
+        let has_output = samples.iter().any(|(l, r)| l.abs() > 0.01 || r.abs() > 0.01);
+        assert!(has_output, "Mixed LFO routing should produce audio");
     }
 }

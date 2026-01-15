@@ -170,6 +170,7 @@ pub const PARAM_LFO1_PITCH_AMOUNT: ParamId = make_param_id(MODULE_LFO1, 5);
 pub const PARAM_LFO1_GAIN_AMOUNT: ParamId = make_param_id(MODULE_LFO1, 6);
 pub const PARAM_LFO1_PAN_AMOUNT: ParamId = make_param_id(MODULE_LFO1, 7);
 pub const PARAM_LFO1_PWM_AMOUNT: ParamId = make_param_id(MODULE_LFO1, 8);
+pub const PARAM_LFO1_DESTINATION: ParamId = make_param_id(MODULE_LFO1, 9);
 
 // LFO 2
 pub const PARAM_LFO2_WAVEFORM: ParamId = make_param_id(MODULE_LFO2, 0);
@@ -181,6 +182,7 @@ pub const PARAM_LFO2_PITCH_AMOUNT: ParamId = make_param_id(MODULE_LFO2, 5);
 pub const PARAM_LFO2_GAIN_AMOUNT: ParamId = make_param_id(MODULE_LFO2, 6);
 pub const PARAM_LFO2_PAN_AMOUNT: ParamId = make_param_id(MODULE_LFO2, 7);
 pub const PARAM_LFO2_PWM_AMOUNT: ParamId = make_param_id(MODULE_LFO2, 8);
+pub const PARAM_LFO2_DESTINATION: ParamId = make_param_id(MODULE_LFO2, 9);
 
 // LFO 3
 pub const PARAM_LFO3_WAVEFORM: ParamId = make_param_id(MODULE_LFO3, 0);
@@ -192,6 +194,7 @@ pub const PARAM_LFO3_PITCH_AMOUNT: ParamId = make_param_id(MODULE_LFO3, 5);
 pub const PARAM_LFO3_GAIN_AMOUNT: ParamId = make_param_id(MODULE_LFO3, 6);
 pub const PARAM_LFO3_PAN_AMOUNT: ParamId = make_param_id(MODULE_LFO3, 7);
 pub const PARAM_LFO3_PWM_AMOUNT: ParamId = make_param_id(MODULE_LFO3, 8);
+pub const PARAM_LFO3_DESTINATION: ParamId = make_param_id(MODULE_LFO3, 9);
 
 // Envelope (shared by all voices)
 pub const PARAM_ENVELOPE_ATTACK: ParamId = make_param_id(MODULE_ENVELOPE, 0);
@@ -537,7 +540,7 @@ impl ParamDescriptor {
     pub fn denormalize(&self, normalized: f32) -> f32 {
         // Clamp normalized value to valid range to prevent inf/NaN
         let normalized = normalized.clamp(0.0, 1.0);
-        
+
         let result = match &self.param_type {
             ParamType::Float { min, max, skew } => match skew {
                 ValueSkew::Linear => min + (max - min) * normalized,
@@ -570,7 +573,7 @@ impl ParamDescriptor {
                 ((normalized * range as f32).round() as i32 + min) as f32
             }
         };
-        
+
         // Safety check: ensure result is finite
         if result.is_finite() {
             result
@@ -589,7 +592,7 @@ impl ParamDescriptor {
         if !value.is_finite() {
             return 0.5; // Return middle value for invalid input
         }
-        
+
         let result = match &self.param_type {
             ParamType::Float { min, max, skew } => match skew {
                 ValueSkew::Linear => Self::normalize(value, *min, *max),
@@ -622,7 +625,7 @@ impl ParamDescriptor {
                 }
             }
         };
-        
+
         // Ensure result is finite and clamped
         if result.is_finite() {
             result.clamp(0.0, 1.0)
