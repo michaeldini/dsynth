@@ -205,6 +205,46 @@ pub enum DistortionType {
     Diode,
 }
 
+/// Tempo sync modes for LFO and effect rates
+/// Allows musical timing divisions synchronized to DAW tempo
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum TempoSync {
+    #[default]
+    Hz, // Free-running Hz (no tempo sync)
+    Whole,        // 1/1 - Whole note (4 beats)
+    Half,         // 1/2 - Half note (2 beats)
+    Quarter,      // 1/4 - Quarter note (1 beat)
+    Eighth,       // 1/8 - Eighth note (0.5 beats)
+    Sixteenth,    // 1/16 - Sixteenth note (0.25 beats)
+    ThirtySecond, // 1/32 - Thirty-second note (0.125 beats)
+    QuarterT,     // 1/4T - Quarter note triplet (2/3 beat)
+    EighthT,      // 1/8T - Eighth note triplet (1/3 beat)
+    SixteenthT,   // 1/16T - Sixteenth note triplet (1/6 beat)
+    QuarterD,     // 1/4D - Dotted quarter note (1.5 beats)
+    EighthD,      // 1/8D - Dotted eighth note (0.75 beats)
+    SixteenthD,   // 1/16D - Dotted sixteenth note (0.375 beats)
+}
+
+impl fmt::Display for TempoSync {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TempoSync::Hz => write!(f, "Hz"),
+            TempoSync::Whole => write!(f, "1/1"),
+            TempoSync::Half => write!(f, "1/2"),
+            TempoSync::Quarter => write!(f, "1/4"),
+            TempoSync::Eighth => write!(f, "1/8"),
+            TempoSync::Sixteenth => write!(f, "1/16"),
+            TempoSync::ThirtySecond => write!(f, "1/32"),
+            TempoSync::QuarterT => write!(f, "1/4T"),
+            TempoSync::EighthT => write!(f, "1/8T"),
+            TempoSync::SixteenthT => write!(f, "1/16T"),
+            TempoSync::QuarterD => write!(f, "1/4D"),
+            TempoSync::EighthD => write!(f, "1/8D"),
+            TempoSync::SixteenthD => write!(f, "1/16D"),
+        }
+    }
+}
+
 impl fmt::Display for DistortionType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -244,8 +284,10 @@ impl From<DistortionType> for crate::dsp::effects::distortion::DistortionType {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct LFOParams {
     pub waveform: LFOWaveform,
-    pub rate: f32,          // Hz, 0.01 to 20.0
-    pub depth: f32,         // 0.0 to 1.0
+    pub rate: f32, // Hz, 0.01 to 20.0 (when tempo_sync = Hz)
+    #[serde(default)]
+    pub tempo_sync: TempoSync, // Tempo sync mode (Hz = free-running, others = musical divisions)
+    pub depth: f32, // 0.0 to 1.0
     pub filter_amount: f32, // Filter modulation in Hz, -5000.0 to 5000.0 (bipolar)
 
     // LFO routing matrix (global, affects all oscillators)
@@ -267,12 +309,13 @@ impl Default for LFOParams {
         Self {
             waveform: LFOWaveform::Sine,
             rate: 2.0,
-            depth: 0.0,         // Disabled by default
-            filter_amount: 0.0, // Disabled by default
-            pitch_amount: 0.0,  // Disabled by default
-            gain_amount: 0.0,   // Disabled by default
-            pan_amount: 0.0,    // Disabled by default
-            pwm_amount: 0.0,    // Disabled by default
+            tempo_sync: TempoSync::Hz, // Default: free-running Hz mode
+            depth: 0.0,                // Disabled by default
+            filter_amount: 0.0,        // Disabled by default
+            pitch_amount: 0.0,         // Disabled by default
+            gain_amount: 0.0,          // Disabled by default
+            pan_amount: 0.0,           // Disabled by default
+            pwm_amount: 0.0,           // Disabled by default
         }
     }
 }
@@ -350,9 +393,11 @@ impl Default for DelayParams {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct ChorusParams {
     pub enabled: bool,
-    pub rate: f32,  // 0.1 to 5.0 Hz
+    pub rate: f32, // 0.1 to 5.0 Hz (when tempo_sync = Hz)
+    #[serde(default)]
+    pub tempo_sync: TempoSync, // Tempo sync mode
     pub depth: f32, // 0.0 to 1.0
-    pub mix: f32,   // 0.0 to 1.0
+    pub mix: f32,  // 0.0 to 1.0
 }
 
 impl Default for ChorusParams {
@@ -360,6 +405,7 @@ impl Default for ChorusParams {
         Self {
             enabled: false,
             rate: 0.5,
+            tempo_sync: TempoSync::Hz,
             depth: 0.5,
             mix: 0.5,
         }
@@ -447,10 +493,12 @@ impl Default for StereoWidenerParams {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct PhaserParams {
     pub enabled: bool,
-    pub rate: f32,     // LFO rate (0.1 to 10.0 Hz)
-    pub depth: f32,    // LFO depth (0.0 to 1.0)
+    pub rate: f32, // LFO rate (0.1 to 10.0 Hz when tempo_sync = Hz)
+    #[serde(default)]
+    pub tempo_sync: TempoSync, // Tempo sync mode
+    pub depth: f32, // LFO depth (0.0 to 1.0)
     pub feedback: f32, // Feedback amount (-0.95 to 0.95)
-    pub mix: f32,      // Dry/wet mix (0.0 to 1.0)
+    pub mix: f32,  // Dry/wet mix (0.0 to 1.0)
 }
 
 impl Default for PhaserParams {
@@ -458,6 +506,7 @@ impl Default for PhaserParams {
         Self {
             enabled: false,
             rate: 0.5,
+            tempo_sync: TempoSync::Hz,
             depth: 0.5,
             feedback: 0.7,
             mix: 0.5,
@@ -469,10 +518,12 @@ impl Default for PhaserParams {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct FlangerParams {
     pub enabled: bool,
-    pub rate: f32,     // LFO rate (0.1 to 10.0 Hz)
-    pub depth: f32,    // LFO depth (0.0 to 1.0) - maps to 0.5-15ms delay
+    pub rate: f32, // LFO rate (0.1 to 10.0 Hz when tempo_sync = Hz)
+    #[serde(default)]
+    pub tempo_sync: TempoSync, // Tempo sync mode
+    pub depth: f32, // LFO depth (0.0 to 1.0) - maps to 0.5-15ms delay
     pub feedback: f32, // Feedback amount (-0.95 to 0.95)
-    pub mix: f32,      // Dry/wet mix (0.0 to 1.0)
+    pub mix: f32,  // Dry/wet mix (0.0 to 1.0)
 }
 
 impl Default for FlangerParams {
@@ -480,6 +531,7 @@ impl Default for FlangerParams {
         Self {
             enabled: false,
             rate: 0.3,
+            tempo_sync: TempoSync::Hz,
             depth: 0.5,
             feedback: 0.5,
             mix: 0.5,
@@ -491,7 +543,9 @@ impl Default for FlangerParams {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct TremoloParams {
     pub enabled: bool,
-    pub rate: f32,  // LFO rate (0.1 to 20.0 Hz)
+    pub rate: f32, // LFO rate (0.1 to 20.0 Hz when tempo_sync = Hz)
+    #[serde(default)]
+    pub tempo_sync: TempoSync, // Tempo sync mode
     pub depth: f32, // LFO depth (0.0 to 1.0)
 }
 
@@ -500,6 +554,7 @@ impl Default for TremoloParams {
         Self {
             enabled: false,
             rate: 4.0,
+            tempo_sync: TempoSync::Hz,
             depth: 0.5,
         }
     }
@@ -509,7 +564,9 @@ impl Default for TremoloParams {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AutoPanParams {
     pub enabled: bool,
-    pub rate: f32,  // LFO rate (0.1 to 20.0 Hz)
+    pub rate: f32, // LFO rate (0.1 to 20.0 Hz when tempo_sync = Hz)
+    #[serde(default)]
+    pub tempo_sync: TempoSync, // Tempo sync mode
     pub depth: f32, // LFO depth (0.0 to 1.0)
 }
 
@@ -518,6 +575,7 @@ impl Default for AutoPanParams {
         Self {
             enabled: false,
             rate: 0.5,
+            tempo_sync: TempoSync::Hz,
             depth: 0.5,
         }
     }

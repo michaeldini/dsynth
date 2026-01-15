@@ -58,6 +58,11 @@ impl AutoPan {
     pub fn set_waveform(&mut self, waveform: Waveform) {
         self.waveform = waveform;
     }
+
+    /// Reset LFO phase to initial state (called when tempo sync mode changes)
+    pub fn reset_phase(&mut self) {
+        self.lfo_phase = 0.0;
+    }
     
     /// Process a stereo sample through the auto-pan
     pub fn process(&mut self, left: f32, right: f32) -> (f32, f32) {

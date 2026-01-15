@@ -2,7 +2,7 @@ use super::super::{param_descriptor::ParamId, param_update::param_apply};
 use crate::audio::engine::SynthEngine;
 use crate::params::SynthParams;
 use crate::plugin::gui_param_change::GuiParamChange;
-use clap_sys::events::{clap_event_header, clap_event_note, clap_event_param_value};
+use clap_sys::events::{clap_event_header, clap_event_note, clap_event_param_value, clap_event_transport};
 /// CLAP Audio Processor
 ///
 /// Handles audio processing callbacks from the CLAP host, integrating with SynthEngine.
@@ -164,6 +164,9 @@ impl ClapProcessor {
                 clap_sys::events::CLAP_EVENT_PARAM_VALUE => unsafe {
                     self.process_param_value_event(event as *const clap_event_param_value);
                 },
+                clap_sys::events::CLAP_EVENT_TRANSPORT => unsafe {
+                    self.process_transport_event(event as *const clap_event_transport);
+                },
                 _ => {}
             }
         }
@@ -192,6 +195,18 @@ impl ClapProcessor {
 
         // Write to triple buffer for engine
         self.param_producer.write(self.current_params);
+    }
+
+    /// Process transport event (tempo changes)
+    unsafe fn process_transport_event(&mut self, event: *const clap_event_transport) {
+        let transport = unsafe { &*event };
+        
+        // Check if tempo is valid (CLAP_TRANSPORT_HAS_TEMPO flag)
+        const CLAP_TRANSPORT_HAS_TEMPO: u32 = 1 << 0;
+        if transport.flags & CLAP_TRANSPORT_HAS_TEMPO != 0 {
+            let bpm = transport.tempo;
+            self.engine.set_tempo(bpm);
+        }
     }
 
     /// Activate the processor (called when plugin is turned on)

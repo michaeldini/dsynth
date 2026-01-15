@@ -130,3 +130,12 @@ pub fn distortion_type_button(cx: &mut Context, param_id: u32) {
     ];
     param_cycle_button(cx, param_id, "Type", OPTIONS);
 }
+
+// Helper function for tempo sync modes (order from TempoSync enum)
+pub fn tempo_sync_button(cx: &mut Context, param_id: u32) {
+    const OPTIONS: &[&str] = &[
+        "Hz", "1/1", "1/2", "1/4", "1/8", "1/16", "1/32", "1/4T", "1/8T", "1/16T", "1/4D", "1/8D",
+        "1/16D",
+    ];
+    param_cycle_button(cx, param_id, "Sync", OPTIONS);
+}

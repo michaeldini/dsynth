@@ -290,6 +290,11 @@ pub mod param_apply {
                 }
             }
             PARAM_LFO1_RATE => params.lfos[0].rate = denorm,
+            PARAM_LFO1_TEMPO_SYNC => {
+                if let Some(ts) = denorm_to_tempo_sync(denorm) {
+                    params.lfos[0].tempo_sync = ts;
+                }
+            }
             PARAM_LFO1_DEPTH => params.lfos[0].depth = denorm,
             PARAM_LFO1_FILTER_AMOUNT => params.lfos[0].filter_amount = denorm,
             PARAM_LFO1_PITCH_AMOUNT => params.lfos[0].pitch_amount = denorm,
@@ -303,6 +308,11 @@ pub mod param_apply {
                 }
             }
             PARAM_LFO2_RATE => params.lfos[1].rate = denorm,
+            PARAM_LFO2_TEMPO_SYNC => {
+                if let Some(ts) = denorm_to_tempo_sync(denorm) {
+                    params.lfos[1].tempo_sync = ts;
+                }
+            }
             PARAM_LFO2_DEPTH => params.lfos[1].depth = denorm,
             PARAM_LFO2_FILTER_AMOUNT => params.lfos[1].filter_amount = denorm,
             PARAM_LFO2_PITCH_AMOUNT => params.lfos[1].pitch_amount = denorm,
@@ -316,6 +326,11 @@ pub mod param_apply {
                 }
             }
             PARAM_LFO3_RATE => params.lfos[2].rate = denorm,
+            PARAM_LFO3_TEMPO_SYNC => {
+                if let Some(ts) = denorm_to_tempo_sync(denorm) {
+                    params.lfos[2].tempo_sync = ts;
+                }
+            }
             PARAM_LFO3_DEPTH => params.lfos[2].depth = denorm,
             PARAM_LFO3_FILTER_AMOUNT => params.lfos[2].filter_amount = denorm,
             PARAM_LFO3_PITCH_AMOUNT => params.lfos[2].pitch_amount = denorm,
@@ -347,6 +362,11 @@ pub mod param_apply {
             PARAM_DELAY_WET => params.effects.delay.wet = denorm,
             PARAM_DELAY_DRY => params.effects.delay.dry = denorm,
             PARAM_CHORUS_RATE => params.effects.chorus.rate = denorm,
+            PARAM_CHORUS_TEMPO_SYNC => {
+                if let Some(ts) = denorm_to_tempo_sync(denorm) {
+                    params.effects.chorus.tempo_sync = ts;
+                }
+            }
             PARAM_CHORUS_DEPTH => params.effects.chorus.depth = denorm,
             PARAM_CHORUS_MIX => params.effects.chorus.mix = denorm,
             PARAM_DISTORTION_TYPE => {
@@ -384,22 +404,42 @@ pub mod param_apply {
 
             // New Effects - Phaser
             PARAM_PHASER_RATE => params.effects.phaser.rate = denorm,
+            PARAM_PHASER_TEMPO_SYNC => {
+                if let Some(ts) = denorm_to_tempo_sync(denorm) {
+                    params.effects.phaser.tempo_sync = ts;
+                }
+            }
             PARAM_PHASER_DEPTH => params.effects.phaser.depth = denorm,
             PARAM_PHASER_FEEDBACK => params.effects.phaser.feedback = denorm,
             PARAM_PHASER_MIX => params.effects.phaser.mix = denorm,
 
             // New Effects - Flanger
             PARAM_FLANGER_RATE => params.effects.flanger.rate = denorm,
+            PARAM_FLANGER_TEMPO_SYNC => {
+                if let Some(ts) = denorm_to_tempo_sync(denorm) {
+                    params.effects.flanger.tempo_sync = ts;
+                }
+            }
             PARAM_FLANGER_DEPTH => params.effects.flanger.depth = denorm,
             PARAM_FLANGER_FEEDBACK => params.effects.flanger.feedback = denorm,
             PARAM_FLANGER_MIX => params.effects.flanger.mix = denorm,
 
             // New Effects - Tremolo
             PARAM_TREMOLO_RATE => params.effects.tremolo.rate = denorm,
+            PARAM_TREMOLO_TEMPO_SYNC => {
+                if let Some(ts) = denorm_to_tempo_sync(denorm) {
+                    params.effects.tremolo.tempo_sync = ts;
+                }
+            }
             PARAM_TREMOLO_DEPTH => params.effects.tremolo.depth = denorm,
 
             // New Effects - Auto-Pan
             PARAM_AUTOPAN_RATE => params.effects.auto_pan.rate = denorm,
+            PARAM_AUTOPAN_TEMPO_SYNC => {
+                if let Some(ts) = denorm_to_tempo_sync(denorm) {
+                    params.effects.auto_pan.tempo_sync = ts;
+                }
+            }
             PARAM_AUTOPAN_DEPTH => params.effects.auto_pan.depth = denorm,
 
             // New Effects - Comb Filter
@@ -519,6 +559,27 @@ pub mod param_apply {
             6 => Some(DistortionType::SineShaper),
             7 => Some(DistortionType::Bitcrush),
             8 => Some(DistortionType::Diode),
+            _ => None,
+        }
+    }
+
+    fn denorm_to_tempo_sync(denorm: f32) -> Option<crate::params::TempoSync> {
+        use crate::params::TempoSync;
+        // denorm is already the enum index (0-12) from registry.denormalize()
+        match denorm.round() as i32 {
+            0 => Some(TempoSync::Hz),
+            1 => Some(TempoSync::Whole),
+            2 => Some(TempoSync::Half),
+            3 => Some(TempoSync::Quarter),
+            4 => Some(TempoSync::Eighth),
+            5 => Some(TempoSync::Sixteenth),
+            6 => Some(TempoSync::ThirtySecond),
+            7 => Some(TempoSync::QuarterT),
+            8 => Some(TempoSync::EighthT),
+            9 => Some(TempoSync::SixteenthT),
+            10 => Some(TempoSync::QuarterD),
+            11 => Some(TempoSync::EighthD),
+            12 => Some(TempoSync::SixteenthD),
             _ => None,
         }
     }
@@ -704,6 +765,7 @@ pub mod param_get {
             // LFOs
             PARAM_LFO1_WAVEFORM => lfo_waveform_to_denorm(params.lfos[0].waveform),
             PARAM_LFO1_RATE => params.lfos[0].rate,
+            PARAM_LFO1_TEMPO_SYNC => tempo_sync_to_denorm(params.lfos[0].tempo_sync),
             PARAM_LFO1_DEPTH => params.lfos[0].depth,
             PARAM_LFO1_FILTER_AMOUNT => params.lfos[0].filter_amount,
             PARAM_LFO1_PITCH_AMOUNT => params.lfos[0].pitch_amount,
@@ -713,6 +775,7 @@ pub mod param_get {
 
             PARAM_LFO2_WAVEFORM => lfo_waveform_to_denorm(params.lfos[1].waveform),
             PARAM_LFO2_RATE => params.lfos[1].rate,
+            PARAM_LFO2_TEMPO_SYNC => tempo_sync_to_denorm(params.lfos[1].tempo_sync),
             PARAM_LFO2_DEPTH => params.lfos[1].depth,
             PARAM_LFO2_FILTER_AMOUNT => params.lfos[1].filter_amount,
             PARAM_LFO2_PITCH_AMOUNT => params.lfos[1].pitch_amount,
@@ -722,6 +785,7 @@ pub mod param_get {
 
             PARAM_LFO3_WAVEFORM => lfo_waveform_to_denorm(params.lfos[2].waveform),
             PARAM_LFO3_RATE => params.lfos[2].rate,
+            PARAM_LFO3_TEMPO_SYNC => tempo_sync_to_denorm(params.lfos[2].tempo_sync),
             PARAM_LFO3_DEPTH => params.lfos[2].depth,
             PARAM_LFO3_FILTER_AMOUNT => params.lfos[2].filter_amount,
             PARAM_LFO3_PITCH_AMOUNT => params.lfos[2].pitch_amount,
@@ -757,6 +821,7 @@ pub mod param_get {
 
             // Effects - Chorus
             PARAM_CHORUS_RATE => params.effects.chorus.rate,
+            PARAM_CHORUS_TEMPO_SYNC => tempo_sync_to_denorm(params.effects.chorus.tempo_sync),
             PARAM_CHORUS_DEPTH => params.effects.chorus.depth,
             PARAM_CHORUS_MIX => params.effects.chorus.mix,
 
@@ -808,22 +873,26 @@ pub mod param_get {
 
             // New Effects - Phaser
             PARAM_PHASER_RATE => params.effects.phaser.rate,
+            PARAM_PHASER_TEMPO_SYNC => tempo_sync_to_denorm(params.effects.phaser.tempo_sync),
             PARAM_PHASER_DEPTH => params.effects.phaser.depth,
             PARAM_PHASER_FEEDBACK => params.effects.phaser.feedback,
             PARAM_PHASER_MIX => params.effects.phaser.mix,
 
             // New Effects - Flanger
             PARAM_FLANGER_RATE => params.effects.flanger.rate,
+            PARAM_FLANGER_TEMPO_SYNC => tempo_sync_to_denorm(params.effects.flanger.tempo_sync),
             PARAM_FLANGER_DEPTH => params.effects.flanger.depth,
             PARAM_FLANGER_FEEDBACK => params.effects.flanger.feedback,
             PARAM_FLANGER_MIX => params.effects.flanger.mix,
 
             // New Effects - Tremolo
             PARAM_TREMOLO_RATE => params.effects.tremolo.rate,
+            PARAM_TREMOLO_TEMPO_SYNC => tempo_sync_to_denorm(params.effects.tremolo.tempo_sync),
             PARAM_TREMOLO_DEPTH => params.effects.tremolo.depth,
 
             // New Effects - Auto-Pan
             PARAM_AUTOPAN_RATE => params.effects.auto_pan.rate,
+            PARAM_AUTOPAN_TEMPO_SYNC => tempo_sync_to_denorm(params.effects.auto_pan.tempo_sync),
             PARAM_AUTOPAN_DEPTH => params.effects.auto_pan.depth,
 
             // New Effects - Comb Filter
@@ -1047,6 +1116,26 @@ pub mod param_get {
             LFOWaveform::Triangle => 1.0,
             LFOWaveform::Square => 2.0,
             LFOWaveform::Saw => 3.0,
+        }
+    }
+
+    fn tempo_sync_to_denorm(ts: crate::params::TempoSync) -> f32 {
+        use crate::params::TempoSync;
+        // Return enum index (0-12) which will be normalized by CLAP
+        match ts {
+            TempoSync::Hz => 0.0,
+            TempoSync::Whole => 1.0,
+            TempoSync::Half => 2.0,
+            TempoSync::Quarter => 3.0,
+            TempoSync::Eighth => 4.0,
+            TempoSync::Sixteenth => 5.0,
+            TempoSync::ThirtySecond => 6.0,
+            TempoSync::QuarterT => 7.0,
+            TempoSync::EighthT => 8.0,
+            TempoSync::SixteenthT => 9.0,
+            TempoSync::QuarterD => 10.0,
+            TempoSync::EighthD => 11.0,
+            TempoSync::SixteenthD => 12.0,
         }
     }
 }

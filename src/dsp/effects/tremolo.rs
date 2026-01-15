@@ -67,6 +67,11 @@ impl Tremolo {
         self.stereo_phase = phase.clamp(0.0, 1.0);
     }
 
+    /// Reset LFO phase to initial state (called when tempo sync mode changes)
+    pub fn reset_phase(&mut self) {
+        self.lfo_phase = 0.0;
+    }
+
     /// Process a stereo sample through the tremolo
     pub fn process(&mut self, left: f32, right: f32) -> (f32, f32) {
         // Generate LFO values for left and right channels

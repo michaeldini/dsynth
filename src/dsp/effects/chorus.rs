@@ -172,6 +172,17 @@ impl Chorus {
         self.mix = mix.clamp(0.0, 1.0);
     }
 
+    /// Reset LFO phase to 0.0 for all voices
+    ///
+    /// This is called when tempo sync mode changes to ensure predictable timing.
+    pub fn reset_phase(&mut self) {
+        let phase_offsets = [0.0, 0.25, 0.5, 0.75];
+        for i in 0..NUM_VOICES {
+            self.voices_l[i].lfo_phase = phase_offsets[i];
+            self.voices_r[i].lfo_phase = phase_offsets[i] + 0.125;
+        }
+    }
+
     /// Process a stereo sample pair
     ///
     /// # Arguments

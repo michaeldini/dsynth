@@ -163,32 +163,35 @@ pub const PARAM_FILTER3_POST_DRIVE: ParamId = make_param_id(MODULE_FILTER3, 11);
 // LFO 1
 pub const PARAM_LFO1_WAVEFORM: ParamId = make_param_id(MODULE_LFO1, 0);
 pub const PARAM_LFO1_RATE: ParamId = make_param_id(MODULE_LFO1, 1);
-pub const PARAM_LFO1_DEPTH: ParamId = make_param_id(MODULE_LFO1, 2);
-pub const PARAM_LFO1_FILTER_AMOUNT: ParamId = make_param_id(MODULE_LFO1, 3);
-pub const PARAM_LFO1_PITCH_AMOUNT: ParamId = make_param_id(MODULE_LFO1, 4);
-pub const PARAM_LFO1_GAIN_AMOUNT: ParamId = make_param_id(MODULE_LFO1, 5);
-pub const PARAM_LFO1_PAN_AMOUNT: ParamId = make_param_id(MODULE_LFO1, 6);
-pub const PARAM_LFO1_PWM_AMOUNT: ParamId = make_param_id(MODULE_LFO1, 7);
+pub const PARAM_LFO1_TEMPO_SYNC: ParamId = make_param_id(MODULE_LFO1, 2);
+pub const PARAM_LFO1_DEPTH: ParamId = make_param_id(MODULE_LFO1, 3);
+pub const PARAM_LFO1_FILTER_AMOUNT: ParamId = make_param_id(MODULE_LFO1, 4);
+pub const PARAM_LFO1_PITCH_AMOUNT: ParamId = make_param_id(MODULE_LFO1, 5);
+pub const PARAM_LFO1_GAIN_AMOUNT: ParamId = make_param_id(MODULE_LFO1, 6);
+pub const PARAM_LFO1_PAN_AMOUNT: ParamId = make_param_id(MODULE_LFO1, 7);
+pub const PARAM_LFO1_PWM_AMOUNT: ParamId = make_param_id(MODULE_LFO1, 8);
 
 // LFO 2
 pub const PARAM_LFO2_WAVEFORM: ParamId = make_param_id(MODULE_LFO2, 0);
 pub const PARAM_LFO2_RATE: ParamId = make_param_id(MODULE_LFO2, 1);
-pub const PARAM_LFO2_DEPTH: ParamId = make_param_id(MODULE_LFO2, 2);
-pub const PARAM_LFO2_FILTER_AMOUNT: ParamId = make_param_id(MODULE_LFO2, 3);
-pub const PARAM_LFO2_PITCH_AMOUNT: ParamId = make_param_id(MODULE_LFO2, 4);
-pub const PARAM_LFO2_GAIN_AMOUNT: ParamId = make_param_id(MODULE_LFO2, 5);
-pub const PARAM_LFO2_PAN_AMOUNT: ParamId = make_param_id(MODULE_LFO2, 6);
-pub const PARAM_LFO2_PWM_AMOUNT: ParamId = make_param_id(MODULE_LFO2, 7);
+pub const PARAM_LFO2_TEMPO_SYNC: ParamId = make_param_id(MODULE_LFO2, 2);
+pub const PARAM_LFO2_DEPTH: ParamId = make_param_id(MODULE_LFO2, 3);
+pub const PARAM_LFO2_FILTER_AMOUNT: ParamId = make_param_id(MODULE_LFO2, 4);
+pub const PARAM_LFO2_PITCH_AMOUNT: ParamId = make_param_id(MODULE_LFO2, 5);
+pub const PARAM_LFO2_GAIN_AMOUNT: ParamId = make_param_id(MODULE_LFO2, 6);
+pub const PARAM_LFO2_PAN_AMOUNT: ParamId = make_param_id(MODULE_LFO2, 7);
+pub const PARAM_LFO2_PWM_AMOUNT: ParamId = make_param_id(MODULE_LFO2, 8);
 
 // LFO 3
 pub const PARAM_LFO3_WAVEFORM: ParamId = make_param_id(MODULE_LFO3, 0);
 pub const PARAM_LFO3_RATE: ParamId = make_param_id(MODULE_LFO3, 1);
-pub const PARAM_LFO3_DEPTH: ParamId = make_param_id(MODULE_LFO3, 2);
-pub const PARAM_LFO3_FILTER_AMOUNT: ParamId = make_param_id(MODULE_LFO3, 3);
-pub const PARAM_LFO3_PITCH_AMOUNT: ParamId = make_param_id(MODULE_LFO3, 4);
-pub const PARAM_LFO3_GAIN_AMOUNT: ParamId = make_param_id(MODULE_LFO3, 5);
-pub const PARAM_LFO3_PAN_AMOUNT: ParamId = make_param_id(MODULE_LFO3, 6);
-pub const PARAM_LFO3_PWM_AMOUNT: ParamId = make_param_id(MODULE_LFO3, 7);
+pub const PARAM_LFO3_TEMPO_SYNC: ParamId = make_param_id(MODULE_LFO3, 2);
+pub const PARAM_LFO3_DEPTH: ParamId = make_param_id(MODULE_LFO3, 3);
+pub const PARAM_LFO3_FILTER_AMOUNT: ParamId = make_param_id(MODULE_LFO3, 4);
+pub const PARAM_LFO3_PITCH_AMOUNT: ParamId = make_param_id(MODULE_LFO3, 5);
+pub const PARAM_LFO3_GAIN_AMOUNT: ParamId = make_param_id(MODULE_LFO3, 6);
+pub const PARAM_LFO3_PAN_AMOUNT: ParamId = make_param_id(MODULE_LFO3, 7);
+pub const PARAM_LFO3_PWM_AMOUNT: ParamId = make_param_id(MODULE_LFO3, 8);
 
 // Envelope (shared by all voices)
 pub const PARAM_ENVELOPE_ATTACK: ParamId = make_param_id(MODULE_ENVELOPE, 0);
@@ -214,6 +217,7 @@ pub const PARAM_DELAY_FEEDBACK: ParamId = make_param_id(MODULE_EFFECTS, 6);
 pub const PARAM_DELAY_WET: ParamId = make_param_id(MODULE_EFFECTS, 7);
 pub const PARAM_DELAY_DRY: ParamId = make_param_id(MODULE_EFFECTS, 8);
 pub const PARAM_CHORUS_RATE: ParamId = make_param_id(MODULE_EFFECTS, 9);
+pub const PARAM_CHORUS_TEMPO_SYNC: ParamId = make_param_id(MODULE_EFFECTS, 73);
 pub const PARAM_CHORUS_DEPTH: ParamId = make_param_id(MODULE_EFFECTS, 10);
 pub const PARAM_CHORUS_MIX: ParamId = make_param_id(MODULE_EFFECTS, 11);
 pub const PARAM_DISTORTION_TYPE: ParamId = make_param_id(MODULE_EFFECTS, 12);
@@ -240,22 +244,26 @@ pub const PARAM_WIDENER_SIDE_GAIN: ParamId = make_param_id(MODULE_EFFECTS, 28);
 
 // Phaser
 pub const PARAM_PHASER_RATE: ParamId = make_param_id(MODULE_EFFECTS, 29);
+pub const PARAM_PHASER_TEMPO_SYNC: ParamId = make_param_id(MODULE_EFFECTS, 74);
 pub const PARAM_PHASER_DEPTH: ParamId = make_param_id(MODULE_EFFECTS, 30);
 pub const PARAM_PHASER_FEEDBACK: ParamId = make_param_id(MODULE_EFFECTS, 31);
 pub const PARAM_PHASER_MIX: ParamId = make_param_id(MODULE_EFFECTS, 32);
 
 // Flanger
 pub const PARAM_FLANGER_RATE: ParamId = make_param_id(MODULE_EFFECTS, 33);
+pub const PARAM_FLANGER_TEMPO_SYNC: ParamId = make_param_id(MODULE_EFFECTS, 75);
 pub const PARAM_FLANGER_DEPTH: ParamId = make_param_id(MODULE_EFFECTS, 34);
 pub const PARAM_FLANGER_FEEDBACK: ParamId = make_param_id(MODULE_EFFECTS, 35);
 pub const PARAM_FLANGER_MIX: ParamId = make_param_id(MODULE_EFFECTS, 36);
 
 // Tremolo
 pub const PARAM_TREMOLO_RATE: ParamId = make_param_id(MODULE_EFFECTS, 37);
+pub const PARAM_TREMOLO_TEMPO_SYNC: ParamId = make_param_id(MODULE_EFFECTS, 76);
 pub const PARAM_TREMOLO_DEPTH: ParamId = make_param_id(MODULE_EFFECTS, 38);
 
 // Auto-Pan
 pub const PARAM_AUTOPAN_RATE: ParamId = make_param_id(MODULE_EFFECTS, 39);
+pub const PARAM_AUTOPAN_TEMPO_SYNC: ParamId = make_param_id(MODULE_EFFECTS, 77);
 pub const PARAM_AUTOPAN_DEPTH: ParamId = make_param_id(MODULE_EFFECTS, 40);
 
 // Comb Filter

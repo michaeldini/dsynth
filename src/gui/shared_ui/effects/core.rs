@@ -1,7 +1,7 @@
 // Core effects: distortion, chorus, delay, reverb
 
 use super::super::helpers::{current_normalized, default_normalized};
-use crate::gui::widgets::{distortion_type_button, param_checkbox, param_knob};
+use crate::gui::widgets::{distortion_type_button, param_checkbox, param_knob, tempo_sync_button};
 use crate::plugin::param_descriptor::*;
 use vizia::prelude::*;
 
@@ -69,6 +69,7 @@ pub fn build_chorus_section(cx: &mut Context) {
                 rate_v,
                 default_normalized(PARAM_CHORUS_RATE),
             );
+            tempo_sync_button(cx, PARAM_CHORUS_TEMPO_SYNC);
             param_knob(
                 cx,
                 PARAM_CHORUS_DEPTH,

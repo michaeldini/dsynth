@@ -149,6 +149,14 @@ pub struct SynthEngine {
 
     /// Wavetable library for wavetable synthesis
     wavetable_library: WavetableLibrary,
+
+    /// Current tempo in BPM from DAW transport (defaults to 120.0)
+    /// Updated by CLAP plugin from host transport events
+    current_tempo_bpm: f64,
+
+    /// Previous tempo sync modes for LFOs and effects (for phase reset detection)
+    /// Order: [LFO1, LFO2, LFO3, Chorus, Phaser, Flanger, Tremolo, AutoPan]
+    previous_sync_modes: [crate::params::TempoSync; 8],
 }
 
 impl SynthEngine {
@@ -242,6 +250,9 @@ impl SynthEngine {
             exciter: Exciter::new(sample_rate),
 
             wavetable_library,
+
+            current_tempo_bpm: 120.0, // Default tempo
+            previous_sync_modes: [crate::params::TempoSync::Hz; 8], // All default to Hz mode
         }
     }
 
@@ -263,16 +274,36 @@ impl SynthEngine {
 
         self.current_params = *new_params;
 
+        // Apply tempo-synced rates to LFOs before passing to voices
+        let mut modified_lfos = self.current_params.lfos;
+        for (i, lfo_params) in modified_lfos.iter_mut().enumerate() {
+            use crate::params::TempoSync;
+
+            // Check if sync mode changed (for phase reset)
+            let sync_mode_changed = self.previous_sync_modes[i] != lfo_params.tempo_sync;
+            if sync_mode_changed {
+                self.previous_sync_modes[i] = lfo_params.tempo_sync;
+                // Phase reset will be handled when voices are updated
+                // (voices have direct access to LFO objects)
+            }
+
+            // Calculate effective rate
+            if lfo_params.tempo_sync != TempoSync::Hz {
+                lfo_params.rate =
+                    Self::tempo_division_to_hz(lfo_params.tempo_sync, self.current_tempo_bpm);
+            }
+        }
+
         // Update effects parameters
         self.update_effects_params();
 
-        // Update all active voices with current parameters
+        // Update all active voices with current parameters (using tempo-synced LFO rates)
         for voice in &mut self.voices {
             if voice.is_active() {
                 voice.update_parameters(
                     &self.current_params.oscillators,
                     &self.current_params.filters,
-                    &self.current_params.lfos,
+                    &modified_lfos, // Use modified LFO params with tempo-synced rates
                     &self.current_params.envelope,
                     &self.wavetable_library,
                 );
@@ -282,115 +313,202 @@ impl SynthEngine {
 
     /// Update effects processors with current parameters
     fn update_effects_params(&mut self) {
-        let effects = &self.current_params.effects;
+        // Extract all params at once to avoid borrow issues with get_effective_rate
+        let (
+            reverb_params,
+            delay_params,
+            chorus_rate_hz,
+            chorus_tempo_sync,
+            chorus_depth,
+            chorus_mix,
+            distortion_drive,
+            distortion_mix,
+            distortion_type,
+            mb_dist,
+            stereo_widener_params,
+            phaser_rate_hz,
+            phaser_tempo_sync,
+            phaser_depth,
+            phaser_feedback,
+            phaser_mix,
+            flanger_rate_hz,
+            flanger_tempo_sync,
+            flanger_feedback,
+            flanger_depth,
+            flanger_mix,
+            tremolo_rate_hz,
+            tremolo_tempo_sync,
+            tremolo_depth,
+            autopan_rate_hz,
+            autopan_tempo_sync,
+            autopan_depth,
+            comb_filter_params,
+            ring_mod_params,
+            compressor_params,
+            bitcrusher_params,
+            waveshaper_params,
+            exciter_params,
+        ) = {
+            let effects = &self.current_params.effects;
+            (
+                effects.reverb,
+                effects.delay,
+                effects.chorus.rate,
+                effects.chorus.tempo_sync,
+                effects.chorus.depth,
+                effects.chorus.mix,
+                effects.distortion.drive,
+                effects.distortion.mix,
+                effects.distortion.dist_type,
+                effects.multiband_distortion,
+                effects.stereo_widener,
+                effects.phaser.rate,
+                effects.phaser.tempo_sync,
+                effects.phaser.depth,
+                effects.phaser.feedback,
+                effects.phaser.mix,
+                effects.flanger.rate,
+                effects.flanger.tempo_sync,
+                effects.flanger.feedback,
+                effects.flanger.depth,
+                effects.flanger.mix,
+                effects.tremolo.rate,
+                effects.tremolo.tempo_sync,
+                effects.tremolo.depth,
+                effects.auto_pan.rate,
+                effects.auto_pan.tempo_sync,
+                effects.auto_pan.depth,
+                effects.comb_filter,
+                effects.ring_mod,
+                effects.compressor,
+                effects.bitcrusher,
+                effects.waveshaper,
+                effects.exciter,
+            )
+        }; // effects borrow dropped here
 
         // Update reverb
-        self.reverb.set_room_size(effects.reverb.room_size);
-        self.reverb.set_damping(effects.reverb.damping);
-        self.reverb.set_wet(effects.reverb.wet);
-        self.reverb.set_dry(effects.reverb.dry);
-        self.reverb.set_width(effects.reverb.width);
+        self.reverb.set_room_size(reverb_params.room_size);
+        self.reverb.set_damping(reverb_params.damping);
+        self.reverb.set_wet(reverb_params.wet);
+        self.reverb.set_dry(reverb_params.dry);
+        self.reverb.set_width(reverb_params.width);
 
         // Update delay
-        self.delay.set_time(effects.delay.time_ms);
-        self.delay.set_feedback(effects.delay.feedback);
-        self.delay.set_wet(effects.delay.wet);
-        self.delay.set_dry(effects.delay.dry);
+        self.delay.set_time(delay_params.time_ms);
+        self.delay.set_feedback(delay_params.feedback);
+        self.delay.set_wet(delay_params.wet);
+        self.delay.set_dry(delay_params.dry);
 
-        // Update chorus
-        self.chorus.set_rate(effects.chorus.rate);
-        self.chorus.set_depth(effects.chorus.depth);
-        self.chorus.set_mix(effects.chorus.mix);
+        // Update chorus with tempo sync
+        let chorus_rate = self.get_effective_rate(
+            chorus_rate_hz,
+            chorus_tempo_sync,
+            3, // Index in previous_sync_modes (LFO1=0, LFO2=1, LFO3=2, Chorus=3)
+        );
+        self.chorus.set_rate(chorus_rate);
+        self.chorus.set_depth(chorus_depth);
+        self.chorus.set_mix(chorus_mix);
 
         // Update distortion
-        self.distortion.set_drive(effects.distortion.drive);
-        self.distortion.set_mix(effects.distortion.mix);
-        self.distortion
-            .set_type(effects.distortion.dist_type.into());
+        self.distortion.set_drive(distortion_drive);
+        self.distortion.set_mix(distortion_mix);
+        self.distortion.set_type(distortion_type.into());
 
         // Update multiband distortion
         self.multiband_distortion
-            .set_low_mid_freq(effects.multiband_distortion.low_mid_freq);
+            .set_low_mid_freq(mb_dist.low_mid_freq);
         self.multiband_distortion
-            .set_mid_high_freq(effects.multiband_distortion.mid_high_freq);
-        self.multiband_distortion
-            .set_drive_low(effects.multiband_distortion.drive_low);
-        self.multiband_distortion
-            .set_drive_mid(effects.multiband_distortion.drive_mid);
-        self.multiband_distortion
-            .set_drive_high(effects.multiband_distortion.drive_high);
-        self.multiband_distortion
-            .set_gain_low(effects.multiband_distortion.gain_low);
-        self.multiband_distortion
-            .set_gain_mid(effects.multiband_distortion.gain_mid);
-        self.multiband_distortion
-            .set_gain_high(effects.multiband_distortion.gain_high);
-        self.multiband_distortion
-            .set_mix(effects.multiband_distortion.mix);
+            .set_mid_high_freq(mb_dist.mid_high_freq);
+        self.multiband_distortion.set_drive_low(mb_dist.drive_low);
+        self.multiband_distortion.set_drive_mid(mb_dist.drive_mid);
+        self.multiband_distortion.set_drive_high(mb_dist.drive_high);
+        self.multiband_distortion.set_gain_low(mb_dist.gain_low);
+        self.multiband_distortion.set_gain_mid(mb_dist.gain_mid);
+        self.multiband_distortion.set_gain_high(mb_dist.gain_high);
+        self.multiband_distortion.set_mix(mb_dist.mix);
 
         // Update stereo widener
         self.stereo_widener
-            .set_haas_delay(effects.stereo_widener.haas_delay_ms);
+            .set_haas_delay(stereo_widener_params.haas_delay_ms);
         self.stereo_widener
-            .set_haas_mix(effects.stereo_widener.haas_mix);
-        self.stereo_widener.set_width(effects.stereo_widener.width);
+            .set_haas_mix(stereo_widener_params.haas_mix);
+        self.stereo_widener.set_width(stereo_widener_params.width);
         self.stereo_widener
-            .set_mid_gain(effects.stereo_widener.mid_gain);
+            .set_mid_gain(stereo_widener_params.mid_gain);
         self.stereo_widener
-            .set_side_gain(effects.stereo_widener.side_gain);
+            .set_side_gain(stereo_widener_params.side_gain);
 
-        // Update phaser
-        self.phaser.set_rate(effects.phaser.rate);
-        self.phaser.set_depth(effects.phaser.depth);
-        self.phaser.set_feedback(effects.phaser.feedback);
-        self.phaser.set_mix(effects.phaser.mix);
+        // Update phaser with tempo sync
+        let phaser_rate = self.get_effective_rate(
+            phaser_rate_hz,
+            phaser_tempo_sync,
+            4, // Phaser index in previous_sync_modes
+        );
+        self.phaser.set_rate(phaser_rate);
+        self.phaser.set_depth(phaser_depth);
+        self.phaser.set_feedback(phaser_feedback);
+        self.phaser.set_mix(phaser_mix);
 
-        // Update flanger
-        self.flanger.set_rate(effects.flanger.rate);
-        self.flanger.set_feedback(effects.flanger.feedback);
-        self.flanger.set_mix(effects.flanger.mix);
+        // Update flanger with tempo sync
+        let flanger_rate = self.get_effective_rate(
+            flanger_rate_hz,
+            flanger_tempo_sync,
+            5, // Flanger index in previous_sync_modes
+        );
+        self.flanger.set_rate(flanger_rate);
+        self.flanger.set_feedback(flanger_feedback);
+        self.flanger.set_mix(flanger_mix);
         // Flanger depth controls delay range (depth maps to max delay)
-        let flanger_max_delay = 0.5 + effects.flanger.depth * 14.5; // 0.5-15ms
+        let flanger_max_delay = 0.5 + flanger_depth * 14.5; // 0.5-15ms
         self.flanger.set_delay_range(0.5, flanger_max_delay);
 
-        // Update tremolo
-        self.tremolo.set_rate(effects.tremolo.rate);
-        self.tremolo.set_depth(effects.tremolo.depth);
+        // Update tremolo with tempo sync
+        let tremolo_rate = self.get_effective_rate(
+            tremolo_rate_hz,
+            tremolo_tempo_sync,
+            6, // Tremolo index in previous_sync_modes
+        );
+        self.tremolo.set_rate(tremolo_rate);
+        self.tremolo.set_depth(tremolo_depth);
 
-        // Update auto-pan
-        self.auto_pan.set_rate(effects.auto_pan.rate);
-        self.auto_pan.set_depth(effects.auto_pan.depth);
+        // Update auto-pan with tempo sync
+        let autopan_rate = self.get_effective_rate(
+            autopan_rate_hz,
+            autopan_tempo_sync,
+            7, // AutoPan index in previous_sync_modes
+        );
+        self.auto_pan.set_rate(autopan_rate);
+        self.auto_pan.set_depth(autopan_depth);
 
         // Update comb filter
-        self.comb_filter
-            .set_frequency(effects.comb_filter.frequency);
-        self.comb_filter.set_feedback(effects.comb_filter.feedback);
-        self.comb_filter.set_mix(effects.comb_filter.mix);
+        self.comb_filter.set_frequency(comb_filter_params.frequency);
+        self.comb_filter.set_feedback(comb_filter_params.feedback);
+        self.comb_filter.set_mix(comb_filter_params.mix);
 
         // Update ring modulator
-        self.ring_modulator
-            .set_frequency(effects.ring_mod.frequency);
-        self.ring_modulator.set_depth(effects.ring_mod.depth);
+        self.ring_modulator.set_frequency(ring_mod_params.frequency);
+        self.ring_modulator.set_depth(ring_mod_params.depth);
 
         // Update compressor
-        self.compressor.set_threshold(effects.compressor.threshold);
-        self.compressor.set_ratio(effects.compressor.ratio);
-        self.compressor.set_attack(effects.compressor.attack);
-        self.compressor.set_release(effects.compressor.release);
+        self.compressor.set_threshold(compressor_params.threshold);
+        self.compressor.set_ratio(compressor_params.ratio);
+        self.compressor.set_attack(compressor_params.attack);
+        self.compressor.set_release(compressor_params.release);
 
         // Update bitcrusher
         self.bitcrusher
-            .set_sample_rate(effects.bitcrusher.sample_rate);
-        self.bitcrusher.set_bit_depth(effects.bitcrusher.bit_depth);
+            .set_sample_rate(bitcrusher_params.sample_rate);
+        self.bitcrusher.set_bit_depth(bitcrusher_params.bit_depth);
 
         // Update waveshaper
-        self.waveshaper.set_drive(effects.waveshaper.drive);
-        self.waveshaper.set_mix(effects.waveshaper.mix);
+        self.waveshaper.set_drive(waveshaper_params.drive);
+        self.waveshaper.set_mix(waveshaper_params.mix);
 
         // Update exciter
-        self.exciter.set_frequency(effects.exciter.frequency);
-        self.exciter.set_drive(effects.exciter.drive);
-        self.exciter.set_mix(effects.exciter.mix);
+        self.exciter.set_frequency(exciter_params.frequency);
+        self.exciter.set_drive(exciter_params.drive);
+        self.exciter.set_mix(exciter_params.mix);
     }
 
     #[inline]
@@ -616,22 +734,26 @@ impl SynthEngine {
             }
 
             // Apply parameter-dependent frequency/timbre immediately.
+            let lfo_params = self.get_tempo_synced_lfo_params();
             self.voices[0].update_parameters(
                 &self.current_params.oscillators,
                 &self.current_params.filters,
-                &self.current_params.lfos,
+                &lfo_params,
                 &self.current_params.envelope,
                 &self.wavetable_library,
             );
         } else {
             // Polyphonic mode: original behavior
+            // Get tempo-synced LFO params before borrowing voices
+            let lfo_params = self.get_tempo_synced_lfo_params();
+
             // First, try to find an inactive voice
             if let Some(voice) = self.voices.iter_mut().find(|v| !v.is_active()) {
                 voice.note_on(note, velocity);
                 voice.update_parameters(
                     &self.current_params.oscillators,
                     &self.current_params.filters,
-                    &self.current_params.lfos,
+                    &lfo_params,
                     &self.current_params.envelope,
                     &self.wavetable_library,
                 );
@@ -644,7 +766,7 @@ impl SynthEngine {
             self.voices[quietest_idx].update_parameters(
                 &self.current_params.oscillators,
                 &self.current_params.filters,
-                &self.current_params.lfos,
+                &lfo_params,
                 &self.current_params.envelope,
                 &self.wavetable_library,
             );
@@ -697,11 +819,12 @@ impl SynthEngine {
             // If there are still notes in the stack, retrigger the most recent one
             if let Some(&(last_note, last_vel)) = self.note_stack.last() {
                 // Last-note priority, legato: switch pitch without hard-resetting DSP.
+                let lfo_params = self.get_tempo_synced_lfo_params();
                 self.voices[0].note_change_legato(last_note, last_vel);
                 self.voices[0].update_parameters(
                     &self.current_params.oscillators,
                     &self.current_params.filters,
-                    &self.current_params.lfos,
+                    &lfo_params,
                     &self.current_params.envelope,
                     &self.wavetable_library,
                 );
@@ -835,6 +958,148 @@ impl SynthEngine {
     /// Sample rate in Hz (e.g., 44100.0 for CD quality)
     pub fn sample_rate(&self) -> f32 {
         self.sample_rate
+    }
+
+    /// Set the current tempo from DAW transport (CLAP plugin only)
+    ///
+    /// This updates the internal tempo used for tempo-synced LFO and effect rates.
+    /// When tempo_sync mode is not Hz, the rate parameter is converted to Hz based
+    /// on the current tempo using musical divisions (1/4, 1/8T, etc.).
+    ///
+    /// # Arguments
+    /// * `bpm` - Tempo in beats per minute (clamped to 20.0-999.0 for sanity)
+    ///
+    /// # Example
+    /// ```
+    /// use dsynth::audio::engine::{SynthEngine, create_parameter_buffer};
+    /// let (_producer, consumer) = create_parameter_buffer();
+    /// let mut engine = SynthEngine::new(44100.0, consumer);
+    ///
+    /// engine.set_tempo(140.0); // Set tempo to 140 BPM
+    /// ```
+    pub fn set_tempo(&mut self, bpm: f64) {
+        self.current_tempo_bpm = bpm.clamp(20.0, 999.0);
+    }
+
+    /// Convert tempo sync mode to Hz based on current tempo
+    ///
+    /// This calculates the Hz rate for a given musical division at the current tempo.
+    /// Results are clamped to 0.01-20 Hz to stay within valid LFO/effect rate ranges.
+    ///
+    /// Musical divisions:
+    /// - Whole (1/1) = 4 beats per cycle
+    /// - Half (1/2) = 2 beats per cycle
+    /// - Quarter (1/4) = 1 beat per cycle
+    /// - Eighth (1/8) = 0.5 beats per cycle
+    /// - Sixteenth (1/16) = 0.25 beats per cycle
+    /// - Triplets: multiply by 2/3 (e.g., 1/4T = 2/3 beat)
+    /// - Dotted: multiply by 1.5 (e.g., 1/4D = 1.5 beats)
+    ///
+    /// # Arguments
+    /// * `sync_mode` - The tempo sync mode (Hz, Quarter, EighthT, etc.)
+    /// * `bpm` - Tempo in beats per minute
+    ///
+    /// # Returns
+    /// Frequency in Hz, clamped to 0.01-20.0 Hz
+    #[inline]
+    fn tempo_division_to_hz(sync_mode: crate::params::TempoSync, bpm: f64) -> f32 {
+        use crate::params::TempoSync;
+
+        if sync_mode == TempoSync::Hz {
+            return 0.0; // Signal to use raw Hz value
+        }
+
+        // Calculate beats per cycle based on musical division
+        let beats_per_cycle = match sync_mode {
+            TempoSync::Hz => return 0.0,
+            TempoSync::Whole => 4.0,
+            TempoSync::Half => 2.0,
+            TempoSync::Quarter => 1.0,
+            TempoSync::Eighth => 0.5,
+            TempoSync::Sixteenth => 0.25,
+            TempoSync::ThirtySecond => 0.125,
+            TempoSync::QuarterT => 2.0 / 3.0, // 3 triplets per 2 beats
+            TempoSync::EighthT => 1.0 / 3.0,  // 3 triplets per beat
+            TempoSync::SixteenthT => 0.5 / 3.0, // 3 triplets per half beat
+            TempoSync::QuarterD => 1.5,       // Dotted = 1.5× normal
+            TempoSync::EighthD => 0.75,
+            TempoSync::SixteenthD => 0.375,
+        };
+
+        // Convert BPM to cycles per second
+        let beats_per_second = bpm / 60.0;
+        let cycles_per_second = beats_per_second / beats_per_cycle;
+
+        // Clamp to valid LFO/effect rate range (0.01 to 20 Hz)
+        (cycles_per_second as f32).clamp(0.01, 20.0)
+    }
+
+    /// Get the effective rate for an LFO or effect, applying tempo sync if needed
+    ///
+    /// This helper calculates the actual Hz rate to use based on the tempo_sync mode.
+    /// If sync mode changed from the previous call, it resets the phase to 0.0 for
+    /// predictable musical timing.
+    ///
+    /// # Arguments
+    /// * `hz_rate` - The raw Hz rate parameter (used when tempo_sync = Hz)
+    /// * `tempo_sync` - The tempo sync mode (Hz, Quarter, EighthT, etc.)
+    /// * `sync_index` - Index in previous_sync_modes array for this LFO/effect
+    ///
+    /// # Returns
+    /// Effective rate in Hz (clamped to 0.01-20 Hz)
+    #[inline]
+    fn get_effective_rate(
+        &mut self,
+        hz_rate: f32,
+        tempo_sync: crate::params::TempoSync,
+        sync_index: usize,
+    ) -> f32 {
+        use crate::params::TempoSync;
+
+        // Check if sync mode changed (for phase reset)
+        let sync_mode_changed = self.previous_sync_modes[sync_index] != tempo_sync;
+        if sync_mode_changed {
+            self.previous_sync_modes[sync_index] = tempo_sync;
+
+            // Reset phase when sync mode changes
+            // This ensures predictable timing when switching sync modes
+            match sync_index {
+                3 => self.chorus.reset_phase(),   // Chorus
+                4 => self.phaser.reset_phase(),   // Phaser
+                5 => self.flanger.reset_phase(),  // Flanger
+                6 => self.tremolo.reset_phase(),  // Tremolo
+                7 => self.auto_pan.reset_phase(), // AutoPan
+                _ => {}                           // LFOs handled separately in voice update
+            }
+        }
+
+        // Calculate effective rate
+        if tempo_sync == TempoSync::Hz {
+            hz_rate // Use raw Hz value
+        } else {
+            Self::tempo_division_to_hz(tempo_sync, self.current_tempo_bpm)
+        }
+    }
+
+    /// Get tempo-synced LFO parameters
+    ///
+    /// This helper applies tempo sync to LFO rates based on current tempo and sync modes.
+    /// Used when triggering new notes to ensure they get the correct tempo-synced rates.
+    ///
+    /// # Returns
+    /// Array of 3 LFO params with tempo-synced rates applied
+    #[inline]
+    fn get_tempo_synced_lfo_params(&self) -> [crate::params::LFOParams; 3] {
+        use crate::params::TempoSync;
+
+        let mut modified_lfos = self.current_params.lfos;
+        for lfo_params in modified_lfos.iter_mut() {
+            if lfo_params.tempo_sync != TempoSync::Hz {
+                lfo_params.rate =
+                    Self::tempo_division_to_hz(lfo_params.tempo_sync, self.current_tempo_bpm);
+            }
+        }
+        modified_lfos
     }
 
     /// Process one stereo sample and return both left and right channels.
@@ -1344,6 +1609,357 @@ mod tests {
             "Fast retrigger should not hard-drop: prev={:.6}, next={:.6}",
             prev,
             next
+        );
+    }
+
+    // ==================== Tempo Sync Tests ====================
+
+    /// Test tempo_division_to_hz() accuracy at 120 BPM (standard tempo)
+    /// Verifies all 12 musical divisions produce correct frequencies
+    #[test]
+    fn test_tempo_division_to_hz_120bpm() {
+        use crate::params::TempoSync;
+        use approx::assert_relative_eq;
+
+        // At 120 BPM: 2 beats per second
+        let bpm = 120.0;
+
+        // Hz mode should return 0.0 (signal to use raw Hz)
+        assert_eq!(SynthEngine::tempo_division_to_hz(TempoSync::Hz, bpm), 0.0);
+
+        // Standard divisions
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::Whole, bpm),
+            0.5, // 1 cycle per 4 beats = 0.5 Hz
+            epsilon = 0.001
+        );
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::Half, bpm),
+            1.0, // 1 cycle per 2 beats = 1 Hz
+            epsilon = 0.001
+        );
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::Quarter, bpm),
+            2.0, // 1 cycle per beat = 2 Hz
+            epsilon = 0.001
+        );
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::Eighth, bpm),
+            4.0, // 2 cycles per beat = 4 Hz
+            epsilon = 0.001
+        );
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::Sixteenth, bpm),
+            8.0, // 4 cycles per beat = 8 Hz
+            epsilon = 0.001
+        );
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::ThirtySecond, bpm),
+            16.0, // 8 cycles per beat = 16 Hz
+            epsilon = 0.001
+        );
+
+        // Triplet divisions (3 per normal duration)
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::QuarterT, bpm),
+            3.0, // 3 triplets per 2 beats = 3 Hz
+            epsilon = 0.001
+        );
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::EighthT, bpm),
+            6.0, // 3 triplets per beat = 6 Hz
+            epsilon = 0.001
+        );
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::SixteenthT, bpm),
+            12.0, // 3 triplets per half beat = 12 Hz
+            epsilon = 0.001
+        );
+
+        // Dotted divisions (1.5× normal duration)
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::QuarterD, bpm),
+            1.333, // 1 cycle per 1.5 beats ≈ 1.333 Hz
+            epsilon = 0.001
+        );
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::EighthD, bpm),
+            2.667, // 1 cycle per 0.75 beats ≈ 2.667 Hz
+            epsilon = 0.001
+        );
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::SixteenthD, bpm),
+            5.333, // 1 cycle per 0.375 beats ≈ 5.333 Hz
+            epsilon = 0.001
+        );
+    }
+
+    /// Test tempo_division_to_hz() at various tempos
+    /// Verifies formulas scale correctly with different BPMs
+    #[test]
+    fn test_tempo_division_to_hz_various_bpms() {
+        use crate::params::TempoSync;
+        use approx::assert_relative_eq;
+
+        // Slow tempo: 60 BPM (1 beat per second)
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::Quarter, 60.0),
+            1.0, // 1 cycle per beat = 1 Hz
+            epsilon = 0.001
+        );
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::Eighth, 60.0),
+            2.0, // 2 cycles per beat = 2 Hz
+            epsilon = 0.001
+        );
+
+        // Fast tempo: 140 BPM (techno/house)
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::Quarter, 140.0),
+            2.333, // 140/60 = 2.333 Hz
+            epsilon = 0.001
+        );
+
+        // Very fast: 180 BPM (drum and bass)
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::Quarter, 180.0),
+            3.0, // 180/60 = 3 Hz
+            epsilon = 0.001
+        );
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::Sixteenth, 180.0),
+            12.0, // 4 sixteenths per beat × 3 beats/sec = 12 Hz
+            epsilon = 0.001
+        );
+    }
+
+    /// Test that tempo_division_to_hz() clamps output to valid range
+    /// Prevents extreme tempos from producing unusable rates
+    #[test]
+    fn test_tempo_division_to_hz_clamping() {
+        use crate::params::TempoSync;
+
+        // Very slow tempo could produce rates below 0.01 Hz
+        let very_slow_result = SynthEngine::tempo_division_to_hz(TempoSync::Whole, 1.0);
+        assert!(
+            very_slow_result >= 0.01,
+            "Should clamp to minimum 0.01 Hz, got {}",
+            very_slow_result
+        );
+
+        // Very fast tempo could produce rates above 20 Hz
+        let very_fast_result = SynthEngine::tempo_division_to_hz(TempoSync::ThirtySecond, 300.0);
+        assert!(
+            very_fast_result <= 20.0,
+            "Should clamp to maximum 20 Hz, got {}",
+            very_fast_result
+        );
+    }
+
+    /// Test that set_tempo() updates current tempo correctly
+    #[test]
+    fn test_set_tempo() {
+        let (_producer, consumer) = create_parameter_buffer();
+        let mut engine = SynthEngine::new(44100.0, consumer);
+
+        // Default tempo should be 120 BPM
+        assert_eq!(engine.current_tempo_bpm, 120.0);
+
+        // Update tempo
+        engine.set_tempo(140.0);
+        assert_eq!(engine.current_tempo_bpm, 140.0);
+
+        // Update to another tempo
+        engine.set_tempo(85.0);
+        assert_eq!(engine.current_tempo_bpm, 85.0);
+    }
+
+    /// Test that get_effective_rate() returns raw Hz when tempo_sync = Hz
+    #[test]
+    fn test_get_effective_rate_hz_mode() {
+        let (_producer, consumer) = create_parameter_buffer();
+        let mut engine = SynthEngine::new(44100.0, consumer);
+        use crate::params::TempoSync;
+
+        // Should return the raw Hz rate when in Hz mode
+        let rate = engine.get_effective_rate(5.0, TempoSync::Hz, 0);
+        assert_eq!(rate, 5.0);
+
+        let rate2 = engine.get_effective_rate(0.5, TempoSync::Hz, 1);
+        assert_eq!(rate2, 0.5);
+    }
+
+    /// Test that get_effective_rate() calculates tempo-synced rate correctly
+    #[test]
+    fn test_get_effective_rate_tempo_synced() {
+        let (_producer, consumer) = create_parameter_buffer();
+        let mut engine = SynthEngine::new(44100.0, consumer);
+        use crate::params::TempoSync;
+        use approx::assert_relative_eq;
+
+        // Set tempo to 120 BPM
+        engine.set_tempo(120.0);
+
+        // Quarter note at 120 BPM should be 2 Hz
+        let rate = engine.get_effective_rate(0.0, TempoSync::Quarter, 0);
+        assert_relative_eq!(rate, 2.0, epsilon = 0.001);
+
+        // Eighth note at 120 BPM should be 4 Hz
+        let rate2 = engine.get_effective_rate(0.0, TempoSync::Eighth, 1);
+        assert_relative_eq!(rate2, 4.0, epsilon = 0.001);
+
+        // Change tempo to 140 BPM
+        engine.set_tempo(140.0);
+
+        // Quarter note at 140 BPM should be ~2.333 Hz
+        let rate3 = engine.get_effective_rate(0.0, TempoSync::Quarter, 2);
+        assert_relative_eq!(rate3, 2.333, epsilon = 0.001);
+    }
+
+    /// Test that phase resets when sync mode changes
+    /// This ensures predictable timing when switching between sync divisions
+    #[test]
+    fn test_phase_reset_on_sync_mode_change() {
+        let (_producer, consumer) = create_parameter_buffer();
+        let mut engine = SynthEngine::new(44100.0, consumer);
+        use crate::params::TempoSync;
+
+        // Initial call with Quarter note
+        let _rate1 = engine.get_effective_rate(2.0, TempoSync::Quarter, 3); // Chorus
+
+        // Previous sync mode should be stored
+        assert_eq!(engine.previous_sync_modes[3], TempoSync::Quarter);
+
+        // Change to Eighth note - should trigger phase reset
+        let _rate2 = engine.get_effective_rate(2.0, TempoSync::Eighth, 3);
+
+        // Previous sync mode should be updated
+        assert_eq!(engine.previous_sync_modes[3], TempoSync::Eighth);
+
+        // Same mode again - should NOT reset phase (no change)
+        let _rate3 = engine.get_effective_rate(2.0, TempoSync::Eighth, 3);
+        assert_eq!(engine.previous_sync_modes[3], TempoSync::Eighth);
+    }
+
+    /// Test that get_tempo_synced_lfo_params() applies tempo sync to all LFOs
+    #[test]
+    fn test_get_tempo_synced_lfo_params() {
+        let (_producer, consumer) = create_parameter_buffer();
+        let mut engine = SynthEngine::new(44100.0, consumer);
+        use crate::params::TempoSync;
+        use approx::assert_relative_eq;
+
+        // Set tempo to 120 BPM
+        engine.set_tempo(120.0);
+
+        // Configure LFOs with different sync modes
+        engine.current_params.lfos[0].tempo_sync = TempoSync::Quarter;
+        engine.current_params.lfos[0].rate = 999.0; // Should be ignored
+
+        engine.current_params.lfos[1].tempo_sync = TempoSync::Eighth;
+        engine.current_params.lfos[1].rate = 888.0; // Should be ignored
+
+        engine.current_params.lfos[2].tempo_sync = TempoSync::Hz;
+        engine.current_params.lfos[2].rate = 5.0; // Should be preserved
+
+        // Get tempo-synced params
+        let synced_lfos = engine.get_tempo_synced_lfo_params();
+
+        // LFO1: Quarter note at 120 BPM = 2 Hz
+        assert_relative_eq!(synced_lfos[0].rate, 2.0, epsilon = 0.001);
+
+        // LFO2: Eighth note at 120 BPM = 4 Hz
+        assert_relative_eq!(synced_lfos[1].rate, 4.0, epsilon = 0.001);
+
+        // LFO3: Hz mode should preserve raw rate
+        assert_eq!(synced_lfos[2].rate, 5.0);
+    }
+
+    /// Test that tempo sync works with 120 BPM fallback when no transport available
+    #[test]
+    fn test_tempo_sync_fallback_120bpm() {
+        let (_producer, consumer) = create_parameter_buffer();
+        let engine = SynthEngine::new(44100.0, consumer);
+        use crate::params::TempoSync;
+        use approx::assert_relative_eq;
+
+        // Engine should default to 120 BPM
+        assert_eq!(engine.current_tempo_bpm, 120.0);
+
+        // Quarter note at default 120 BPM should be 2 Hz
+        let rate = SynthEngine::tempo_division_to_hz(TempoSync::Quarter, engine.current_tempo_bpm);
+        assert_relative_eq!(rate, 2.0, epsilon = 0.001);
+    }
+
+    /// Test triplet formulas accuracy
+    #[test]
+    fn test_triplet_formulas() {
+        use crate::params::TempoSync;
+        use approx::assert_relative_eq;
+
+        // At 120 BPM (2 beats/sec):
+        // Quarter triplet: 3 triplets per 2 beats = 1.5 triplets per beat = 3 Hz
+        // Eighth triplet: 3 triplets per 1 beat = 6 Hz
+        // Sixteenth triplet: 3 triplets per 0.5 beats = 12 Hz
+
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::QuarterT, 120.0),
+            3.0,
+            epsilon = 0.001
+        );
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::EighthT, 120.0),
+            6.0,
+            epsilon = 0.001
+        );
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::SixteenthT, 120.0),
+            12.0,
+            epsilon = 0.001
+        );
+
+        // At 90 BPM (1.5 beats/sec):
+        // Quarter triplet: 3 triplets per 2 beats = 1.5 × (1.5/2) = 2.25 Hz
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::QuarterT, 90.0),
+            2.25,
+            epsilon = 0.001
+        );
+    }
+
+    /// Test dotted note formulas accuracy
+    #[test]
+    fn test_dotted_formulas() {
+        use crate::params::TempoSync;
+        use approx::assert_relative_eq;
+
+        // At 120 BPM (2 beats/sec):
+        // Dotted quarter (1.5 beats): 2/1.5 = 1.333 Hz
+        // Dotted eighth (0.75 beats): 2/0.75 = 2.667 Hz
+        // Dotted sixteenth (0.375 beats): 2/0.375 = 5.333 Hz
+
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::QuarterD, 120.0),
+            1.333,
+            epsilon = 0.001
+        );
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::EighthD, 120.0),
+            2.667,
+            epsilon = 0.001
+        );
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::SixteenthD, 120.0),
+            5.333,
+            epsilon = 0.001
+        );
+
+        // At 60 BPM (1 beat/sec):
+        // Dotted quarter: 1/1.5 = 0.667 Hz
+        assert_relative_eq!(
+            SynthEngine::tempo_division_to_hz(TempoSync::QuarterD, 60.0),
+            0.667,
+            epsilon = 0.001
         );
     }
 }

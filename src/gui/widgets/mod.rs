@@ -26,5 +26,5 @@ pub use param_checkbox::param_checkbox;
 #[cfg(any(feature = "clap", feature = "standalone"))]
 pub use param_cycle_button::{
     distortion_type_button, filter_type_button, fm_source_button, lfo_waveform_button,
-    oscillator_waveform_button,
+    oscillator_waveform_button, tempo_sync_button,
 };

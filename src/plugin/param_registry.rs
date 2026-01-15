@@ -745,13 +745,29 @@ impl ParamRegistry {
 
             add_param!(
                 base_id + 2,
-                ParamDescriptor::float(base_id + 2, "Depth", &module, 0.0, 1.0, 0.0, Some(""))
+                ParamDescriptor::enum_param(
+                    base_id + 2,
+                    "Tempo Sync",
+                    &module,
+                    vec![
+                        "Hz".into(), "1/1".into(), "1/2".into(), "1/4".into(),
+                        "1/8".into(), "1/16".into(), "1/32".into(),
+                        "1/4T".into(), "1/8T".into(), "1/16T".into(),
+                        "1/4D".into(), "1/8D".into(), "1/16D".into(),
+                    ],
+                    0 // Default: Hz (free-running)
+                )
             );
 
             add_param!(
                 base_id + 3,
+                ParamDescriptor::float(base_id + 3, "Depth", &module, 0.0, 1.0, 0.0, Some(""))
+            );
+
+            add_param!(
+                base_id + 4,
                 ParamDescriptor::float(
-                    base_id + 3,
+                    base_id + 4,
                     "Filter Amount",
                     &module,
                     -5000.0,
@@ -762,9 +778,9 @@ impl ParamRegistry {
             );
 
             add_param!(
-                base_id + 4,
+                base_id + 5,
                 ParamDescriptor::float(
-                    base_id + 4,
+                    base_id + 5,
                     "Pitch Amount",
                     &module,
                     -100.0,
@@ -775,9 +791,9 @@ impl ParamRegistry {
             );
 
             add_param!(
-                base_id + 5,
+                base_id + 6,
                 ParamDescriptor::float(
-                    base_id + 5,
+                    base_id + 6,
                     "Gain Amount",
                     &module,
                     -1.0,
@@ -788,13 +804,13 @@ impl ParamRegistry {
             );
 
             add_param!(
-                base_id + 6,
-                ParamDescriptor::float(base_id + 6, "Pan Amount", &module, 0.0, 1.0, 0.0, Some(""))
+                base_id + 7,
+                ParamDescriptor::float(base_id + 7, "Pan Amount", &module, 0.0, 1.0, 0.0, Some(""))
             );
 
             add_param!(
-                base_id + 7,
-                ParamDescriptor::float(base_id + 7, "PWM Amount", &module, 0.0, 1.0, 0.0, Some(""))
+                base_id + 8,
+                ParamDescriptor::float(base_id + 8, "PWM Amount", &module, 0.0, 1.0, 0.0, Some(""))
             );
         }
 
@@ -999,6 +1015,21 @@ impl ParamRegistry {
                 5.0,
                 0.5,
                 Some("Hz")
+            )
+        );
+        add_param!(
+            PARAM_CHORUS_TEMPO_SYNC,
+            ParamDescriptor::enum_param(
+                PARAM_CHORUS_TEMPO_SYNC,
+                "Sync",
+                "Chorus",
+                vec![
+                    "Hz".into(), "1/1".into(), "1/2".into(), "1/4".into(),
+                    "1/8".into(), "1/16".into(), "1/32".into(),
+                    "1/4T".into(), "1/8T".into(), "1/16T".into(),
+                    "1/4D".into(), "1/8D".into(), "1/16D".into(),
+                ],
+                0 // Default: Hz
             )
         );
         add_param!(
@@ -1249,6 +1280,21 @@ impl ParamRegistry {
             )
         );
         add_param!(
+            PARAM_PHASER_TEMPO_SYNC,
+            ParamDescriptor::enum_param(
+                PARAM_PHASER_TEMPO_SYNC,
+                "Sync",
+                "Phaser",
+                vec![
+                    "Hz".into(), "1/1".into(), "1/2".into(), "1/4".into(),
+                    "1/8".into(), "1/16".into(), "1/32".into(),
+                    "1/4T".into(), "1/8T".into(), "1/16T".into(),
+                    "1/4D".into(), "1/8D".into(), "1/16D".into(),
+                ],
+                0 // Default: Hz
+            )
+        );
+        add_param!(
             PARAM_PHASER_DEPTH,
             ParamDescriptor::float(
                 PARAM_PHASER_DEPTH,
@@ -1288,6 +1334,21 @@ impl ParamRegistry {
                 10.0,
                 0.2,
                 Some("Hz")
+            )
+        );
+        add_param!(
+            PARAM_FLANGER_TEMPO_SYNC,
+            ParamDescriptor::enum_param(
+                PARAM_FLANGER_TEMPO_SYNC,
+                "Sync",
+                "Flanger",
+                vec![
+                    "Hz".into(), "1/1".into(), "1/2".into(), "1/4".into(),
+                    "1/8".into(), "1/16".into(), "1/32".into(),
+                    "1/4T".into(), "1/8T".into(), "1/16T".into(),
+                    "1/4D".into(), "1/8D".into(), "1/16D".into(),
+                ],
+                0 // Default: Hz
             )
         );
         add_param!(
@@ -1333,6 +1394,21 @@ impl ParamRegistry {
             )
         );
         add_param!(
+            PARAM_TREMOLO_TEMPO_SYNC,
+            ParamDescriptor::enum_param(
+                PARAM_TREMOLO_TEMPO_SYNC,
+                "Sync",
+                "Tremolo",
+                vec![
+                    "Hz".into(), "1/1".into(), "1/2".into(), "1/4".into(),
+                    "1/8".into(), "1/16".into(), "1/32".into(),
+                    "1/4T".into(), "1/8T".into(), "1/16T".into(),
+                    "1/4D".into(), "1/8D".into(), "1/16D".into(),
+                ],
+                0 // Default: Hz
+            )
+        );
+        add_param!(
             PARAM_TREMOLO_DEPTH,
             ParamDescriptor::float(
                 PARAM_TREMOLO_DEPTH,
@@ -1356,6 +1432,21 @@ impl ParamRegistry {
                 20.0,
                 1.0,
                 Some("Hz")
+            )
+        );
+        add_param!(
+            PARAM_AUTOPAN_TEMPO_SYNC,
+            ParamDescriptor::enum_param(
+                PARAM_AUTOPAN_TEMPO_SYNC,
+                "Sync",
+                "Auto-Pan",
+                vec![
+                    "Hz".into(), "1/1".into(), "1/2".into(), "1/4".into(),
+                    "1/8".into(), "1/16".into(), "1/32".into(),
+                    "1/4T".into(), "1/8T".into(), "1/16T".into(),
+                    "1/4D".into(), "1/8D".into(), "1/16D".into(),
+                ],
+                0 // Default: Hz
             )
         );
         add_param!(

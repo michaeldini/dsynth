@@ -202,10 +202,6 @@ impl IndexedSection for OscillatorSection {
                 param_knob(cx, p.shape, "Shape", shape_v, default_normalized(p.shape));
                 param_checkbox(cx, p.unison_normalize, "UNorm", unison_normalize_v > 0.5);
             });
-
-            // Waveform-specific sections
-            build_additive_section(cx, &p, index);
-            build_wavetable_section(cx, &p, index);
         })
         .height(Units::Auto)
         .gap(Pixels(10.0));
