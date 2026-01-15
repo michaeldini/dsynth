@@ -1,22 +1,13 @@
 // Modulation effects: phaser, flanger, tremolo, auto-pan
 
-use super::super::helpers::{current_normalized, default_normalized};
-use crate::gui::widgets::{param_checkbox, param_knob, tempo_sync_button};
+use super::super::helpers::{current_normalized, default_normalized, effect_header};
+use crate::gui::widgets::{param_knob, tempo_sync_button};
 use crate::plugin::param_descriptor::*;
 use vizia::prelude::*;
 
 pub fn build_phaser_section(cx: &mut Context) {
     VStack::new(cx, |cx| {
-        HStack::new(cx, |cx| {
-            Label::new(cx, "Phaser")
-                .font_size(14.0)
-                .color(Color::rgb(200, 200, 210))
-                .height(Pixels(22.0));
-            let enabled = current_normalized(cx, PARAM_PHASER_ENABLED);
-            param_checkbox(cx, PARAM_PHASER_ENABLED, "On", enabled > 0.5);
-        })
-        .height(Units::Auto)
-        .gap(Pixels(8.0));
+        effect_header(cx, PARAM_PHASER_ENABLED, "Phaser");
 
         HStack::new(cx, |cx| {
             let rate_v = current_normalized(cx, PARAM_PHASER_RATE);
@@ -63,16 +54,7 @@ pub fn build_phaser_section(cx: &mut Context) {
 
 pub fn build_flanger_section(cx: &mut Context) {
     VStack::new(cx, |cx| {
-        HStack::new(cx, |cx| {
-            Label::new(cx, "Flanger")
-                .font_size(14.0)
-                .color(Color::rgb(200, 200, 210))
-                .height(Pixels(22.0));
-            let enabled = current_normalized(cx, PARAM_FLANGER_ENABLED);
-            param_checkbox(cx, PARAM_FLANGER_ENABLED, "On", enabled > 0.5);
-        })
-        .height(Units::Auto)
-        .gap(Pixels(8.0));
+        effect_header(cx, PARAM_FLANGER_ENABLED, "Flanger");
 
         HStack::new(cx, |cx| {
             let rate_v = current_normalized(cx, PARAM_FLANGER_RATE);
@@ -118,16 +100,7 @@ pub fn build_flanger_section(cx: &mut Context) {
 
 pub fn build_tremolo_section(cx: &mut Context) {
     VStack::new(cx, |cx| {
-        HStack::new(cx, |cx| {
-            Label::new(cx, "Tremolo")
-                .font_size(14.0)
-                .color(Color::rgb(200, 200, 210))
-                .height(Pixels(22.0));
-            let enabled = current_normalized(cx, PARAM_TREMOLO_ENABLED);
-            param_checkbox(cx, PARAM_TREMOLO_ENABLED, "On", enabled > 0.5);
-        })
-        .height(Units::Auto)
-        .gap(Pixels(8.0));
+        effect_header(cx, PARAM_TREMOLO_ENABLED, "Tremolo");
 
         HStack::new(cx, |cx| {
             let rate_v = current_normalized(cx, PARAM_TREMOLO_RATE);
@@ -157,16 +130,7 @@ pub fn build_tremolo_section(cx: &mut Context) {
 
 pub fn build_autopan_section(cx: &mut Context) {
     VStack::new(cx, |cx| {
-        HStack::new(cx, |cx| {
-            Label::new(cx, "Auto-Pan")
-                .font_size(14.0)
-                .color(Color::rgb(200, 200, 210))
-                .height(Pixels(22.0));
-            let enabled = current_normalized(cx, PARAM_AUTOPAN_ENABLED);
-            param_checkbox(cx, PARAM_AUTOPAN_ENABLED, "On", enabled > 0.5);
-        })
-        .gap(Pixels(8.0))
-        .height(Units::Auto);
+        effect_header(cx, PARAM_AUTOPAN_ENABLED, "Auto-Pan");
 
         HStack::new(cx, |cx| {
             let rate_v = current_normalized(cx, PARAM_AUTOPAN_RATE);

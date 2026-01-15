@@ -1,5 +1,6 @@
 // Helper functions for parameter normalization
 
+use crate::gui::widgets::param_checkbox;
 use crate::gui::GuiState;
 use crate::plugin::param_registry;
 use crate::plugin::param_update::param_get;
@@ -50,4 +51,30 @@ pub fn current_normalized(cx: &mut Context, param_id: u32) -> f32 {
 pub fn default_normalized(param_id: u32) -> f32 {
     let registry = param_registry::get_registry();
     registry.get(param_id).map(|d| d.default).unwrap_or(0.0)
+}
+
+// Common effect header: checkbox first, then title label
+pub fn effect_header(cx: &mut Context, enabled_param: u32, title: &str) {
+    HStack::new(cx, |cx| {
+        let enabled = current_normalized(cx, enabled_param);
+        param_checkbox(cx, enabled_param, "On", enabled > 0.5);
+        Label::new(cx, title)
+            .font_size(14.0)
+            .color(Color::rgb(200, 200, 210))
+            .height(Pixels(30.0));
+    })
+    .height(Units::Auto)
+    .gap(Pixels(8.0));
+}
+
+// Common effect row wrapper: full-width VStack with standard gap and explicit height.
+// Usage: effect_row(cx, 125.0, |cx| core::build_distortion_section(cx))
+pub fn effect_row<F>(cx: &mut Context, height_px: f32, builder: F)
+where
+    F: FnOnce(&mut Context),
+{
+    VStack::new(cx, |cx| builder(cx))
+        .width(Stretch(1.0))
+        .height(Pixels(height_px))
+        .gap(Pixels(6.0));
 }

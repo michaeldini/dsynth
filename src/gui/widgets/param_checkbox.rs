@@ -59,6 +59,7 @@ pub fn param_checkbox(cx: &mut Context, param_id: u32, label: &str, _initial_che
             .text_wrap(false)
             .text_overflow(TextOverflow::Ellipsis);
     })
+    .height(Pixels(30.0))
     .width(Pixels(CELL_WIDTH))
     .gap(Pixels(4.0));
 }

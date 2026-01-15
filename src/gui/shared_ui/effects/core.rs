@@ -1,22 +1,13 @@
 // Core effects: distortion, chorus, delay, reverb
 
-use super::super::helpers::{current_normalized, default_normalized};
-use crate::gui::widgets::{distortion_type_button, param_checkbox, param_knob, tempo_sync_button};
+use super::super::helpers::{current_normalized, default_normalized, effect_header};
+use crate::gui::widgets::{distortion_type_button, param_knob, tempo_sync_button};
 use crate::plugin::param_descriptor::*;
 use vizia::prelude::*;
 
 pub fn build_distortion_section(cx: &mut Context) {
     VStack::new(cx, |cx| {
-        HStack::new(cx, |cx| {
-            Label::new(cx, "Distortion")
-                .font_size(14.0)
-                .color(Color::rgb(200, 200, 210))
-                .height(Pixels(22.0));
-            let enabled = current_normalized(cx, PARAM_DISTORTION_ENABLED);
-            param_checkbox(cx, PARAM_DISTORTION_ENABLED, "On", enabled > 0.5);
-        })
-        .height(Units::Auto)
-        .gap(Pixels(8.0));
+        effect_header(cx, PARAM_DISTORTION_ENABLED, "Distortion");
 
         HStack::new(cx, |cx| {
             let drive_v = current_normalized(cx, PARAM_DISTORTION_DRIVE);
@@ -46,16 +37,7 @@ pub fn build_distortion_section(cx: &mut Context) {
 
 pub fn build_chorus_section(cx: &mut Context) {
     VStack::new(cx, |cx| {
-        HStack::new(cx, |cx| {
-            Label::new(cx, "Chorus")
-                .font_size(14.0)
-                .color(Color::rgb(200, 200, 210))
-                .height(Pixels(22.0));
-            let enabled = current_normalized(cx, PARAM_CHORUS_ENABLED);
-            param_checkbox(cx, PARAM_CHORUS_ENABLED, "On", enabled > 0.5);
-        })
-        .height(Units::Auto)
-        .gap(Pixels(8.0));
+        effect_header(cx, PARAM_CHORUS_ENABLED, "Chorus");
 
         HStack::new(cx, |cx| {
             let rate_v = current_normalized(cx, PARAM_CHORUS_RATE);
@@ -93,16 +75,7 @@ pub fn build_chorus_section(cx: &mut Context) {
 
 pub fn build_delay_section(cx: &mut Context) {
     VStack::new(cx, |cx| {
-        HStack::new(cx, |cx| {
-            Label::new(cx, "Delay")
-                .font_size(14.0)
-                .color(Color::rgb(200, 200, 210))
-                .height(Pixels(22.0));
-            let enabled = current_normalized(cx, PARAM_DELAY_ENABLED);
-            param_checkbox(cx, PARAM_DELAY_ENABLED, "On", enabled > 0.5);
-        })
-        .height(Units::Auto)
-        .gap(Pixels(8.0));
+        effect_header(cx, PARAM_DELAY_ENABLED, "Delay");
 
         HStack::new(cx, |cx| {
             let time_v = current_normalized(cx, PARAM_DELAY_TIME_MS);
@@ -148,16 +121,7 @@ pub fn build_delay_section(cx: &mut Context) {
 
 pub fn build_reverb_section(cx: &mut Context) {
     VStack::new(cx, |cx| {
-        HStack::new(cx, |cx| {
-            Label::new(cx, "Reverb")
-                .font_size(14.0)
-                .color(Color::rgb(200, 200, 210))
-                .height(Pixels(22.0));
-            let enabled = current_normalized(cx, PARAM_REVERB_ENABLED);
-            param_checkbox(cx, PARAM_REVERB_ENABLED, "On", enabled > 0.5);
-        })
-        .height(Units::Auto)
-        .gap(Pixels(8.0));
+        effect_header(cx, PARAM_REVERB_ENABLED, "Reverb");
 
         HStack::new(cx, |cx| {
             let room_v = current_normalized(cx, PARAM_REVERB_ROOM_SIZE);

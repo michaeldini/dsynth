@@ -1,22 +1,13 @@
 // Multiband effects: multiband distortion, stereo widener
 
-use super::super::helpers::{current_normalized, default_normalized};
-use crate::gui::widgets::{param_checkbox, param_knob};
+use super::super::helpers::{current_normalized, default_normalized, effect_header};
+use crate::gui::widgets::{param_knob};
 use crate::plugin::param_descriptor::*;
 use vizia::prelude::*;
 
 pub fn build_multiband_distortion_section(cx: &mut Context) {
     VStack::new(cx, |cx| {
-        HStack::new(cx, |cx| {
-            Label::new(cx, "Multiband Distortion")
-                .font_size(14.0)
-                .color(Color::rgb(200, 200, 210))
-                .height(Pixels(22.0));
-            let enabled = current_normalized(cx, PARAM_MB_DIST_ENABLED);
-            param_checkbox(cx, PARAM_MB_DIST_ENABLED, "On", enabled > 0.5);
-        })
-        .height(Units::Auto)
-        .gap(Pixels(8.0));
+        effect_header(cx, PARAM_MB_DIST_ENABLED, "Multiband Distortion");
 
         // Crossover frequencies
         HStack::new(cx, |cx| {
@@ -109,16 +100,7 @@ pub fn build_multiband_distortion_section(cx: &mut Context) {
 
 pub fn build_stereo_widener_section(cx: &mut Context) {
     VStack::new(cx, |cx| {
-        HStack::new(cx, |cx| {
-            Label::new(cx, "Stereo Widener")
-                .font_size(14.0)
-                .color(Color::rgb(200, 200, 210))
-                .height(Pixels(22.0));
-            let enabled = current_normalized(cx, PARAM_WIDENER_ENABLED);
-            param_checkbox(cx, PARAM_WIDENER_ENABLED, "On", enabled > 0.5);
-        })
-        .height(Units::Auto)
-        .gap(Pixels(8.0));
+        effect_header(cx, PARAM_WIDENER_ENABLED, "Stereo Widener");
 
         HStack::new(cx, |cx| {
             let haas_delay_v = current_normalized(cx, PARAM_WIDENER_HAAS_DELAY);

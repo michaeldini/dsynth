@@ -1,22 +1,13 @@
 // Dynamics effects: compressor
 
-use super::super::helpers::{current_normalized, default_normalized};
-use crate::gui::widgets::{param_checkbox, param_knob};
+use super::super::helpers::{current_normalized, default_normalized, effect_header};
+use crate::gui::widgets::{param_knob};
 use crate::plugin::param_descriptor::*;
 use vizia::prelude::*;
 
 pub fn build_compressor_section(cx: &mut Context) {
     VStack::new(cx, |cx| {
-        HStack::new(cx, |cx| {
-            Label::new(cx, "Compressor")
-                .font_size(14.0)
-                .color(Color::rgb(200, 200, 210))
-                .height(Pixels(22.0));
-            let enabled = current_normalized(cx, PARAM_COMPRESSOR_ENABLED);
-            param_checkbox(cx, PARAM_COMPRESSOR_ENABLED, "On", enabled > 0.5);
-        })
-        .gap(Pixels(8.0))
-        .height(Units::Auto);
+        effect_header(cx, PARAM_COMPRESSOR_ENABLED, "Compressor");
 
         HStack::new(cx, |cx| {
             let thresh_v = current_normalized(cx, PARAM_COMPRESSOR_THRESHOLD);
