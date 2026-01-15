@@ -83,7 +83,6 @@ pub mod dsp;
 /// 2. **Event channel**: Sends user-triggered events (note on/off from keyboard)
 #[cfg(any(
     feature = "standalone",
-    feature = "kick-synth",
     feature = "clap",
     feature = "kick-clap"
 ))]
@@ -111,8 +110,8 @@ pub mod midi;
 /// - Distortion/saturation
 /// - Master controls
 ///
-/// Conditionally compiled when the "kick-synth" or "kick-clap" feature is enabled.
-#[cfg(any(feature = "kick-synth", feature = "kick-clap"))]
+/// Conditionally compiled when the "kick-clap" feature is enabled.
+#[cfg(feature = "kick-clap")]
 pub mod params_kick;
 
 /// The **params** module defines all synthesizer parameters and their metadata.

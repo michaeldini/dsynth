@@ -96,16 +96,19 @@ pub struct SynthEngine {
     ///
     /// This is a transparent peak limiter (not a saturator). It prevents hard clipping
     /// at the output without introducing harmonic distortion like `tanh()`.
+    #[allow(dead_code)]
     limiter_gain: f32,
 
     /// One-pole smoothing coefficient for limiter attack.
     ///
     /// We intentionally smooth *both* attack and release to avoid instantaneous gain steps,
     /// which can present as clicks when a new note causes a sudden peak increase.
+    #[allow(dead_code)]
     limiter_attack_coeff: f32,
 
     /// One-pole smoothing coefficient for limiter release.
     /// Recovery is smoothed to avoid pumping; gain reduction is applied instantly.
+    #[allow(dead_code)]
     limiter_release_coeff: f32,
 
     /// Smoothed polyphonic gain compensation.
@@ -513,6 +516,7 @@ impl SynthEngine {
 
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     fn apply_output_limiter(&mut self, left: f32, right: f32) -> (f32, f32) {
         // Leave a small headroom margin so sample format conversion/interleaving
         // doesn’t accidentally exceed full scale due to rounding.

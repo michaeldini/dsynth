@@ -36,6 +36,7 @@ use super::crossover::LR2Crossover;
 
 /// Multi-band compressor with 3 frequency bands
 pub struct MultibandCompressor {
+    #[allow(dead_code)]
     sample_rate: f32,
 
     // Cascade crossovers: input → low/mid+high → mid/high split

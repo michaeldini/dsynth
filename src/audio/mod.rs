@@ -122,8 +122,8 @@ pub mod voice;
 /// - Simplified parameter set focused on kick drums
 /// - Lower CPU overhead than the full polyphonic engine
 ///
-/// Conditionally compiled when the "kick-synth" or "kick-clap" feature is enabled.
-#[cfg(any(feature = "kick-synth", feature = "kick-clap"))]
+/// Conditionally compiled when the "kick-clap" feature is enabled.
+#[cfg(feature = "kick-clap")]
 pub mod kick_engine;
 
 /// The **kick_voice** module implements a single kick drum voice.
@@ -134,8 +134,8 @@ pub mod kick_engine;
 /// - Built-in distortion/saturation
 /// - Simpler parameter set
 ///
-/// Conditionally compiled when the "kick-synth" or "kick-clap" feature is enabled.
-#[cfg(any(feature = "kick-synth", feature = "kick-clap"))]
+/// Conditionally compiled when the "kick-clap" feature is enabled.
+#[cfg(feature = "kick-clap")]
 pub mod kick_voice;
 
 /// Re-export `create_parameter_buffer` for convenient access from outside the audio module.
