@@ -267,6 +267,62 @@ impl SynthEngine {
         }
     }
 
+    /// Check and apply parameter updates from the triple-buffer at throttled intervals.
+    ///
+    /// This function implements **parameter throttling** - a critical real-time audio pattern that:
+    /// - Reads parameter changes from the lock-free triple-buffer (pushed by the GUI thread)
+    /// - Applies them only every 32 samples (~0.7ms at 44.1kHz) instead of every sample
+    /// - Balances responsiveness (fast-enough GUI feedback) with CPU efficiency (fewer updates)
+    ///
+    /// ## Why Throttling?
+    /// Updating every sample would:
+    /// - Force expensive operations (recalculating filter coefficients, updating all 16 voices) 44,100 times/sec
+    /// - Cause unnecessary CPU overhead since human ears can't perceive changes faster than ~10ms
+    /// - Violate real-time audio best practices (minimize work in hot loops)
+    ///
+    /// At 44.1kHz, updating every 32 samples = ~1378 updates/second = ~10ms granularity, which:
+    /// - Feels responsive to user interaction (knob turns appear immediate)
+    /// - Allows smooth parameter sweeps (no audible steps)
+    /// - Reduces CPU load from ~16,800 updates/sec → ~1,378 updates/sec
+    ///
+    /// ## Algorithm
+    /// 1. Increment sample counter each call
+    /// 2. Return early if counter hasn't reached the interval yet (< 32 samples)
+    /// 3. Reset counter to 0
+    /// 4. Read latest parameters from triple-buffer (non-blocking)
+    /// 5. If parameters changed: Apply to all active voices and effects
+    /// 6. Handle tempo-synced LFO rate calculations
+    /// 7. Detect sync mode changes (for LFO phase reset)
+    ///
+    /// ## Triple-Buffer Pattern
+    /// The triple-buffer is a lock-free data structure with three slots:
+    /// - **GUI thread writes** to one slot while the audio thread reads from another
+    /// - **No locking needed** - audio thread never blocks on GUI thread
+    /// - **Two-phase handshake** swaps slots once per `maybe_update_params()` call
+    /// - See [TRIPLE_BUFFER.md](TRIPLE_BUFFER.md) for detailed explanation
+    ///
+    /// ## Tempo Syncing
+    /// When an LFO has `tempo_sync != Hz`:
+    /// - Converts musical time divisions (e.g., 1/4 note, 1/8 triplet) to Hz
+    /// - Uses current BPM from DAW (via CLAP extension)
+    /// - Formula: `rate_hz = tempo_division_to_hz(sync_mode, bpm)`
+    /// - Modified rates are passed to voices, not stored to `current_params`
+    ///
+    /// ## Sync Mode Changes
+    /// When user switches an LFO from "Hz" mode to "1/4 Note" tempo sync:
+    /// - Detects the mode change here
+    /// - Marks it in `previous_sync_modes` array
+    /// - Voices receive the mode change and reset LFO phase (see `Voice::update_parameters`)
+    /// - This prevents audible discontinuities when switching sync modes
+    ///
+    /// ## Called From
+    /// Called at the start of `process_stereo_internal()` every audio sample, but only does
+    /// real work every 32 samples due to the throttling check.
+    ///
+    /// # Performance Note
+    /// Despite being `#[inline]`, the early-return pattern (sample_counter < param_update_interval)
+    /// means this function has near-zero cost on 31 of every 32 calls - just a counter increment
+    /// and comparison. Only 1 in 32 calls actually updates parameters (which is heavier work).
     #[inline]
     fn maybe_update_params(&mut self) {
         self.sample_counter += 1;
