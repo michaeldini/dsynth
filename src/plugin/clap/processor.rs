@@ -2,7 +2,9 @@ use super::super::{param_descriptor::ParamId, param_update::param_apply};
 use crate::audio::engine::SynthEngine;
 use crate::params::SynthParams;
 use crate::plugin::gui_param_change::GuiParamChange;
-use clap_sys::events::{clap_event_header, clap_event_note, clap_event_param_value, clap_event_transport};
+use clap_sys::events::{
+    clap_event_header, clap_event_note, clap_event_param_value, clap_event_transport,
+};
 /// CLAP Audio Processor
 ///
 /// Handles audio processing callbacks from the CLAP host, integrating with SynthEngine.
@@ -126,7 +128,7 @@ impl ClapProcessor {
 
         // Process audio through the engine
         for i in 0..frames {
-            let (left, right) = self.engine.process_stereo();
+            let (left, right) = self.engine.process();
             left_out[i] = left;
             right_out[i] = right;
         }
@@ -200,7 +202,7 @@ impl ClapProcessor {
     /// Process transport event (tempo changes)
     unsafe fn process_transport_event(&mut self, event: *const clap_event_transport) {
         let transport = unsafe { &*event };
-        
+
         // Check if tempo is valid (CLAP_TRANSPORT_HAS_TEMPO flag)
         const CLAP_TRANSPORT_HAS_TEMPO: u32 = 1 << 0;
         if transport.flags & CLAP_TRANSPORT_HAS_TEMPO != 0 {
