@@ -87,14 +87,7 @@ impl Clipper {
     /// (left_out, right_out) - Clipped stereo pair
     #[inline]
     pub fn process_stereo(&self, left: f32, right: f32) -> (f32, f32) {
-        if !self.enabled {
-            return (left, right);
-        }
-
-        (
-            left.clamp(-self.threshold, self.threshold),
-            right.clamp(-self.threshold, self.threshold),
-        )
+        (self.process(left), self.process(right))
     }
 
     /// Reset clipper state (no-op for stateless clipper)

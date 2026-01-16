@@ -9,9 +9,9 @@ pub mod master;
 pub mod oscillators;
 pub mod traits;
 
-use crate::gui::GuiState;
 use crate::gui::messages::UiTab;
 use crate::gui::theme;
+use crate::gui::GuiState;
 use vizia::prelude::*;
 
 fn tab_button(cx: &mut Context, label: &str, tab: UiTab, active_tab: UiTab) {
@@ -142,7 +142,7 @@ pub fn build_ui(cx: &mut Context) {
                                 oscillators::build_waveform_specific_section(cx, 1);
                             })
                             .width(Pixels(theme::OSC_COL_WIDTH))
-                            .height(Units::Auto)
+                            .height(Pixels(900.0))
                             .padding(Pixels(10.0))
                             .gap(Pixels(10.0))
                             .background_color(theme::BG_SECTION);
@@ -153,7 +153,7 @@ pub fn build_ui(cx: &mut Context) {
                                 oscillators::build_waveform_specific_section(cx, 2);
                             })
                             .width(Pixels(theme::OSC_COL_WIDTH))
-                            .height(Units::Auto)
+                            .height(Pixels(900.0))
                             .padding(Pixels(10.0))
                             .gap(Pixels(10.0))
                             .background_color(theme::BG_SECTION);
@@ -164,7 +164,7 @@ pub fn build_ui(cx: &mut Context) {
                                 oscillators::build_waveform_specific_section(cx, 3);
                             })
                             .width(Pixels(theme::OSC_COL_WIDTH))
-                            .height(Units::Auto)
+                            .height(Pixels(900.0))
                             .padding(Pixels(10.0))
                             .gap(Pixels(10.0))
                             .background_color(theme::BG_SECTION);

@@ -64,7 +64,7 @@ fn test_note_off_releases_voice() {
 
     // Process through release
     for _ in 0..20000 {
-        engine.process();
+        engine.process_mono();
     }
 
     // Should be inactive after release completes
@@ -109,7 +109,7 @@ fn test_voice_stealing_quietest() {
 
     // Process to build up RMS values
     for _ in 0..500 {
-        engine.process();
+        engine.process_mono();
     }
 
     // Trigger one more note - should steal quietest
@@ -154,7 +154,7 @@ fn test_output_generation() {
     // Process samples and verify output
     let mut has_output = false;
     for _ in 0..1000 {
-        let sample = engine.process();
+        let sample = engine.process_mono();
         if sample.abs() > 0.001 {
             has_output = true;
             break;
@@ -183,12 +183,12 @@ fn test_parameter_updates() {
     producer.write(new_params);
 
     // Process should pick up new parameters
-    engine.process();
+    engine.process_mono();
 
     // Verify by checking that output is affected by master gain
     engine.note_on(60, 1.0);
     for _ in 0..100 {
-        engine.process();
+        engine.process_mono();
     }
 
     // Parameters were updated (verified implicitly through processing)
@@ -235,7 +235,7 @@ fn test_zero_velocity_note() {
     // Process samples - should remain silent.
     let mut max_output = 0.0_f32;
     for _ in 0..1000 {
-        let sample = engine.process();
+        let sample = engine.process_mono();
         max_output = max_output.max(sample.abs());
     }
 
@@ -262,12 +262,12 @@ fn test_no_clipping_on_basic_chord() {
 
     // Let the envelope get past attack.
     for _ in 0..4000 {
-        let _ = engine.process_stereo();
+        let _ = engine.process();
     }
 
     let mut max_peak = 0.0_f32;
     for _ in 0..12000 {
-        let (l, r) = engine.process_stereo();
+        let (l, r) = engine.process();
         max_peak = max_peak.max(l.abs().max(r.abs()));
     }
 
@@ -289,7 +289,7 @@ fn test_monophonic_legato_note_change_does_not_zero_output() {
     let mut prev = 0.0_f32;
     let mut max_abs = 0.0_f32;
     for _ in 0..20000 {
-        let s = engine.process();
+        let s = engine.process_mono();
         max_abs = max_abs.max(s.abs());
         if s.abs() > 0.01 {
             prev = s;
@@ -304,7 +304,7 @@ fn test_monophonic_legato_note_change_does_not_zero_output() {
 
     // Press another key while still holding the first (overlap => legato switch).
     engine.note_on(64, 1.0);
-    let next = engine.process();
+    let next = engine.process_mono();
 
     // The key property: we should not hard-drop to (near) silence on the very next sample.
     // Use a relative check so the test doesn't assume any particular patch loudness.
@@ -328,7 +328,7 @@ fn test_monophonic_fast_retrigger_does_not_hard_drop() {
     let mut prev = 0.0_f32;
     let mut max_abs = 0.0_f32;
     for _ in 0..20000 {
-        let s = engine.process();
+        let s = engine.process_mono();
         max_abs = max_abs.max(s.abs());
         if s.abs() > 0.02 {
             prev = s;
@@ -344,7 +344,7 @@ fn test_monophonic_fast_retrigger_does_not_hard_drop() {
     // Release then immediately retrigger the same key (typical fast tapping).
     engine.note_off(60);
     engine.note_on(60, 1.0);
-    let next = engine.process();
+    let next = engine.process_mono();
 
     // The key property: first sample after retrigger should not drop near zero.
     assert!(

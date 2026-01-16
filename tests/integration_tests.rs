@@ -69,7 +69,7 @@ fn test_midi_to_engine_integration() {
 
     // Process some audio
     for _ in 0..100 {
-        engine.process();
+        engine.process_mono();
     }
 
     // Process note off
@@ -103,7 +103,7 @@ fn test_polyphonic_performance() {
     let start = std::time::Instant::now();
 
     for _ in 0..buffer_size {
-        let _sample = engine.process();
+        let _sample = engine.process_mono();
     }
 
     let elapsed = start.elapsed();

@@ -62,7 +62,7 @@ fn test_unison_3_with_polyphony_no_clipping() {
     let mut clip_count = 0;
 
     for _ in 0..num_samples {
-        let sample = engine.process(); // Returns mono sum
+        let sample = engine.process_mono(); // Returns mono sum
 
         // Track peak amplitude
         let peak = sample.abs();
@@ -198,14 +198,14 @@ fn measure_rms_with_unison(sample_rate: f32, unison_count: usize) -> f32 {
     // Measure RMS over 512 samples (after attack)
     // Skip first 256 samples to let attack settle
     for _ in 0..256 {
-        engine.process();
+        engine.process_mono();
     }
 
     let mut rms_sum = 0.0;
     let num_samples = 512;
 
     for _ in 0..num_samples {
-        let sample = engine.process();
+        let sample = engine.process_mono();
         rms_sum += sample * sample;
     }
 
@@ -256,7 +256,7 @@ fn test_extreme_unison_7_full_polyphony() {
     let mut clip_count = 0;
 
     for _ in 0..num_samples {
-        let sample = engine.process();
+        let sample = engine.process_mono();
         let peak = sample.abs();
         max_peak = max_peak.max(peak);
 
@@ -324,7 +324,7 @@ fn test_pre_limiter_peak_measurement() {
     let mut samples = Vec::with_capacity(num_samples);
 
     for _ in 0..num_samples {
-        let sample = engine.process();
+        let sample = engine.process_mono();
         samples.push(sample);
     }
 
@@ -390,14 +390,14 @@ fn test_user_scenario_exact() {
 
     // Skip attack phase (first 100ms = 4410 samples)
     for _ in 0..4410 {
-        engine.process();
+        engine.process_mono();
     }
 
     // Measure sustained output over 1024 samples
     let num_samples = 1024;
     let mut samples = Vec::with_capacity(num_samples);
     for _ in 0..num_samples {
-        let sample = engine.process();
+        let sample = engine.process_mono();
         samples.push(sample);
     }
 
@@ -465,14 +465,14 @@ fn test_increased_gains_scenario() {
 
     // Skip attack
     for _ in 0..4410 {
-        engine.process();
+        engine.process_mono();
     }
 
     // Measure
     let num_samples = 2048;
     let mut samples = Vec::with_capacity(num_samples);
     for _ in 0..num_samples {
-        let sample = engine.process();
+        let sample = engine.process_mono();
         samples.push(sample);
     }
 

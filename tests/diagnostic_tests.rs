@@ -69,7 +69,7 @@ fn diagnostic_polyphony_playback() {
     let window_size = 100;
 
     for i in 0..total_samples {
-        let sample = engine.process();
+        let sample = engine.process_mono();
         samples.push(sample);
 
         // Calculate windowed metrics
@@ -275,7 +275,7 @@ fn test_attack_transients() {
         let attack_end = (params.envelope.attack * sample_rate) as usize;
 
         for i in 0..capture_samples {
-            let sample = engine.process();
+            let sample = engine.process_mono();
             samples.push(sample);
 
             let abs_sample = sample.abs();
@@ -346,7 +346,7 @@ fn test_attack_transients() {
     println!("──────────────────────────────────");
 
     for i in 0..50 {
-        let sample = engine.process();
+        let sample = engine.process_mono();
         let abs_val = sample.abs();
         let status = if abs_val > 1.0 {
             "CLIP!"
@@ -403,7 +403,7 @@ fn test_with_filter_resonance() {
 
     let mut samples = Vec::new();
     for _ in 0..5000 {
-        samples.push(engine.process());
+        samples.push(engine.process_mono());
     }
 
     let max_peak = samples.iter().map(|s| s.abs()).fold(0.0_f32, f32::max);
@@ -486,7 +486,7 @@ fn definitive_output_level_test() {
         let mut samples = Vec::with_capacity(one_second);
 
         for _ in 0..one_second {
-            samples.push(engine.process());
+            samples.push(engine.process_mono());
         }
 
         // Calculate detailed statistics
@@ -588,7 +588,7 @@ fn my_exact_scenario() {
     let mut samples = Vec::new();
 
     for _ in 0..5000 {
-        let sample = engine.process();
+        let sample = engine.process_mono();
         samples.push(sample);
         max_peak = max_peak.max(sample.abs());
     }

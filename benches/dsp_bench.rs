@@ -129,7 +129,7 @@ fn benchmark_engine(c: &mut Criterion) {
     }
 
     c.bench_function("engine_8_voices", |b| {
-        b.iter(|| black_box(engine.process()));
+        b.iter(|| black_box(engine.process_mono()));
     });
 }
 
@@ -143,7 +143,7 @@ fn benchmark_engine_full_polyphony(c: &mut Criterion) {
     }
 
     c.bench_function("engine_16_voices", |b| {
-        b.iter(|| black_box(engine.process()));
+        b.iter(|| black_box(engine.process_mono()));
     });
 }
 
@@ -248,7 +248,7 @@ fn render_main_scene(scene: MainScene) -> meter::LoudnessMetrics {
     }
 
     for _ in 0..ATTACK_SKIP {
-        engine.process();
+        engine.process_mono();
     }
 
     let mut left = vec![0.0f32; SCENE_SAMPLES];

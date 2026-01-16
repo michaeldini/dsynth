@@ -91,8 +91,8 @@ impl AudioOutput {
 
                     for frame in data.chunks_mut(channels) {
                         if channels >= 2 {
-                            // Stereo output
-                            let (sample_left, sample_right) = engine.process_stereo();
+                            // Stereo output - use process() which now returns stereo by default
+                            let (sample_left, sample_right) = engine.process();
                             frame[0] = cpal::Sample::from_sample(sample_left);
                             frame[1] = cpal::Sample::from_sample(sample_right);
                             // Fill any additional channels with right channel
@@ -100,8 +100,8 @@ impl AudioOutput {
                                 frame[i] = cpal::Sample::from_sample(sample_right);
                             }
                         } else {
-                            // Mono output fallback
-                            let sample = engine.process();
+                            // Mono output fallback - explicitly use process_mono()
+                            let sample = engine.process_mono();
                             let sample_t = cpal::Sample::from_sample(sample);
                             for channel_sample in frame.iter_mut() {
                                 *channel_sample = sample_t;

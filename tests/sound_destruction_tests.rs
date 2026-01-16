@@ -46,13 +46,13 @@ fn test_sine_wave_phase_cancellation() {
 
         // Let attack finish (100 samples)
         for _ in 0..100 {
-            engine.process();
+            engine.process_mono();
         }
 
         // Now measure steady-state output
         let mut samples = Vec::new();
         for _ in 0..5000 {
-            samples.push(engine.process());
+            samples.push(engine.process_mono());
         }
 
         let max_peak = samples.iter().map(|s| s.abs()).fold(0.0_f32, f32::max);
@@ -182,7 +182,7 @@ fn test_sound_consistency_over_time() {
 
     // Skip attack
     for _ in 0..200 {
-        engine.process();
+        engine.process_mono();
     }
 
     // Capture 10 seconds of audio and analyze for consistency
@@ -193,7 +193,7 @@ fn test_sound_consistency_over_time() {
     println!("(sine waves, unison=7, 3 oscillators)\n");
 
     for _ in 0..ten_seconds {
-        samples.push(engine.process());
+        samples.push(engine.process_mono());
     }
 
     // Analyze in 1-second windows
@@ -288,13 +288,13 @@ fn test_unison_output_comparison() {
 
         // Skip attack
         for _ in 0..200 {
-            engine.process();
+            engine.process_mono();
         }
 
         // Measure sustained output
         let mut samples = Vec::new();
         for _ in 0..5000 {
-            samples.push(engine.process());
+            samples.push(engine.process_mono());
         }
 
         let rms = (samples.iter().map(|s| s * s).sum::<f32>() / samples.len() as f32).sqrt();

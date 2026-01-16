@@ -100,25 +100,6 @@ pub struct SynthEngine {
     /// effects (like LFO) still work because they're applied per-sample within the voice DSP.
     param_update_interval: u32,
 
-    /// Current gain reduction applied by the master limiter.
-    ///
-    /// This is a transparent peak limiter (not a saturator). It prevents hard clipping
-    /// at the output without introducing harmonic distortion like `tanh()`.
-    #[allow(dead_code)]
-    limiter_gain: f32,
-
-    /// One-pole smoothing coefficient for limiter attack.
-    ///
-    /// We intentionally smooth *both* attack and release to avoid instantaneous gain steps,
-    /// which can present as clicks when a new note causes a sudden peak increase.
-    #[allow(dead_code)]
-    limiter_attack_coeff: f32,
-
-    /// One-pole smoothing coefficient for limiter release.
-    /// Recovery is smoothed to avoid pumping; gain reduction is applied instantly.
-    #[allow(dead_code)]
-    limiter_release_coeff: f32,
-
     /// Smoothed polyphonic gain compensation.
     ///
     /// A hard step in poly compensation (e.g., 1.0 → 1/√2 when going 1→2 voices)
@@ -197,13 +178,6 @@ impl SynthEngine {
             voices.push(Voice::new(sample_rate));
         }
 
-        // Limiter tuning: very fast (but smoothed) attack, slower release.
-        // Smoothing prevents instantaneous gain steps that can sound like clicks.
-        let limiter_attack_s = 0.0002; // 0.2ms
-        let limiter_release_s = 0.050; // 50ms
-        let limiter_attack_coeff = (-1.0 / (limiter_attack_s * sample_rate)).exp();
-        let limiter_release_coeff = (-1.0 / (limiter_release_s * sample_rate)).exp();
-
         // Polyphonic gain compensation smoothing.
         // Keep attack fast enough to prevent overload, but smooth enough to avoid clicks
         // when active voice count changes (pressing/releasing keys).
@@ -230,9 +204,6 @@ impl SynthEngine {
             note_stack: Vec::new(),
             sample_counter: 0,
             param_update_interval: 32, // Update every 32 samples (~0.7ms at 44.1kHz)
-            limiter_gain: 1.0,
-            limiter_attack_coeff,
-            limiter_release_coeff,
             poly_gain: 1.0,
             poly_gain_attack_coeff,
             poly_gain_release_coeff,
@@ -316,7 +287,7 @@ impl SynthEngine {
     /// - This prevents audible discontinuities when switching sync modes
     ///
     /// ## Called From
-    /// Called at the start of `process_stereo_internal()` every audio sample, but only does
+    /// Called at the start of `process()` every audio sample, but only does
     /// real work every 32 samples due to the throttling check.
     ///
     /// # Performance Note
@@ -380,79 +351,25 @@ impl SynthEngine {
 
     /// Update effects processors with current parameters
     fn update_effects_params(&mut self) {
-        // Extract all params at once to avoid borrow issues with get_effective_rate
-        let (
-            reverb_params,
-            delay_params,
-            chorus_rate_hz,
-            chorus_tempo_sync,
-            chorus_depth,
-            chorus_mix,
-            distortion_drive,
-            distortion_mix,
-            distortion_type,
-            mb_dist,
-            stereo_widener_params,
-            phaser_rate_hz,
-            phaser_tempo_sync,
-            phaser_depth,
-            phaser_feedback,
-            phaser_mix,
-            flanger_rate_hz,
-            flanger_tempo_sync,
-            flanger_feedback,
-            flanger_depth,
-            flanger_mix,
-            tremolo_rate_hz,
-            tremolo_tempo_sync,
-            tremolo_depth,
-            autopan_rate_hz,
-            autopan_tempo_sync,
-            autopan_depth,
-            comb_filter_params,
-            ring_mod_params,
-            compressor_params,
-            bitcrusher_params,
-            waveshaper_params,
-            exciter_params,
-        ) = {
-            let effects = &self.current_params.effects;
-            (
-                effects.reverb,
-                effects.delay,
-                effects.chorus.rate,
-                effects.chorus.tempo_sync,
-                effects.chorus.depth,
-                effects.chorus.mix,
-                effects.distortion.drive,
-                effects.distortion.mix,
-                effects.distortion.dist_type,
-                effects.multiband_distortion,
-                effects.stereo_widener,
-                effects.phaser.rate,
-                effects.phaser.tempo_sync,
-                effects.phaser.depth,
-                effects.phaser.feedback,
-                effects.phaser.mix,
-                effects.flanger.rate,
-                effects.flanger.tempo_sync,
-                effects.flanger.feedback,
-                effects.flanger.depth,
-                effects.flanger.mix,
-                effects.tremolo.rate,
-                effects.tremolo.tempo_sync,
-                effects.tremolo.depth,
-                effects.auto_pan.rate,
-                effects.auto_pan.tempo_sync,
-                effects.auto_pan.depth,
-                effects.comb_filter,
-                effects.ring_mod,
-                effects.compressor,
-                effects.bitcrusher,
-                effects.waveshaper,
-                effects.exciter,
-            )
-        }; // effects borrow dropped here
+        // Extract all effect params at once to avoid borrow issues with get_effective_rate
+        // Using full structs for consistency and maintainability
+        let effects = &self.current_params.effects;
+        let reverb_params = effects.reverb;
+        let delay_params = effects.delay;
+        let chorus_params = effects.chorus;
+        let distortion_params = effects.distortion;
+        let mb_dist = effects.multiband_distortion;
+        let stereo_widener_params = effects.stereo_widener;
+        let phaser_params = effects.phaser;
+        let flanger_params = effects.flanger;
+        let tremolo_params = effects.tremolo;
+        let autopan_params = effects.auto_pan;
+        let comb_filter_params = effects.comb_filter;
+        let ring_mod_params = effects.ring_mod;
+        let compressor_params = effects.compressor;
+        let bitcrusher_params = effects.bitcrusher;
+        let waveshaper_params = effects.waveshaper;
+        let exciter_params = effects.exciter;
 
         // Update reverb
         self.reverb.set_room_size(reverb_params.room_size);
@@ -469,18 +386,18 @@ impl SynthEngine {
 
         // Update chorus with tempo sync
         let chorus_rate = self.get_effective_rate(
-            chorus_rate_hz,
-            chorus_tempo_sync,
+            chorus_params.rate,
+            chorus_params.tempo_sync,
             3, // Index in previous_sync_modes (LFO1=0, LFO2=1, LFO3=2, Chorus=3)
         );
         self.chorus.set_rate(chorus_rate);
-        self.chorus.set_depth(chorus_depth);
-        self.chorus.set_mix(chorus_mix);
+        self.chorus.set_depth(chorus_params.depth);
+        self.chorus.set_mix(chorus_params.mix);
 
         // Update distortion
-        self.distortion.set_drive(distortion_drive);
-        self.distortion.set_mix(distortion_mix);
-        self.distortion.set_type(distortion_type.into());
+        self.distortion.set_drive(distortion_params.drive);
+        self.distortion.set_mix(distortion_params.mix);
+        self.distortion.set_type(distortion_params.dist_type.into());
 
         // Update multiband distortion
         self.multiband_distortion
@@ -508,45 +425,45 @@ impl SynthEngine {
 
         // Update phaser with tempo sync
         let phaser_rate = self.get_effective_rate(
-            phaser_rate_hz,
-            phaser_tempo_sync,
+            phaser_params.rate,
+            phaser_params.tempo_sync,
             4, // Phaser index in previous_sync_modes
         );
         self.phaser.set_rate(phaser_rate);
-        self.phaser.set_depth(phaser_depth);
-        self.phaser.set_feedback(phaser_feedback);
-        self.phaser.set_mix(phaser_mix);
+        self.phaser.set_depth(phaser_params.depth);
+        self.phaser.set_feedback(phaser_params.feedback);
+        self.phaser.set_mix(phaser_params.mix);
 
         // Update flanger with tempo sync
         let flanger_rate = self.get_effective_rate(
-            flanger_rate_hz,
-            flanger_tempo_sync,
+            flanger_params.rate,
+            flanger_params.tempo_sync,
             5, // Flanger index in previous_sync_modes
         );
         self.flanger.set_rate(flanger_rate);
-        self.flanger.set_feedback(flanger_feedback);
-        self.flanger.set_mix(flanger_mix);
+        self.flanger.set_feedback(flanger_params.feedback);
+        self.flanger.set_mix(flanger_params.mix);
         // Flanger depth controls delay range (depth maps to max delay)
-        let flanger_max_delay = 0.5 + flanger_depth * 14.5; // 0.5-15ms
+        let flanger_max_delay = 0.5 + flanger_params.depth * 14.5; // 0.5-15ms
         self.flanger.set_delay_range(0.5, flanger_max_delay);
 
         // Update tremolo with tempo sync
         let tremolo_rate = self.get_effective_rate(
-            tremolo_rate_hz,
-            tremolo_tempo_sync,
+            tremolo_params.rate,
+            tremolo_params.tempo_sync,
             6, // Tremolo index in previous_sync_modes
         );
         self.tremolo.set_rate(tremolo_rate);
-        self.tremolo.set_depth(tremolo_depth);
+        self.tremolo.set_depth(tremolo_params.depth);
 
         // Update auto-pan with tempo sync
         let autopan_rate = self.get_effective_rate(
-            autopan_rate_hz,
-            autopan_tempo_sync,
+            autopan_params.rate,
+            autopan_params.tempo_sync,
             7, // AutoPan index in previous_sync_modes
         );
         self.auto_pan.set_rate(autopan_rate);
-        self.auto_pan.set_depth(autopan_depth);
+        self.auto_pan.set_depth(autopan_params.depth);
 
         // Update comb filter
         self.comb_filter.set_frequency(comb_filter_params.frequency);
@@ -578,45 +495,64 @@ impl SynthEngine {
         self.exciter.set_mix(exciter_params.mix);
     }
 
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    fn apply_output_limiter(&mut self, left: f32, right: f32) -> (f32, f32) {
-        // Leave a small headroom margin so sample format conversion/interleaving
-        // doesn’t accidentally exceed full scale due to rounding.
-        const THRESHOLD: f32 = 0.98;
-
-        let peak = left.abs().max(right.abs());
-
-        // Compute instantaneous target gain to keep peak under threshold.
-        let target_gain = if peak > THRESHOLD {
-            // Avoid divide-by-zero; peak>THRESHOLD implies peak>0.
-            THRESHOLD / peak
-        } else {
-            1.0
-        };
-
-        // Smooth attack and release to avoid instantaneous gain steps (clicks).
-        // This may allow a rare single-sample clamp on extreme transients, which is
-        // generally less audible than a hard gain discontinuity.
-        if target_gain < self.limiter_gain {
-            let coeff = self.limiter_attack_coeff;
-            self.limiter_gain = coeff * self.limiter_gain + (1.0 - coeff) * target_gain;
-        } else {
-            let coeff = self.limiter_release_coeff;
-            self.limiter_gain = coeff * self.limiter_gain + (1.0 - coeff) * target_gain;
-        }
-
-        let out_l = left * self.limiter_gain;
-        let out_r = right * self.limiter_gain;
-
-        // Safety clamp (should not engage with instantaneous attack).
-        (out_l.clamp(-1.0, 1.0), out_r.clamp(-1.0, 1.0))
-    }
-
-    #[inline]
-    #[must_use]
-    fn process_stereo_internal(&mut self) -> (f32, f32) {
+    /// Process one stereo sample and return both left and right channels.
+    ///
+    /// **This is the primary real-time audio processing method.** It's called once per audio
+    /// sample by the audio thread (44,100 times per second at 44.1kHz). Everything must happen
+    /// in microseconds without blocking.
+    ///
+    /// ## Why Stereo?
+    ///
+    /// The synthesizer generates true stereo internally through:
+    /// - Voice panning and stereo positioning
+    /// - Stereo effects (reverb, delay, chorus, auto-pan, stereo widener)
+    /// - Spatial processing (mid/side, Haas effect)
+    ///
+    /// Returning stereo preserves this spatial information. Use `process_mono()` if you need
+    /// mono output (it averages the channels).
+    ///
+    /// ## Algorithm
+    ///
+    /// 1. **Parameter Update Check** (every 32 samples):
+    ///    - Read from the triple-buffer to see if parameters changed
+    ///    - If they did: Update all active voices with the new parameters
+    ///    - Why throttle? Reading every sample would be expensive and unnecessary
+    ///    - Why update active voices only? Saving CPU on idle voices
+    ///
+    /// 2. **Voice Processing** (every sample):
+    ///    - Call process() on each of the 16 voices
+    ///    - Each voice generates its own stereo sample
+    ///    - Voices run independently, in parallel
+    ///
+    /// 3. **Mixing**:
+    ///    - Add all voice outputs together (separately for left and right)
+    ///    - Apply polyphonic gain compensation to prevent distortion
+    ///
+    /// 4. **Effects Chain**:
+    ///    - Process through 16+ stereo effects (when enabled)
+    ///    - Order is intentional: dynamics → distortion → modulation → reverb
+    ///
+    /// 5. **Master Processing**:
+    ///    - Apply master gain
+    ///    - Look-ahead limiter for transparent peak limiting
+    ///
+    /// # Returns
+    /// Tuple (left_sample, right_sample) where each is approximately -1.0 to +1.0
+    ///
+    /// # Example
+    /// ```
+    /// use dsynth::audio::engine::{SynthEngine, create_parameter_buffer};
+    /// let (_producer, consumer) = create_parameter_buffer();
+    /// let mut engine = SynthEngine::new(44100.0, consumer);
+    ///
+    /// engine.note_on(60, 0.8);
+    /// let (left, right) = engine.process();
+    ///
+    /// // Verify stereo output is in valid range
+    /// assert!(left.is_finite() && right.is_finite());
+    /// assert!(left.abs() < 2.0 && right.abs() < 2.0);
+    /// ```
+    pub fn process(&mut self) -> (f32, f32) {
         self.maybe_update_params();
 
         // Mix all voices - stereo
@@ -671,12 +607,13 @@ impl SynthEngine {
         // 1. Dynamics (compressor) - control peaks first
         // 2. Distortion/saturation (distortion, waveshaper, bitcrusher) - add harmonics
         // 3. Multiband distortion - frequency-specific saturation
-        // 4. Filter effects (comb filter, phaser, flanger) - frequency/phase manipulation
-        // 5. Pitch modulation (ring modulator, tremolo) - amplitude/frequency effects
-        // 6. Chorus - adds width/detuning
-        // 7. Delay - rhythmic repeats
-        // 8. Spatial effects (auto-pan, stereo widener) - stereo field manipulation
-        // 9. Reverb last - final ambience/space
+        // 4. Harmonic enhancement (exciter) - frequency-specific harmonics after multiband
+        // 5. Filter effects (comb filter, phaser, flanger) - frequency/phase manipulation
+        // 6. Pitch modulation (ring modulator, tremolo) - amplitude/frequency effects
+        // 7. Chorus - adds width/detuning
+        // 8. Delay - rhythmic repeats
+        // 9. Spatial effects (auto-pan, stereo widener) - stereo field manipulation
+        // 10. Reverb last - final ambience/space
         //
         // Conditional processing: Skip disabled effects to save CPU
         let mut out_l = output_left;
@@ -691,14 +628,14 @@ impl SynthEngine {
         if self.current_params.effects.waveshaper.enabled {
             (out_l, out_r) = self.waveshaper.process(out_l, out_r);
         }
-        if self.current_params.effects.exciter.enabled {
-            (out_l, out_r) = self.exciter.process(out_l, out_r);
-        }
         if self.current_params.effects.bitcrusher.enabled {
             (out_l, out_r) = self.bitcrusher.process(out_l, out_r);
         }
         if self.current_params.effects.multiband_distortion.enabled {
             (out_l, out_r) = self.multiband_distortion.process_stereo(out_l, out_r);
+        }
+        if self.current_params.effects.exciter.enabled {
+            (out_l, out_r) = self.exciter.process(out_l, out_r);
         }
         if self.current_params.effects.comb_filter.enabled {
             (out_l, out_r) = self.comb_filter.process(out_l, out_r);
@@ -772,8 +709,8 @@ impl SynthEngine {
     /// engine.note_on(60, 0.8);  // Play middle C at 80% velocity
     ///
     /// // Verify note triggered by checking we get audio output
-    /// let output = engine.process();
-    /// assert!(output.abs() < 2.0, "Output should be in valid range");
+    /// let (left, right) = engine.process();
+    /// assert!(left.abs() < 2.0 && right.abs() < 2.0, "Output should be in valid range");
     /// ```
     pub fn note_on(&mut self, note: u8, velocity: f32) {
         // MIDI semantics: NoteOn with velocity 0 is equivalent to NoteOff.
@@ -874,8 +811,8 @@ impl SynthEngine {
     /// engine.note_off(60);  // Release middle C
     ///
     /// // Note is now releasing - verify output is still finite
-    /// let output = engine.process();
-    /// assert!(output.is_finite(), "Output should be finite");
+    /// let (left, right) = engine.process();
+    /// assert!(left.is_finite() && right.is_finite(), "Output should be finite");
     /// ```
     pub fn note_off(&mut self, note: u8) {
         if self.current_params.monophonic {
@@ -958,43 +895,6 @@ impl SynthEngine {
         for voice in &mut self.voices {
             voice.reset();
         }
-    }
-
-    /// Process one audio sample and return the mixed output.
-    ///
-    /// This is the main real-time audio processing function. It's called once per audio sample
-    /// by the audio thread (44,100 times per second at 44.1kHz). Everything must happen in
-    /// microseconds without blocking.
-    ///
-    /// ## Algorithm
-    ///
-    /// 1. **Parameter Update Check** (every 32 samples):
-    ///    - Read from the triple-buffer to see if parameters changed
-    ///    - If they did: Update all active voices with the new parameters
-    ///    - Why throttle? Reading every sample would be expensive and unnecessary
-    ///    - Why update active voices only? Saving CPU on idle voices
-    ///
-    /// 2. **Voice Processing** (every sample):
-    ///    - Call process() on each of the 16 voices
-    ///    - Each voice generates its own audio sample (0.0 to ±1.0)
-    ///    - Voices run independently, in parallel
-    ///
-    /// 3. **Mixing**:
-    ///    - Add all voice outputs together
-    ///    - 16 voices × 1.0 could theoretically give 16.0, but release envelopes prevent this
-    ///    - With proper voice allocation, rarely more than 2-4 voices are loud simultaneously
-    ///
-    /// 4. **Master Gain**:
-    ///    - Multiply by master_gain parameter (typically 0.5-1.0)
-    ///    - This prevents clipping and gives overall volume control
-    ///
-    /// # Returns
-    /// A single mono audio sample (-1.0 to +1.0). Note: This version averages stereo outputs
-    /// from voices for backward compatibility.
-    pub fn process(&mut self) -> f32 {
-        let (left, right) = self.process_stereo_internal();
-        // Return mono average (kept for compatibility).
-        (left + right) / 2.0
     }
 
     /// Get the count of currently active voices.
@@ -1170,22 +1070,23 @@ impl SynthEngine {
         modified_lfos
     }
 
-    /// Process one stereo sample and return both left and right channels.
+    /// Process one sample and return mono output (averaged from stereo).
     ///
-    /// This is similar to process() but returns a full stereo pair instead of mono.
-    /// Use this when the output device supports stereo (which is almost always).
+    /// This is a convenience method that averages the left and right channels into a single
+    /// mono signal. Use this only if you truly need mono output (e.g., mono hardware, testing).
     ///
-    /// Some voices can produce stereo output (e.g., with pan modulation or stereo effects).
-    /// By returning both channels separately, we preserve this spatial information.
-    /// The process() method averages these channels, losing stereo information.
+    /// **⚠️ Note**: This discards stereo spatial information from effects like reverb, chorus,
+    /// auto-pan, and stereo widener. For most applications, use `process()` which returns
+    /// true stereo.
     ///
-    /// ## Algorithm
-    /// Identical to process() but:
-    /// - Accumulates (left, right) tuples from each voice
-    /// - Returns the pair instead of averaging to mono
+    /// ## When to Use Mono
+    ///
+    /// - Output device is mono only (rare)
+    /// - Testing/debugging where stereo doesn't matter
+    /// - Specific mixing scenarios requiring mono sum
     ///
     /// # Returns
-    /// Tuple (left_sample, right_sample) where each is approximately -1.0 to +1.0
+    /// A single mono audio sample (-1.0 to +1.0), averaged from left and right channels
     ///
     /// # Example
     /// ```
@@ -1194,40 +1095,37 @@ impl SynthEngine {
     /// let mut engine = SynthEngine::new(44100.0, consumer);
     ///
     /// engine.note_on(60, 0.8);
-    /// let (left, right) = engine.process_stereo();
+    /// let mono_sample = engine.process_mono();
     ///
-    /// // Verify stereo output is in valid range
-    /// assert!(left.is_finite() && right.is_finite(), "Stereo outputs should be finite");
-    /// assert!(left.abs() < 2.0 && right.abs() < 2.0, "Outputs should be in valid range");
-    ///
-    /// // Example of filling audio buffer
-    /// let mut audio_buffer = vec![0.0f32; 512];
-    /// let frame = 0;
-    /// audio_buffer[frame * 2] = left;
-    /// audio_buffer[frame * 2 + 1] = right;
+    /// assert!(mono_sample.is_finite());
+    /// assert!(mono_sample.abs() < 2.0);
     /// ```
-    pub fn process_stereo(&mut self) -> (f32, f32) {
-        self.process_stereo_internal()
+    pub fn process_mono(&mut self) -> f32 {
+        let (left, right) = self.process();
+        (left + right) / 2.0
     }
 
-    /// Process a block of audio samples efficiently.
+    /// Process a block of stereo audio samples efficiently.
     ///
-    /// This is more efficient than calling process() or process_stereo() in a loop because:
+    /// **This is the preferred method for CLAP plugins** and any code that processes audio
+    /// in blocks rather than individual samples. It's more efficient than calling `process()`
+    /// in a loop because:
     /// - Loop overhead is eliminated
-    /// - Parameter throttling (every 32 samples) is amortized across many samples
-    /// - Can be optimized more aggressively by the compiler (SIMD vectorization, etc.)
+    /// - Parameter throttling (every 32 samples) is amortized across the block
+    /// - Can be optimized more aggressively by the compiler (SIMD vectorization, loop unrolling)
     ///
-    /// This is the preferred method for CLAP plugins, which receive audio in blocks
-    /// (typically 256-4096 samples) rather than one at a time. DAW hosts call this once
-    /// per buffer, so it's critical that it's fast.
+    /// DAW hosts typically call this with blocks of 256-4096 samples per buffer, so it's
+    /// critical that this method is fast.
     ///
-    /// Note: This version duplicates stereo output to both left and right channels.
-    /// For true stereo separation, you'd need to track pan per-voice or use actual
-    /// stereo voice processing.
+    /// True stereo output is preserved: left and right channels are generated independently
+    /// by the synthesizer's panning, stereo effects, and spatial processing.
     ///
     /// # Arguments
     /// * `left` - Output buffer for left channel (will be filled with samples)
     /// * `right` - Output buffer for right channel (will be filled with samples)
+    ///
+    /// # Panics
+    /// Does not panic. If buffers have different lengths, processes up to the shorter length.
     ///
     /// # Example
     /// ```
@@ -1244,15 +1142,14 @@ impl SynthEngine {
     /// // Verify all samples are finite and in valid range
     /// assert!(left.iter().all(|&s| s.is_finite() && s.abs() < 2.0));
     /// assert!(right.iter().all(|&s| s.is_finite() && s.abs() < 2.0));
-    /// // Now left and right contain 256 audio samples ready to send to the audio device
     /// ```
     pub fn process_block(&mut self, left: &mut [f32], right: &mut [f32]) {
         let len = left.len().min(right.len());
 
         for i in 0..len {
-            let sample = self.process();
-            left[i] = sample;
-            right[i] = sample;
+            let (l, r) = self.process();
+            left[i] = l;
+            right[i] = r;
         }
     }
 

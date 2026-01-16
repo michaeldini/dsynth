@@ -40,11 +40,13 @@ pub enum DistortionType {
     Diode,
 }
 
-/// Distortion/waveshaper processor
+/// Distortion/waveshaper processor with true stereo processing
 pub struct Distortion {
-    // DC blocking filter (high-pass at ~10Hz)
-    dc_block_x1: f32,
-    dc_block_y1: f32,
+    // DC blocking filters (high-pass at ~10Hz) - separate L/R for true stereo
+    dc_block_x1_l: f32,
+    dc_block_y1_l: f32,
+    dc_block_x1_r: f32,
+    dc_block_y1_r: f32,
     dc_block_coeff: f32,
 
     // Parameters
@@ -66,8 +68,10 @@ impl Distortion {
         let dc_block_coeff = rc / (rc + dt);
 
         Self {
-            dc_block_x1: 0.0,
-            dc_block_y1: 0.0,
+            dc_block_x1_l: 0.0,
+            dc_block_y1_l: 0.0,
+            dc_block_x1_r: 0.0,
+            dc_block_y1_r: 0.0,
             dc_block_coeff,
             drive: 0.0,
             mix: 0.5,
@@ -190,21 +194,25 @@ impl Distortion {
         }
     }
 
-    /// DC blocking filter (high-pass)
-    fn dc_block(&mut self, input: f32) -> f32 {
-        let output = self.dc_block_coeff * (self.dc_block_y1 + input - self.dc_block_x1);
-        self.dc_block_x1 = input;
-        self.dc_block_y1 = output;
+    /// DC blocking filter (high-pass) - static function for a single channel
+    #[inline]
+    fn dc_block(coeff: f32, input: f32, x1: &mut f32, y1: &mut f32) -> f32 {
+        let output = coeff * (*y1 + input - *x1);
+        *x1 = input;
+        *y1 = output;
         output
     }
 
-    /// Process a single sample
+    /// Process a single sample (uses left channel DC blocking state)
     ///
     /// # Arguments
     /// * `input` - Input sample
     ///
     /// # Returns
     /// Distorted output sample
+    ///
+    /// **Note**: For true stereo processing, use `process_stereo()` which maintains
+    /// separate DC blocking state for each channel.
     pub fn process(&mut self, input: f32) -> f32 {
         // Map drive (0.0 to 1.0) to gain (1.0 to 50.0) - reduced from 100x for more control
         let gain = 1.0 + self.drive * 49.0;
@@ -216,13 +224,18 @@ impl Distortion {
         let compensated = distorted / (1.0 + self.drive * 0.3);
 
         // DC blocking (prevents DC offset from asymmetric distortion)
-        let blocked = self.dc_block(compensated);
+        let blocked = Self::dc_block(
+            self.dc_block_coeff,
+            compensated,
+            &mut self.dc_block_x1_l,
+            &mut self.dc_block_y1_l,
+        );
 
         // Mix wet and dry
         input * (1.0 - self.mix) + blocked * self.mix
     }
 
-    /// Process a stereo sample pair
+    /// Process a stereo sample pair with independent L/R DC blocking
     ///
     /// # Arguments
     /// * `input_l` - Left channel input
@@ -230,16 +243,44 @@ impl Distortion {
     ///
     /// # Returns
     /// Tuple of (left_output, right_output)
+    ///
+    /// **True Stereo**: Each channel maintains independent DC blocking state,
+    /// preserving stereo imaging and preventing cross-channel artifacts.
     pub fn process_stereo(&mut self, input_l: f32, input_r: f32) -> (f32, f32) {
-        let out_l = self.process(input_l);
-        let out_r = self.process(input_r);
+        // Map drive (0.0 to 1.0) to gain (1.0 to 50.0)
+        let gain = 1.0 + self.drive * 49.0;
+
+        // Process left channel
+        let distorted_l = self.apply_distortion(input_l, gain);
+        let compensated_l = distorted_l / (1.0 + self.drive * 0.3);
+        let blocked_l = Self::dc_block(
+            self.dc_block_coeff,
+            compensated_l,
+            &mut self.dc_block_x1_l,
+            &mut self.dc_block_y1_l,
+        );
+        let out_l = input_l * (1.0 - self.mix) + blocked_l * self.mix;
+
+        // Process right channel
+        let distorted_r = self.apply_distortion(input_r, gain);
+        let compensated_r = distorted_r / (1.0 + self.drive * 0.3);
+        let blocked_r = Self::dc_block(
+            self.dc_block_coeff,
+            compensated_r,
+            &mut self.dc_block_x1_r,
+            &mut self.dc_block_y1_r,
+        );
+        let out_r = input_r * (1.0 - self.mix) + blocked_r * self.mix;
+
         (out_l, out_r)
     }
 
-    /// Clear filter state
+    /// Clear filter state for both channels
     pub fn clear(&mut self) {
-        self.dc_block_x1 = 0.0;
-        self.dc_block_y1 = 0.0;
+        self.dc_block_x1_l = 0.0;
+        self.dc_block_y1_l = 0.0;
+        self.dc_block_x1_r = 0.0;
+        self.dc_block_y1_r = 0.0;
     }
 }
 
@@ -437,9 +478,11 @@ mod tests {
         // Clear
         dist.clear();
 
-        // DC blocker state should be reset
-        assert_eq!(dist.dc_block_x1, 0.0);
-        assert_eq!(dist.dc_block_y1, 0.0);
+        // DC blocker state should be reset (check both channels)
+        assert_eq!(dist.dc_block_x1_l, 0.0);
+        assert_eq!(dist.dc_block_y1_l, 0.0);
+        assert_eq!(dist.dc_block_x1_r, 0.0);
+        assert_eq!(dist.dc_block_y1_r, 0.0);
     }
 
     #[test]

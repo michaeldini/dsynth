@@ -18,7 +18,6 @@
 /// - **Bass** (< 200Hz): Can be heavily saturated for "weight" without affecting clarity
 /// - **Mids** (200Hz - 2kHz): The "body" of most sounds, moderate saturation
 /// - **Highs** (> 2kHz): Often left cleaner for "air" and clarity
-
 use std::f32::consts::PI;
 
 /// Linkwitz-Riley 2nd order crossover filter pair
@@ -128,13 +127,15 @@ impl LR2Crossover {
     }
 }
 
-/// Multi-band distortion processor with 3 independent bands
+/// Multi-band distortion processor with 3 independent bands and true stereo
 pub struct MultibandDistortion {
     sample_rate: f32,
 
-    // Two crossovers: low/mid and mid/high
-    xover_low_mid: LR2Crossover,
-    xover_mid_high: LR2Crossover,
+    // Two crossovers per channel: low/mid and mid/high
+    xover_low_mid_l: LR2Crossover,
+    xover_mid_high_l: LR2Crossover,
+    xover_low_mid_r: LR2Crossover,
+    xover_mid_high_r: LR2Crossover,
 
     // Crossover frequencies
     low_mid_freq: f32,
@@ -153,10 +154,13 @@ pub struct MultibandDistortion {
     // Global mix (wet/dry)
     mix: f32,
 
-    // DC blocking filters per band
-    dc_block_low: (f32, f32, f32), // x1, y1, coeff
-    dc_block_mid: (f32, f32, f32),
-    dc_block_high: (f32, f32, f32),
+    // DC blocking filters per band per channel (x1, y1, coeff)
+    dc_block_low_l: (f32, f32, f32),
+    dc_block_mid_l: (f32, f32, f32),
+    dc_block_high_l: (f32, f32, f32),
+    dc_block_low_r: (f32, f32, f32),
+    dc_block_mid_r: (f32, f32, f32),
+    dc_block_high_r: (f32, f32, f32),
 }
 
 impl MultibandDistortion {
@@ -173,8 +177,10 @@ impl MultibandDistortion {
 
         Self {
             sample_rate,
-            xover_low_mid: LR2Crossover::new(sample_rate, 200.0),
-            xover_mid_high: LR2Crossover::new(sample_rate, 2000.0),
+            xover_low_mid_l: LR2Crossover::new(sample_rate, 200.0),
+            xover_mid_high_l: LR2Crossover::new(sample_rate, 2000.0),
+            xover_low_mid_r: LR2Crossover::new(sample_rate, 200.0),
+            xover_mid_high_r: LR2Crossover::new(sample_rate, 2000.0),
             low_mid_freq: 200.0,
             mid_high_freq: 2000.0,
             drive_low: 0.0,
@@ -184,9 +190,12 @@ impl MultibandDistortion {
             gain_mid: 1.0,
             gain_high: 1.0,
             mix: 0.5,
-            dc_block_low: (0.0, 0.0, dc_coeff),
-            dc_block_mid: (0.0, 0.0, dc_coeff),
-            dc_block_high: (0.0, 0.0, dc_coeff),
+            dc_block_low_l: (0.0, 0.0, dc_coeff),
+            dc_block_mid_l: (0.0, 0.0, dc_coeff),
+            dc_block_high_l: (0.0, 0.0, dc_coeff),
+            dc_block_low_r: (0.0, 0.0, dc_coeff),
+            dc_block_mid_r: (0.0, 0.0, dc_coeff),
+            dc_block_high_r: (0.0, 0.0, dc_coeff),
         }
     }
 
@@ -195,7 +204,8 @@ impl MultibandDistortion {
         let freq = freq.clamp(50.0, 500.0);
         if (self.low_mid_freq - freq).abs() > 1.0 {
             self.low_mid_freq = freq;
-            self.xover_low_mid.set_frequency(self.sample_rate, freq);
+            self.xover_low_mid_l.set_frequency(self.sample_rate, freq);
+            self.xover_low_mid_r.set_frequency(self.sample_rate, freq);
         }
     }
 
@@ -204,7 +214,8 @@ impl MultibandDistortion {
         let freq = freq.clamp(1000.0, 8000.0);
         if (self.mid_high_freq - freq).abs() > 1.0 {
             self.mid_high_freq = freq;
-            self.xover_mid_high.set_frequency(self.sample_rate, freq);
+            self.xover_mid_high_l.set_frequency(self.sample_rate, freq);
+            self.xover_mid_high_r.set_frequency(self.sample_rate, freq);
         }
     }
 
@@ -264,13 +275,16 @@ impl MultibandDistortion {
         output
     }
 
-    /// Process a single mono sample
+    /// Process a single mono sample (uses left channel state)
+    ///
+    /// **Note**: For true stereo processing, use `process_stereo()` which maintains
+    /// separate crossover and DC blocking state for each channel.
     pub fn process(&mut self, input: f32) -> f32 {
         // Split into low and (mid+high)
-        let (low, mid_high) = self.xover_low_mid.process(input);
+        let (low, mid_high) = self.xover_low_mid_l.process(input);
 
         // Split mid+high into mid and high
-        let (mid, high) = self.xover_mid_high.process(mid_high);
+        let (mid, high) = self.xover_mid_high_l.process(mid_high);
 
         // Apply saturation to each band
         let low_sat = Self::saturate(low, self.drive_low);
@@ -278,38 +292,72 @@ impl MultibandDistortion {
         let high_sat = Self::saturate(high, self.drive_high);
 
         // DC block each band
-        let low_clean = Self::dc_block(&mut self.dc_block_low, low_sat);
-        let mid_clean = Self::dc_block(&mut self.dc_block_mid, mid_sat);
-        let high_clean = Self::dc_block(&mut self.dc_block_high, high_sat);
+        let low_clean = Self::dc_block(&mut self.dc_block_low_l, low_sat);
+        let mid_clean = Self::dc_block(&mut self.dc_block_mid_l, mid_sat);
+        let high_clean = Self::dc_block(&mut self.dc_block_high_l, high_sat);
 
         // Apply per-band gain and sum
-        let wet = low_clean * self.gain_low + mid_clean * self.gain_mid + high_clean * self.gain_high;
+        let wet =
+            low_clean * self.gain_low + mid_clean * self.gain_mid + high_clean * self.gain_high;
 
         // Mix wet and dry
         input * (1.0 - self.mix) + wet * self.mix
     }
 
-    /// Process a stereo sample pair
+    /// Process a stereo sample pair with independent L/R crossovers and DC blocking
+    ///
+    /// **True Stereo**: Each channel has independent crossover filters and DC blocking,
+    /// preserving stereo imaging and frequency-dependent spatial information.
     pub fn process_stereo(&mut self, input_l: f32, input_r: f32) -> (f32, f32) {
-        // For now, process mono (sum to mono, then output to both channels)
-        // A more sophisticated implementation would have separate L/R crossovers
-        let mono = (input_l + input_r) * 0.5;
-        let processed = self.process(mono);
+        // Process left channel
+        let (low_l, mid_high_l) = self.xover_low_mid_l.process(input_l);
+        let (mid_l, high_l) = self.xover_mid_high_l.process(mid_high_l);
 
-        // Preserve stereo image by applying the wet/dry processing per channel
-        // This is a simple approach; full stereo would need duplicate state
-        let out_l = input_l * (1.0 - self.mix) + processed * self.mix;
-        let out_r = input_r * (1.0 - self.mix) + processed * self.mix;
+        let low_sat_l = Self::saturate(low_l, self.drive_low);
+        let mid_sat_l = Self::saturate(mid_l, self.drive_mid);
+        let high_sat_l = Self::saturate(high_l, self.drive_high);
+
+        let low_clean_l = Self::dc_block(&mut self.dc_block_low_l, low_sat_l);
+        let mid_clean_l = Self::dc_block(&mut self.dc_block_mid_l, mid_sat_l);
+        let high_clean_l = Self::dc_block(&mut self.dc_block_high_l, high_sat_l);
+
+        let wet_l = low_clean_l * self.gain_low
+            + mid_clean_l * self.gain_mid
+            + high_clean_l * self.gain_high;
+        let out_l = input_l * (1.0 - self.mix) + wet_l * self.mix;
+
+        // Process right channel
+        let (low_r, mid_high_r) = self.xover_low_mid_r.process(input_r);
+        let (mid_r, high_r) = self.xover_mid_high_r.process(mid_high_r);
+
+        let low_sat_r = Self::saturate(low_r, self.drive_low);
+        let mid_sat_r = Self::saturate(mid_r, self.drive_mid);
+        let high_sat_r = Self::saturate(high_r, self.drive_high);
+
+        let low_clean_r = Self::dc_block(&mut self.dc_block_low_r, low_sat_r);
+        let mid_clean_r = Self::dc_block(&mut self.dc_block_mid_r, mid_sat_r);
+        let high_clean_r = Self::dc_block(&mut self.dc_block_high_r, high_sat_r);
+
+        let wet_r = low_clean_r * self.gain_low
+            + mid_clean_r * self.gain_mid
+            + high_clean_r * self.gain_high;
+        let out_r = input_r * (1.0 - self.mix) + wet_r * self.mix;
+
         (out_l, out_r)
     }
 
-    /// Clear all filter state
+    /// Clear all filter state for both channels
     pub fn clear(&mut self) {
-        self.xover_low_mid.clear();
-        self.xover_mid_high.clear();
-        self.dc_block_low = (0.0, 0.0, self.dc_block_low.2);
-        self.dc_block_mid = (0.0, 0.0, self.dc_block_mid.2);
-        self.dc_block_high = (0.0, 0.0, self.dc_block_high.2);
+        self.xover_low_mid_l.clear();
+        self.xover_mid_high_l.clear();
+        self.xover_low_mid_r.clear();
+        self.xover_mid_high_r.clear();
+        self.dc_block_low_l = (0.0, 0.0, self.dc_block_low_l.2);
+        self.dc_block_mid_l = (0.0, 0.0, self.dc_block_mid_l.2);
+        self.dc_block_high_l = (0.0, 0.0, self.dc_block_high_l.2);
+        self.dc_block_low_r = (0.0, 0.0, self.dc_block_low_r.2);
+        self.dc_block_mid_r = (0.0, 0.0, self.dc_block_mid_r.2);
+        self.dc_block_high_r = (0.0, 0.0, self.dc_block_high_r.2);
     }
 }
 
@@ -364,7 +412,7 @@ mod tests {
     fn test_multiband_saturation() {
         let mut mb = MultibandDistortion::new(44100.0);
         mb.set_mix(1.0);
-        mb.set_drive_low(1.0);  // Full drive for strong saturation
+        mb.set_drive_low(1.0); // Full drive for strong saturation
         mb.set_drive_mid(1.0);
         mb.set_drive_high(1.0);
 
@@ -419,9 +467,12 @@ mod tests {
         // Clear state
         mb.clear();
 
-        // DC block state should be cleared
-        assert_eq!(mb.dc_block_low.0, 0.0);
-        assert_eq!(mb.dc_block_mid.0, 0.0);
-        assert_eq!(mb.dc_block_high.0, 0.0);
+        // DC block state should be cleared (check both channels)
+        assert_eq!(mb.dc_block_low_l.0, 0.0);
+        assert_eq!(mb.dc_block_mid_l.0, 0.0);
+        assert_eq!(mb.dc_block_high_l.0, 0.0);
+        assert_eq!(mb.dc_block_low_r.0, 0.0);
+        assert_eq!(mb.dc_block_mid_r.0, 0.0);
+        assert_eq!(mb.dc_block_high_r.0, 0.0);
     }
 }

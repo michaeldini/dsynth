@@ -111,7 +111,7 @@ fn benchmark_engine_with_parameter_changes(c: &mut Criterion) {
 
             // Process samples (engine checks for updates every 32 samples)
             for _ in 0..32 {
-                black_box(engine.process());
+                black_box(engine.process_mono());
             }
         });
     });
@@ -128,7 +128,7 @@ fn benchmark_engine_with_parameter_changes(c: &mut Criterion) {
         b.iter(|| {
             // No parameter writes; measures steady-state processing + periodic buffer read
             for _ in 0..32 {
-                black_box(engine.process());
+                black_box(engine.process_mono());
             }
         });
     });

@@ -100,7 +100,7 @@ mod optimization_tests {
         // Process multiple samples - parameter changes should be throttled
         let mut outputs = Vec::new();
         for _ in 0..100 {
-            outputs.push(engine.process());
+            outputs.push(engine.process_mono());
         }
 
         // All outputs should be finite
@@ -136,7 +136,7 @@ mod optimization_tests {
             producer.write(params);
 
             for _ in 0..44 {
-                let output = engine.process();
+                let output = engine.process_mono();
                 max_output = max_output.max(output);
                 min_output = min_output.min(output);
             }
@@ -381,7 +381,7 @@ mod optimization_tests {
                 producer.write(params);
             }
 
-            let output = engine.process();
+            let output = engine.process_mono();
 
             // Check output quality
             assert!(output.is_finite(), "Output should be finite");

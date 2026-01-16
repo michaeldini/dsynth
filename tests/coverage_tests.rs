@@ -40,7 +40,7 @@ fn test_envelope_attack_phase() {
 
     for i in 0..4410 {
         // 100ms at 44100 Hz
-        let sample = engine.process();
+        let sample = engine.process_mono();
         if i == 0 {
             first_sample = sample;
         }
@@ -92,13 +92,13 @@ fn test_envelope_sustain_level() {
     // Decay: 0.05s * 44100 = 2205 samples  
     // Total: 2646 samples (need to process this many to guarantee sustain)
     for _ in 0..3000 {
-        engine.process();
+        engine.process_mono();
     }
 
     // Measure sustain level (should be ~0.6 of peak)
     let mut sustain_samples = vec![];
     for _ in 0..4410 {
-        sustain_samples.push(engine.process());
+        sustain_samples.push(engine.process_mono());
     }
 
     let sustain_peak = sustain_samples
@@ -138,7 +138,7 @@ fn test_envelope_release_phase() {
 
     // Play through attack + decay + sustain
     for _ in 0..(220 + 8820) {
-        engine.process();
+        engine.process_mono();
     }
 
     // Now release
@@ -149,7 +149,7 @@ fn test_envelope_release_phase() {
 
     for i in 0..8820 {
         // 200ms release at 44100 Hz
-        let sample = engine.process();
+        let sample = engine.process_mono();
         if i < 2205 {
             // First 50ms of release
             release_peak_early = release_peak_early.max(sample.abs());
@@ -184,12 +184,12 @@ fn test_velocity_affects_amplitude() {
 
         // Skip attack and measure sustain
         for _ in 0..4410 {
-            engine.process();
+            engine.process_mono();
         }
 
         let mut sustain_samples = vec![];
         for _ in 0..2205 {
-            sustain_samples.push(engine.process());
+            sustain_samples.push(engine.process_mono());
         }
 
         sustain_samples
@@ -227,12 +227,12 @@ fn test_zero_velocity_silent() {
     engine.note_on(60, 0.0);
 
     for _ in 0..4410 {
-        engine.process();
+        engine.process_mono();
     }
 
     let mut samples = vec![];
     for _ in 0..2205 {
-        samples.push(engine.process());
+        samples.push(engine.process_mono());
     }
 
     let peak = samples.iter().map(|s| s.abs()).fold(0.0_f32, f32::max);
@@ -274,12 +274,12 @@ fn test_all_waveforms_produce_output() {
 
         // Skip attack
         for _ in 0..4410 {
-            engine.process();
+            engine.process_mono();
         }
 
         let mut samples = vec![];
         for _ in 0..2205 {
-            samples.push(engine.process());
+            samples.push(engine.process_mono());
         }
 
         let peak = samples.iter().map(|s| s.abs()).fold(0.0_f32, f32::max);
@@ -325,7 +325,7 @@ fn test_all_filter_types_stable() {
         let mut inf_count = 0;
 
         for _ in 0..44100 {
-            let sample = engine.process();
+            let sample = engine.process_mono();
             if !sample.is_finite() {
                 if sample.is_nan() {
                     nan_count += 1;
@@ -394,7 +394,7 @@ fn test_voice_stealing_takes_quietest() {
 
     // Process to let envelopes settle
     for _ in 0..44100 {
-        engine.process();
+        engine.process_mono();
     }
 
     // Release the quiet note
@@ -441,7 +441,7 @@ fn test_stereo_pan_affects_balance() {
 
         // Skip attack
         for _ in 0..4410 {
-            engine.process();
+            engine.process_mono();
         }
 
         // Measure stereo output
@@ -505,7 +505,7 @@ fn test_parameter_changes_dont_cause_clicks() {
 
     // Play initial parameters
     for _ in 0..22050 {
-        engine.process();
+        engine.process_mono();
     }
 
     // Change parameters abruptly
@@ -516,7 +516,7 @@ fn test_parameter_changes_dont_cause_clicks() {
     // Measure for clicks (large amplitude spikes relative to RMS)
     let mut samples = vec![];
     for _ in 0..22050 {
-        samples.push(engine.process());
+        samples.push(engine.process_mono());
     }
 
     let peak = samples.iter().map(|s| s.abs()).fold(0.0_f32, f32::max);
@@ -547,7 +547,7 @@ fn test_same_note_twice_retriggers() {
 
     // Play for a bit
     for _ in 0..2205 {
-        engine.process();
+        engine.process_mono();
     }
 
     // Note off
@@ -559,7 +559,7 @@ fn test_same_note_twice_retriggers() {
     // Should have envelopes restarted (attack phase)
     let mut samples = vec![];
     for _ in 0..2205 {
-        samples.push(engine.process());
+        samples.push(engine.process_mono());
     }
 
     let peak = samples.iter().map(|s| s.abs()).fold(0.0_f32, f32::max);
@@ -623,7 +623,7 @@ fn test_extreme_parameter_values() {
     // Should not crash or produce NaN
     let mut nan_count = 0;
     for _ in 0..44100 {
-        let sample = engine.process();
+        let sample = engine.process_mono();
         if !sample.is_finite() {
             nan_count += 1;
         }
@@ -720,13 +720,13 @@ fn test_randomize_produces_audible_output() {
 
         // Skip attack
         for _ in 0..4410 {
-            engine.process();
+            engine.process_mono();
         }
 
         // Measure sustain
         let mut samples = vec![];
         for _ in 0..2205 {
-            samples.push(engine.process());
+            samples.push(engine.process_mono());
         }
 
         let peak = samples.iter().map(|s| s.abs()).fold(0.0_f32, f32::max);
@@ -803,23 +803,23 @@ fn test_monophonic_mode_last_note_priority() {
     // Play three notes in sequence
     engine.note_on(60, 0.8); // C
     for _ in 0..4410 {
-        engine.process();
+        engine.process_mono();
     }
 
     engine.note_on(64, 0.8); // E (overlapping)
     for _ in 0..2205 {
-        engine.process();
+        engine.process_mono();
     }
 
     engine.note_on(67, 0.8); // G (overlapping)
     for _ in 0..2205 {
-        engine.process();
+        engine.process_mono();
     }
 
     // Now release the G (last note)
     engine.note_off(67);
     for _ in 0..2205 {
-        engine.process();
+        engine.process_mono();
     }
 
     // With last-note priority, E should be playing now (was pressed before G)
@@ -834,7 +834,7 @@ fn test_monophonic_mode_last_note_priority() {
     // Release E
     engine.note_off(64);
     for _ in 0..2205 {
-        engine.process();
+        engine.process_mono();
     }
 
     // Now C should be playing (was pressed first, held entire time)
@@ -862,25 +862,25 @@ fn test_monophonic_note_transitions() {
     // Rapid note transitions
     engine.note_on(60, 0.8);
     for _ in 0..2205 {
-        engine.process();
+        engine.process_mono();
     }
 
     engine.note_off(60);
     engine.note_on(64, 0.8);
     for _ in 0..2205 {
-        engine.process();
+        engine.process_mono();
     }
 
     engine.note_off(64);
     engine.note_on(67, 0.8);
     for _ in 0..2205 {
-        engine.process();
+        engine.process_mono();
     }
 
     // Should not crash and should have active voice
     let mut samples = vec![];
     for _ in 0..2205 {
-        samples.push(engine.process());
+        samples.push(engine.process_mono());
     }
 
     let peak = samples.iter().map(|s| s.abs()).fold(0.0_f32, f32::max);
@@ -909,7 +909,7 @@ fn test_monophonic_mode_toggle() {
     engine.note_on(67, 0.8);
 
     for _ in 0..2205 {
-        engine.process();
+        engine.process_mono();
     }
 
     assert_eq!(
@@ -923,7 +923,7 @@ fn test_monophonic_mode_toggle() {
     param_producer.write(params);
 
     for _ in 0..2205 {
-        engine.process();
+        engine.process_mono();
     }
 
     // In monophonic mode, additional notes should still retrigger the voice
@@ -933,13 +933,13 @@ fn test_monophonic_mode_toggle() {
 
     engine.note_on(72, 0.8);
     for _ in 0..2205 {
-        engine.process();
+        engine.process_mono();
     }
 
     // Should be in monophonic playback
     let mut samples = vec![];
     for _ in 0..2205 {
-        samples.push(engine.process());
+        samples.push(engine.process_mono());
     }
 
     let peak = samples.iter().map(|s| s.abs()).fold(0.0_f32, f32::max);
@@ -971,12 +971,12 @@ fn test_key_tracking_higher_notes_higher_cutoff() {
     // Play a low note
     engine.note_on(36, 1.0); // C2
     for _ in 0..6615 {
-        engine.process();
+        engine.process_mono();
     }
 
     let mut samples = vec![];
     for _ in 0..2205 {
-        samples.push(engine.process());
+        samples.push(engine.process_mono());
     }
 
     let peak_low = samples.iter().map(|s| s.abs()).fold(0.0_f32, f32::max);
@@ -986,12 +986,12 @@ fn test_key_tracking_higher_notes_higher_cutoff() {
     engine.note_on(84, 1.0); // C6
 
     for _ in 0..6615 {
-        engine.process();
+        engine.process_mono();
     }
 
     samples.clear();
     for _ in 0..2205 {
-        samples.push(engine.process());
+        samples.push(engine.process_mono());
     }
 
     let peak_high = samples.iter().map(|s| s.abs()).fold(0.0_f32, f32::max);
@@ -1017,12 +1017,12 @@ fn test_key_tracking_zero_disables_feature() {
     // Play a note with key tracking disabled
     engine.note_on(60, 1.0);
     for _ in 0..6615 {
-        engine.process();
+        engine.process_mono();
     }
 
     let mut samples = vec![];
     for _ in 0..2205 {
-        samples.push(engine.process());
+        samples.push(engine.process_mono());
     }
 
     let peak = samples.iter().map(|s| s.abs()).fold(0.0_f32, f32::max);
@@ -1053,7 +1053,7 @@ fn test_key_tracking_modulates_correctly() {
 
         // Process and verify no crashes
         for _ in 0..8820 {
-            let sample = engine.process();
+            let sample = engine.process_mono();
             assert!(
                 sample.is_finite(),
                 "Key tracking {:.1} produced non-finite value",
