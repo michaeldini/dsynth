@@ -1716,7 +1716,7 @@ impl ParamRegistry {
             ParamDescriptor::bool(PARAM_EXCITER_ENABLED, "Enabled", "Exciter", false)
         );
 
-        // Legacy effects enable/disable toggles
+        // Effect enable/disable toggles
         add_param!(
             PARAM_REVERB_ENABLED,
             ParamDescriptor::bool(PARAM_REVERB_ENABLED, "Enabled", "Reverb", false)

@@ -81,7 +81,12 @@ pub mod dsp;
 /// The GUI communicates with the audio engine through:
 /// 1. **Parameter producer**: Sends parameter updates (filter cutoff, volume, etc.)
 /// 2. **Event channel**: Sends user-triggered events (note on/off from keyboard)
-#[cfg(any(feature = "standalone", feature = "clap", feature = "kick-clap"))]
+#[cfg(any(
+    feature = "standalone",
+    feature = "clap",
+    feature = "kick-clap",
+    feature = "voice-clap"
+))]
 pub mod gui;
 
 /// The **midi** module handles incoming MIDI input from hardware controllers and software.
@@ -159,25 +164,40 @@ pub mod preset;
 /// logic ensures parameters stay within reasonable ranges to avoid silent or broken sounds.
 pub mod randomize;
 
-/// The **plugin** module contains parameter system and CLAP plugin implementation.
+/// The **plugin** module contains parameter system shared by plugin and standalone.
 ///
-/// This module is now shared between CLAP plugin and standalone (for unified VIZIA GUI).
 /// It includes:
 /// - Parameter descriptors and registry (shared by plugin and standalone)
 /// - GuiParamChange for lock-free parameter updates (shared)
-/// - CLAP plugin interface (clap feature only)
-/// - State serialization for presets and DAW projects (clap feature only)
-#[cfg(any(feature = "clap", feature = "standalone", feature = "kick-clap"))]
+/// - State serialization for presets and DAW projects
+#[cfg(any(
+    feature = "clap",
+    feature = "standalone",
+    feature = "kick-clap",
+    feature = "voice-clap"
+))]
 pub mod plugin;
+
+/// DSynth (main polyphonic synth) CLAP plugin implemented via `dsynth-clap`.
+#[cfg(feature = "clap")]
+pub mod main_clap;
+
+/// DSynth Kick CLAP plugin implemented via `dsynth-clap`.
+#[cfg(feature = "kick-clap")]
+pub mod kick_clap;
+
+/// DSynth Voice CLAP plugin implemented via `dsynth-clap`.
+#[cfg(feature = "voice-clap")]
+pub mod voice_clap;
 
 // Re-export CLAP entry point at crate root so it's in the dylib symbol table
 #[cfg(feature = "clap")]
-pub use plugin::clap::clap_entry;
+pub use main_clap::clap_entry;
 
 // Re-export kick drum CLAP entry point (kick_plugin exports its own clap_entry function)
 #[cfg(feature = "kick-clap")]
-pub use plugin::clap::kick_plugin::clap_entry;
+pub use kick_clap::clap_entry;
 
 // Re-export voice enhancer CLAP entry point
 #[cfg(feature = "voice-clap")]
-pub use plugin::clap::voice_plugin::clap_entry;
+pub use voice_clap::clap_entry;

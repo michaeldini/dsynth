@@ -309,7 +309,7 @@ pub const PARAM_COMPRESSOR_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 60);
 pub const PARAM_BITCRUSHER_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 61);
 pub const PARAM_WAVESHAPER_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 62);
 
-// Legacy effects enable/disable toggles (IDs 63-68)
+// Effect enable/disable toggles (IDs 63-68)
 pub const PARAM_REVERB_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 63);
 pub const PARAM_DELAY_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 64);
 pub const PARAM_CHORUS_ENABLED: ParamId = make_param_id(MODULE_EFFECTS, 65);

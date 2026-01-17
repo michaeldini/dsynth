@@ -14,8 +14,8 @@ use vizia::prelude::*;
 
 /// GUI state that holds synth parameters and provides VIZIA lens access
 ///
-/// For Phase 1, we keep this simple - just store the Arc and handle updates directly.
-/// In Phase 2, we'll add reactive caching for better performance.
+/// This intentionally stays simple: we store the shared Arc and apply updates directly.
+/// If performance ever becomes an issue, we can add reactive caching.
 #[derive(Clone, Lens)]
 pub struct GuiState {
     /// Shared synthesizer parameters (Arc for cross-thread access)

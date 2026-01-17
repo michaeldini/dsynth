@@ -1,3 +1,7 @@
+[workspace]
+members = [".", "dsynth-clap"]
+exclude = ["dsynth-clap/examples/simple_synth"]
+
 [package]
 name = "dsynth"
 version = "0.3.0"
@@ -12,9 +16,9 @@ crate-type = ["lib", "cdylib"]
 default = ["simd", "standalone"]
 simd = []
 standalone = ["vizia_winit", "cpal", "midir", "rfd"]
-clap = ["vizia_baseview", "clap-sys"]
-kick-clap = ["vizia_baseview", "clap-sys"]  # Kick drum CLAP plugin
-voice-clap = ["vizia_baseview", "clap-sys"] # Voice enhancer CLAP plugin
+clap = ["vizia_baseview", "clap-sys", "dsynth-clap"]
+kick-clap = ["vizia_baseview", "clap-sys", "dsynth-clap"]  # Kick drum CLAP plugin
+voice-clap = ["vizia_baseview", "clap-sys", "dsynth-clap"] # Voice enhancer CLAP plugin
 
 [dependencies]
 # VIZIA from git with both backends - baseview for CLAP plugin, winit for standalone
@@ -33,6 +37,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 bincode = "1.3"
 clap-sys = { version = "0.3", optional = true }
+dsynth-clap = { path = "dsynth-clap", optional = true }
 rfd = { version = "0.15", optional = true }
 rand = "0.8"
 image = "0.25"

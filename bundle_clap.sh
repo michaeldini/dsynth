@@ -1,58 +1,31 @@
 #!/bin/bash
-# Bundle DSynth as CLAP plugin (macOS)
+# Bundle DSynth as a CLAP plugin for macOS (flat .clap Mach-O)
 
 set -e
 
-echo "Building DSynth CLAP plugin..."
+# Colors for output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "${YELLOW}Building DSynth CLAP plugin for macOS...${NC}"
 cargo build --release --lib --features clap
 
-BUNDLE_NAME="DSynth.clap"
-BUNDLE_DIR="target/bundled/${BUNDLE_NAME}"
-CONTENTS_DIR="${BUNDLE_DIR}/Contents"
-MACOS_DIR="${CONTENTS_DIR}/MacOS"
+# Output is a single flat file (REAPER-friendly)
+OUT_DIR="target/bundled"
+OUT_FILE="${OUT_DIR}/DSynth.clap"
 
-echo "Creating bundle structure..."
-rm -rf "${BUNDLE_DIR}"
-mkdir -p "${MACOS_DIR}"
+echo -e "${YELLOW}Creating output directory...${NC}"
+mkdir -p "${OUT_DIR}"
 
-echo "Copying plugin binary..."
-cp target/release/libdsynth.dylib "${MACOS_DIR}/DSynth"
+echo -e "${YELLOW}Copying plugin binary...${NC}"
+cp "target/release/libdsynth.dylib" "${OUT_FILE}"
 
-echo "Creating Info.plist..."
-cat > "${CONTENTS_DIR}/Info.plist" << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>English</string>
-    <key>CFBundleExecutable</key>
-    <string>DSynth</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.dsynth.dsynth</string>
-    <key>CFBundleInfoDictionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</key>
-    <string>DSynth</string>
-    <key>CFBundlePackageType</key>
-    <string>BNDL</string>
-    <key>CFBundleShortVersionString</key>
-    <string>0.3.0</string>
-    <key>CFBundleVersion</key>
-    <string>0.3.0</string>
-    <key>CFBundleSignature</key>
-    <string>????</string>
-</dict>
-</plist>
-EOF
+echo -e "${YELLOW}Fixing library paths...${NC}"
+install_name_tool -id "@loader_path/DSynth.clap" "${OUT_FILE}" || true
 
-echo "Creating PkgInfo..."
-echo -n 'BNDL????' > "${CONTENTS_DIR}/PkgInfo"
+echo -e "${YELLOW}Code signing plugin...${NC}"
+codesign --force --sign - "${OUT_FILE}" || true
 
-echo ""
-echo "✓ CLAP plugin bundled successfully!"
-echo "  Location: ${BUNDLE_DIR}"
-echo ""
-echo "To install:"
-echo "  cp -r '${BUNDLE_DIR}' ~/Library/Audio/Plug-Ins/CLAP/"
-echo ""
+echo -e "${GREEN}✓ Plugin created successfully at ${OUT_FILE}${NC}"
+echo -e "${GREEN}To install: cp ${OUT_FILE} ~/Library/Audio/Plug-Ins/CLAP/${NC}"

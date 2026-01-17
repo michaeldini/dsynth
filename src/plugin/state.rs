@@ -1,7 +1,10 @@
-/// Plugin State Serialization for CLAP
-/// 
-/// This module handles saving and loading plugin state for presets and automation.
-/// Supports both binary serialization for plugin state and JSON for user presets.
+/// Plugin state serialization (CLAP state + user presets)
+///
+/// This module handles saving/loading parameter state for the CLAP state extension
+/// (binary) and for user presets (JSON).
+///
+/// Note: any mention of "migration" in this module refers to *state schema/version*
+/// migration (e.g. preset format v0 → v1), not the historical CLAP integration migration.
 
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -132,9 +135,10 @@ impl PluginState {
         let state: PluginState =
             serde_json::from_str(json).map_err(|e| StateError::DeserializationError(e.to_string()))?;
 
-        // Check version for backward compatibility
+        // Check version for backward compatibility.
+        // If you want to accept older/newer formats, use `PresetMigration::migrate_if_needed()`.
         if state.version != STATE_VERSION {
-            // For now, reject version mismatches; could implement migration logic here
+            // For now, reject version mismatches; schema migration is handled externally.
             return Err(StateError::VersionMismatch {
                 expected: STATE_VERSION,
                 got: state.version,
@@ -145,12 +149,13 @@ impl PluginState {
     }
 }
 
-/// Helper struct for migrating old preset formats (if needed in future)
+/// Helper for preset schema/version migration (if needed)
 pub struct PresetMigration;
 
 impl PresetMigration {
-    /// Migrate an old preset to the current format
-    /// Currently handles v0 → v1 migration if needed
+    /// Migrate a preset JSON string to the current `PluginState` schema.
+    ///
+    /// Currently only provides a best-effort path for v0 → v1.
     pub fn migrate_if_needed(json: &str) -> Result<PluginState, StateError> {
         // Try to parse as current version first
         if let Ok(state) = PluginState::from_json(json) {
@@ -169,7 +174,7 @@ impl PresetMigration {
                 PluginState::from_json(json)
             }
             0 | 2..=u32::MAX => {
-                // Either no version or future version - try to upgrade to v1
+                // Either no version or future version - try to coerce into v1.
                 Self::upgrade_to_v1(v)
             }
         }

@@ -1353,6 +1353,7 @@ dependencies = [
  "cpal",
  "criterion",
  "crossbeam-channel",
+ "dsynth-clap",
  "hound",
  "image",
  "midir",
@@ -1368,6 +1369,18 @@ dependencies = [
  "vizia",
  "vizia_baseview",
  "vizia_winit",
+]
+
+[[package]]
+name = "dsynth-clap"
+version = "0.1.0"
+dependencies = [
+ "approx",
+ "clap-sys",
+ "once_cell",
+ "parking_lot",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
