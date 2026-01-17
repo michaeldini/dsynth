@@ -18,6 +18,11 @@ pub mod kick_plugin;
 #[cfg(feature = "kick-clap")]
 pub mod kick_processor;
 
+#[cfg(feature = "voice-clap")]
+pub mod voice_plugin;
+#[cfg(feature = "voice-clap")]
+pub mod voice_processor;
+
 #[cfg(feature = "clap")]
 pub use plugin::DSynthClapPlugin;
 

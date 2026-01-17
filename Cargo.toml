@@ -14,6 +14,7 @@ simd = []
 standalone = ["vizia_winit", "cpal", "midir", "rfd"]
 clap = ["vizia_baseview", "clap-sys"]
 kick-clap = ["vizia_baseview", "clap-sys"]  # Kick drum CLAP plugin
+voice-clap = ["vizia_baseview", "clap-sys"] # Voice enhancer CLAP plugin
 
 [dependencies]
 # VIZIA from git with both backends - baseview for CLAP plugin, winit for standalone

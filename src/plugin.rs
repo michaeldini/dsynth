@@ -11,6 +11,10 @@ pub mod state;
 #[cfg(any(feature = "kick-clap"))]
 pub mod kick_param_registry;
 
+// Voice enhancer parameter registry
+#[cfg(any(feature = "voice-clap"))]
+pub mod voice_param_registry;
+
 // Phase 2: CLAP Plugin Implementation
-#[cfg(any(feature = "clap", feature = "kick-clap"))]
+#[cfg(any(feature = "clap", feature = "kick-clap", feature = "voice-clap"))]
 pub mod clap;

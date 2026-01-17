@@ -37,6 +37,9 @@ pub enum FilterType {
     Lowpass,
     Highpass,
     Bandpass,
+    Peaking,   // Parametric EQ bell filter (boost/cut at center frequency)
+    LowShelf,  // Low shelf (boost/cut below corner frequency)
+    HighShelf, // High shelf (boost/cut above corner frequency)
 }
 
 impl fmt::Display for FilterType {
@@ -45,6 +48,9 @@ impl fmt::Display for FilterType {
             FilterType::Lowpass => write!(f, "Lowpass"),
             FilterType::Highpass => write!(f, "Highpass"),
             FilterType::Bandpass => write!(f, "Bandpass"),
+            FilterType::Peaking => write!(f, "Peaking"),
+            FilterType::LowShelf => write!(f, "LowShelf"),
+            FilterType::HighShelf => write!(f, "HighShelf"),
         }
     }
 }

@@ -540,11 +540,14 @@ pub mod param_apply {
 
     fn denorm_to_filter_type(denorm: f32) -> Option<crate::params::FilterType> {
         use crate::params::FilterType;
-        // denorm is already the enum index (0-2) from registry.denormalize()
+        // denorm is already the enum index (0-5) from registry.denormalize()
         match denorm.round() as i32 {
             0 => Some(FilterType::Lowpass),
             1 => Some(FilterType::Highpass),
             2 => Some(FilterType::Bandpass),
+            3 => Some(FilterType::Peaking),
+            4 => Some(FilterType::LowShelf),
+            5 => Some(FilterType::HighShelf),
             _ => None,
         }
     }
@@ -1130,11 +1133,14 @@ pub mod param_get {
 
     fn filter_type_to_denorm(ft: crate::params::FilterType) -> f32 {
         use crate::params::FilterType;
-        // Return enum index (0, 1, 2) which will be normalized by CLAP
+        // Return enum index (0, 1, 2, 3, 4, 5) which will be normalized by CLAP
         match ft {
             FilterType::Lowpass => 0.0,
             FilterType::Highpass => 1.0,
             FilterType::Bandpass => 2.0,
+            FilterType::Peaking => 3.0,
+            FilterType::LowShelf => 4.0,
+            FilterType::HighShelf => 5.0,
         }
     }
 

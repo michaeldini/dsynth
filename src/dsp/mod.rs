@@ -5,6 +5,7 @@ pub mod filter;
 pub mod lfo;
 pub mod lookahead_limiter;
 pub mod oscillator;
+pub mod pitch_detector;
 pub mod waveform;
 pub mod wavetable;
 pub mod wavetable_library;

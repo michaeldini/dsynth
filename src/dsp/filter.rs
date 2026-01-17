@@ -10,6 +10,7 @@ pub struct BiquadFilter {
     target_cutoff: f32,
     resonance: f32,
     bandwidth: f32, // Bandwidth in octaves for bandpass filter
+    gain_db: f32,   // Gain in dB for peaking/shelf filters
 
     /// Throttle for expensive coefficient updates when cutoff is modulated at audio-rate.
     ///
@@ -41,7 +42,11 @@ impl BiquadFilter {
     /// Flush denormals to zero to prevent CPU performance degradation
     #[inline(always)]
     fn flush_denormal(x: f32) -> f32 {
-        if x.abs() < 1e-20 { 0.0 } else { x }
+        if x.abs() < 1e-20 {
+            0.0
+        } else {
+            x
+        }
     }
 
     /// Create a new biquad filter
@@ -54,6 +59,7 @@ impl BiquadFilter {
             target_cutoff: 1000.0,
             resonance: 0.707,
             bandwidth: 1.0, // 1 octave default for bandpass
+            gain_db: 0.0,   // 0dB default for peaking/shelf
 
             cutoff_update_interval: DEFAULT_CUTOFF_UPDATE_INTERVAL,
             cutoff_update_counter: 0,
@@ -145,6 +151,21 @@ impl BiquadFilter {
         }
     }
 
+    /// Set gain in dB (for peaking/shelf filters)
+    pub fn set_gain_db(&mut self, gain_db: f32) {
+        let clamped = gain_db.clamp(-24.0, 24.0);
+        if (self.gain_db - clamped).abs() > 0.01 {
+            self.gain_db = clamped;
+            if matches!(
+                self.filter_type,
+                FilterType::Peaking | FilterType::LowShelf | FilterType::HighShelf
+            ) {
+                self.cutoff_update_counter = 0;
+                self.update_coefficients();
+            }
+        }
+    }
+
     /// Update biquad coefficients based on current parameters
     fn update_coefficients(&mut self) {
         let omega = 2.0 * PI * self.cutoff / self.sample_rate;
@@ -172,6 +193,52 @@ impl BiquadFilter {
                 let a0_temp = 1.0 + alpha;
                 let a1_temp = -2.0 * cos_omega;
                 let a2_temp = 1.0 - alpha;
+                (b0_temp, b1_temp, b2_temp, a0_temp, a1_temp, a2_temp)
+            }
+            FilterType::Peaking => {
+                // Peaking EQ (bell filter) - Audio EQ Cookbook formula
+                let a_coef = 10.0_f32.powf(self.gain_db / 40.0); // Square root of linear gain
+                let alpha = sin_omega / (2.0 * self.resonance);
+                let b0_temp = 1.0 + alpha * a_coef;
+                let b1_temp = -2.0 * cos_omega;
+                let b2_temp = 1.0 - alpha * a_coef;
+                let a0_temp = 1.0 + alpha / a_coef;
+                let a1_temp = -2.0 * cos_omega;
+                let a2_temp = 1.0 - alpha / a_coef;
+                (b0_temp, b1_temp, b2_temp, a0_temp, a1_temp, a2_temp)
+            }
+            FilterType::LowShelf => {
+                // Low shelf - Audio EQ Cookbook formula
+                let a_coef = 10.0_f32.powf(self.gain_db / 40.0);
+                let alpha = sin_omega / 2.0
+                    * ((a_coef + 1.0 / a_coef) * (1.0 / self.resonance - 1.0) + 2.0).sqrt();
+                let b0_temp = a_coef
+                    * ((a_coef + 1.0) - (a_coef - 1.0) * cos_omega + 2.0 * a_coef.sqrt() * alpha);
+                let b1_temp = 2.0 * a_coef * ((a_coef - 1.0) - (a_coef + 1.0) * cos_omega);
+                let b2_temp = a_coef
+                    * ((a_coef + 1.0) - (a_coef - 1.0) * cos_omega - 2.0 * a_coef.sqrt() * alpha);
+                let a0_temp =
+                    (a_coef + 1.0) + (a_coef - 1.0) * cos_omega + 2.0 * a_coef.sqrt() * alpha;
+                let a1_temp = -2.0 * ((a_coef - 1.0) + (a_coef + 1.0) * cos_omega);
+                let a2_temp =
+                    (a_coef + 1.0) + (a_coef - 1.0) * cos_omega - 2.0 * a_coef.sqrt() * alpha;
+                (b0_temp, b1_temp, b2_temp, a0_temp, a1_temp, a2_temp)
+            }
+            FilterType::HighShelf => {
+                // High shelf - Audio EQ Cookbook formula
+                let a_coef = 10.0_f32.powf(self.gain_db / 40.0);
+                let alpha = sin_omega / 2.0
+                    * ((a_coef + 1.0 / a_coef) * (1.0 / self.resonance - 1.0) + 2.0).sqrt();
+                let b0_temp = a_coef
+                    * ((a_coef + 1.0) + (a_coef - 1.0) * cos_omega + 2.0 * a_coef.sqrt() * alpha);
+                let b1_temp = -2.0 * a_coef * ((a_coef - 1.0) + (a_coef + 1.0) * cos_omega);
+                let b2_temp = a_coef
+                    * ((a_coef + 1.0) + (a_coef - 1.0) * cos_omega - 2.0 * a_coef.sqrt() * alpha);
+                let a0_temp =
+                    (a_coef + 1.0) - (a_coef - 1.0) * cos_omega + 2.0 * a_coef.sqrt() * alpha;
+                let a1_temp = 2.0 * ((a_coef - 1.0) - (a_coef + 1.0) * cos_omega);
+                let a2_temp =
+                    (a_coef + 1.0) - (a_coef - 1.0) * cos_omega - 2.0 * a_coef.sqrt() * alpha;
                 (b0_temp, b1_temp, b2_temp, a0_temp, a1_temp, a2_temp)
             }
             FilterType::Bandpass => {

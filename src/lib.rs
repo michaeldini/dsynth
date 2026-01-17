@@ -110,6 +110,21 @@ pub mod midi;
 #[cfg(feature = "kick-clap")]
 pub mod params_kick;
 
+/// The **params_voice** module defines parameters for the voice enhancement plugin.
+///
+/// This is an audio processing chain optimized for vocal enhancement:
+/// - Noise gate (background noise removal)
+/// - Parametric EQ (4-band vocal shaping)
+/// - Compressor (dynamics control)
+/// - De-Esser (sibilance reduction)
+/// - Pitch detector + Sub oscillator (bass enhancement with pitch tracking)
+/// - Exciter (harmonic enhancement)
+/// - Dry/wet mixing
+///
+/// Conditionally compiled when the "voice-clap" feature is enabled.
+#[cfg(feature = "voice-clap")]
+pub mod params_voice;
+
 /// The **params** module defines all synthesizer parameters and their metadata.
 ///
 /// This module specifies:
@@ -162,3 +177,7 @@ pub use plugin::clap::clap_entry;
 // Re-export kick drum CLAP entry point (kick_plugin exports its own clap_entry function)
 #[cfg(feature = "kick-clap")]
 pub use plugin::clap::kick_plugin::clap_entry;
+
+// Re-export voice enhancer CLAP entry point
+#[cfg(feature = "voice-clap")]
+pub use plugin::clap::voice_plugin::clap_entry;

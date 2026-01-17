@@ -138,6 +138,20 @@ pub mod kick_engine;
 #[cfg(feature = "kick-clap")]
 pub mod kick_voice;
 
+/// The **voice_engine** module implements a voice enhancement processor.
+///
+/// This is an audio processing chain for vocal enhancement with:
+/// - Stereo audio input (not MIDI-triggered)
+/// - Pitch detection (YIN algorithm on mono sum)
+/// - Noise gate, parametric EQ, compressor, de-esser
+/// - Pitch-tracked sub oscillator with amplitude ramping
+/// - Exciter and lookahead limiter
+/// - Dry/wet mixing
+///
+/// Conditionally compiled when the "voice-clap" feature is enabled.
+#[cfg(feature = "voice-clap")]
+pub mod voice_engine;
+
 /// Re-export `create_parameter_buffer` for convenient access from outside the audio module.
 ///
 /// This function creates the lock-free triple-buffer used for parameter updates.
