@@ -1,12 +1,17 @@
 # DSynth AI Coding Instructions
 
 ## Project Overview
-DSynth is a **high-performance polyphonic synthesizer** built in Rust with three compilation targets:
+DSynth is a **high-performance audio synthesis suite** built in Rust with multiple plugins:
+
+### Main Synthesizer (DSynth)
 - **Standalone**: Complete app with VIZIA GUI (winit backend) + audio I/O (cpal) + MIDI input (midir)
 - **CLAP Plugin**: Native CLAP plugin with custom wrapper and VIZIA GUI (baseview backend)
 - **Library**: Reusable synthesizer modules
+- **Core principle**: The `SynthEngine` is 100% shared between all targets. Only the wrapper layer differs.
 
-**Core principle**: The `SynthEngine` is 100% shared between all targets. Only the wrapper layer differs.
+### Specialized Plugins
+- **DSynth Kick**: Monophonic kick drum synthesizer with pitch envelopes and key tracking
+- **DSynth Voice**: Real-time vocal enhancement with pitch-tracked sub oscillator and dynamics processing
 
 **GUI Architecture**: **Unified VIZIA GUI** - one shared codebase that works identically for both plugin and standalone, using different backends (baseview for CLAP, winit for standalone). This ensures UI consistency and reduces maintenance burden.
 
@@ -268,6 +273,215 @@ let tracked_start = params.osc1_pitch_start * key_tracking_mult;
 - Passes to `voice.trigger(note, velocity, params)`
 - Voice stores `note: u8` field for key tracking calculation
 - Non-MIDI `trigger()` uses C4 (60) as default
+
+## DSynth Voice: Real-Time Vocal Enhancement Plugin
+
+The project includes a **voice enhancement plugin** (`DSynthVoice`) designed for real-time vocal processing. Unlike the main synth and kick plugin which are MIDI-triggered synthesizers, this is an **audio effect plugin** that processes incoming audio through a sophisticated enhancement chain.
+
+### Key Architecture Differences
+
+**Audio Processing (Not MIDI):**
+- Takes **stereo audio input** (not MIDI notes)
+- Processes through enhancement chain in real-time
+- Outputs processed stereo audio
+- No note triggering or voice allocation - continuous streaming processing
+
+**Signal Chain Order (CRITICAL):**
+The order of processing stages is carefully designed for optimal results:
+1. **Noise Gate** ← Removes background noise FIRST
+2. **Pitch Detection (YIN)** ← Analyzes GATED signal (not raw input with noise!)
+3. **Parametric EQ** (4 bands)
+4. **Compressor**
+5. **De-Esser**
+6. **Sub Oscillator** ← Pitch-tracked bass enhancement
+7. **Exciter** ← Harmonic enhancement
+8. **Limiter** ← Safety ceiling
+9. **Dry/Wet Mix**
+
+**Why this order matters:**
+- Noise gate MUST run before pitch detection to prevent tracking noise/silence
+- Pitch detection on gated signal ensures sub oscillator only tracks vocal content
+- Effects run after pitch detection to avoid interfering with pitch accuracy
+- Limiter runs last as safety ceiling
+
+### YIN Pitch Detector
+
+**Implementation** ([pitch_detector.rs](src/dsp/pitch_detector.rs)):
+- Buffer size: 1024 samples (~23ms @ 44.1kHz)
+- Detection range: 80-800Hz (vocal fundamentals)
+- Returns: frequency (Hz) + confidence (0.0-1.0)
+
+**Confidence Interpretation:**
+- **0.7-1.0**: Clear, strong pitch - clean vocal tone
+- **0.3-0.6**: Weak/ambiguous pitch - breathy voice, low volume
+- **0.0-0.3**: No clear pitch - silence, noise, consonants
+
+**Pitch Detection Throttling:**
+- Runs every 512 samples (~11ms) instead of every sample
+- Reduces CPU by 513× while maintaining responsive tracking
+- See `pitch_detection_counter` and `pitch_detection_interval` in [voice_engine.rs](src/audio/voice_engine.rs)
+
+**Confidence Threshold Parameter:**
+The `pitch_confidence_threshold` (0.0-1.0) acts as a quality gate:
+- **At 0%**: Accepts any detection (even noise) - sub always playing
+- **At 50-60%**: Balanced - accepts most sung content, rejects noise
+- **At 70-80%**: Strict - only loud, clear singing triggers sub
+- When confidence drops below threshold, sub fades out to prevent glitches
+
+### Voice Enhancer Architecture Files
+
+**Core Audio Engine:**
+- [audio/voice_engine.rs](src/audio/voice_engine.rs): Main processing engine with signal chain
+  - ~1244 samples latency (1024 pitch buffer + 220 limiter)
+  - `process()`: Per-sample processing through full chain
+  - `process_buffer()`: Block processing wrapper
+  - `update_params()`: Parameter synchronization from shared state
+  - `get_latency()`: Reports latency to host for compensation
+
+**DSP Components:**
+- [dsp/pitch_detector.rs](src/dsp/pitch_detector.rs): YIN pitch detection algorithm
+- [dsp/effects/noise_gate.rs](src/dsp/effects/noise_gate.rs): RMS envelope-based gate
+- [dsp/effects/parametric_eq.rs](src/dsp/effects/parametric_eq.rs): 4-band EQ (low shelf, 2 bells, high shelf)
+- [dsp/effects/compressor.rs](src/dsp/effects/compressor.rs): Dynamics compression
+- [dsp/effects/de_esser.rs](src/dsp/effects/de_esser.rs): Split-band sibilance reduction (4-10kHz)
+- [dsp/effects/exciter.rs](src/dsp/effects/exciter.rs): Harmonic enhancement
+
+**Parameters:**
+- [params_voice.rs](src/params_voice.rs): `VoiceParams` struct with 42 parameters
+  - Input/Output gain
+  - Noise Gate: threshold, ratio, attack, release, hold
+  - EQ: 4 bands × (freq, gain, Q) + master gain
+  - Compressor: threshold, ratio, attack, release, knee, makeup gain
+  - De-Esser: threshold, frequency, ratio, amount
+  - Pitch: smoothing, confidence threshold
+  - Sub Oscillator: octave, level, waveform, ramp time
+  - Exciter: amount, frequency, harmonics, mix
+  - Limiter: threshold, release, ceiling, dry/wet
+  - Includes 3 presets: Clean Vocal, Radio Voice, Deep Bass
+
+**CLAP Plugin:**
+- [plugin/voice_param_registry.rs](src/plugin/voice_param_registry.rs): Parameter registry
+  - Namespace: `0x0300_xxxx` (separate from main synth `0x0100_xxxx`, kick `0x0200_xxxx`)
+  - Module-level accessor functions: `get_param_descriptor()`, `apply_param()`, `get_param()`
+  - All parameters normalized to 0.0-1.0 for CLAP compliance
+- [plugin/clap/voice_plugin.rs](src/plugin/clap/voice_plugin.rs): CLAP plugin lifecycle
+  - Audio ports: 1 stereo input, 1 stereo output
+  - **CRITICAL**: State save/load MUST NOT manipulate processor (it may be None)
+  - Parameters extension with full normalization/denormalization
+- [plugin/clap/voice_processor.rs](src/plugin/clap/voice_processor.rs): Audio callback handler
+  - Resets engine when no input to prevent sub oscillator drone
+  - Processes parameter automation events
+  - Reports latency to host
+
+**Entry Points:**
+- [lib.rs](src/lib.rs): Exports voice plugin via `clap_entry` macro when `voice-clap` feature enabled
+
+### Building Voice Enhancer
+
+```bash
+# Voice CLAP Plugin
+cargo build --release --lib --features voice-clap
+./bundle_voice_clap.sh  # macOS - creates DSynthVoice.clap
+cp -r target/bundled/DSynthVoice.clap ~/Library/Audio/Plug-Ins/CLAP/
+```
+
+### Critical Implementation Patterns
+
+**1. State Management (CLAP Lifecycle):**
+```rust
+// WRONG - Causes crashes on project reload
+unsafe extern "C" fn state_load(...) {
+    if let Some(ref mut processor) = plugin.processor {
+        processor.activate(processor.sample_rate);  // ❌ Processor may be None!
+    }
+}
+
+// CORRECT - Only update shared params
+unsafe extern "C" fn state_load(...) {
+    *params_guard = loaded_params;
+    // Processor will read params when host calls activate()
+}
+```
+
+**CLAP Lifecycle Order:**
+1. Create plugin → 2. Init → 3. **Load State** (processor is None!) → 4. Activate → 5. Process
+
+**2. Silence Detection & State Clearing:**
+```rust
+// Clear confidence on silence to stop sub oscillator
+let is_silence = mono.abs() < 0.0001; // -80dB threshold
+if is_silence {
+    self.pitch_confidence = 0.0;
+}
+
+// Also clear when below threshold to prevent stale state
+if pitch_result.confidence < self.params.pitch_confidence_threshold {
+    self.pitch_confidence = 0.0;
+}
+```
+
+**3. No Input Handling:**
+```rust
+// CRITICAL: Reset engine when no audio input to prevent drone
+if process.audio_inputs_count == 0 || process.audio_inputs.is_null() {
+    self.engine.reset();  // Clear all state including sub oscillator
+    return CLAP_PROCESS_SLEEP;
+}
+```
+
+**4. CLAP Parameter Normalization:**
+```rust
+// CLAP expects ALL parameters normalized to 0.0-1.0 range
+// In params_get_info():
+match &descriptor.param_type {
+    ParamType::Float { min, max, .. } => {
+        (*info).min_value = 0.0;  // Always 0-1
+        (*info).max_value = 1.0;
+        let normalized_default = (descriptor.default - min) / (max - min);
+        (*info).default_value = normalized_default.clamp(0.0, 1.0) as f64;
+    }
+}
+// Then denormalize in params_value_to_text() and params_flush()
+```
+
+### Voice Enhancer Testing
+
+Tests validate signal chain order, pitch detection, and state management:
+```bash
+cargo test --lib --features voice-clap
+```
+
+Key test coverage:
+- Voice engine initialization and parameter updates
+- Silence detection clears confidence
+- Pitch detection runs on gated signal (not raw input)
+- Sub oscillator stops when confidence drops
+- State save/load doesn't crash (no processor manipulation)
+
+### Common Pitfalls (Voice Plugin Specific)
+
+❌ **DON'T** run pitch detection on raw input signal  
+✅ **DO** run noise gate first, then detect pitch on gated signal
+
+❌ **DON'T** keep stale confidence values when playback stops  
+✅ **DO** reset engine state when no input, clear confidence on silence
+
+❌ **DON'T** manipulate processor in `state_load()` (it's None during reload!)  
+✅ **DO** only update shared params, let host activate processor later
+
+❌ **DON'T** report raw parameter ranges to CLAP (causes wrong display values)  
+✅ **DO** normalize ALL parameters to 0.0-1.0 in `params_get_info()`
+
+❌ **DON'T** run pitch detection every sample (expensive!)  
+✅ **DO** throttle to every 512 samples (~11ms) for 513× CPU savings
+
+### Recommended Confidence Settings
+
+For different use cases:
+- **Tight tracking** (70-80%): Only strong, clear singing triggers sub
+- **Balanced** (50-60%): Most vocal content accepted, noise rejected  
+- **Forgiving** (20-40%): Accepts weak pitches, filters most noise
+- **Always on** (0%): Tracks everything (use with caution - may track noise)
 
 ## Development Workflows
 
