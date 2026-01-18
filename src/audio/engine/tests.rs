@@ -48,7 +48,7 @@ fn test_note_on_activates_voice() {
 /// - note_off() puts the voice in release phase (still active, still audible)
 /// - Voice remains active during release fade-out
 /// - Voice becomes idle after release time completes
-/// This tests the envelope's ADSR behavior (specifically the Release phase)
+///   This tests the envelope's ADSR behavior (specifically the Release phase)
 #[test]
 fn test_note_off_releases_voice() {
     let (_producer, consumer) = create_parameter_buffer();
@@ -169,7 +169,7 @@ fn test_output_generation() {
 /// - Parameters can be written to the triple-buffer via producer
 /// - The engine picks up changes and applies them to voices
 /// - Parameter throttling doesn't prevent updates from eventually applying
-/// This tests the lock-free communication mechanism between GUI and audio threads
+///   This tests the lock-free communication mechanism between GUI and audio threads
 #[test]
 fn test_parameter_updates() {
     let (mut producer, consumer) = create_parameter_buffer();

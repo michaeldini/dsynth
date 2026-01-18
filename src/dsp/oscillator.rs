@@ -3,7 +3,7 @@ use crate::dsp::waveform;
 use crate::params::Waveform;
 
 #[cfg(feature = "simd")]
-use std::simd::{StdFloat, cmp::SimdPartialOrd, f32x4};
+use std::simd::{cmp::SimdPartialOrd, f32x4, StdFloat};
 
 /// A polyphonic-safe oscillator with 4× oversampling and anti-aliasing.
 ///
@@ -709,7 +709,11 @@ impl Oscillator {
                 Waveform::Pulse => {
                     // Pulse width controlled by shape: -1.0 = 10% duty, 0.0 = 50%, 1.0 = 90%
                     let pulse_width = 0.5 + self.shape * 0.4;
-                    if self.phase < pulse_width { 1.0 } else { -1.0 }
+                    if self.phase < pulse_width {
+                        1.0
+                    } else {
+                        -1.0
+                    }
                 }
                 Waveform::Additive => {
                     // Lookup from pre-computed wavetable

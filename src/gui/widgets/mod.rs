@@ -1,5 +1,5 @@
 pub mod knob;
-pub use knob::{Knob, param_knob};
+pub use knob::{param_knob, Knob};
 
 // The remaining widgets are only used by the main poly synth UI.
 #[cfg(any(feature = "clap", feature = "standalone"))]
@@ -18,7 +18,7 @@ pub mod param_cycle_button;
 pub use envelope_editor::EnvelopeEditor;
 
 #[cfg(any(feature = "clap", feature = "standalone"))]
-pub use vslider::{VSlider, param_vslider};
+pub use vslider::{param_vslider, VSlider};
 
 #[cfg(any(feature = "clap", feature = "standalone"))]
 pub use param_checkbox::param_checkbox;

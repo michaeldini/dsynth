@@ -19,7 +19,6 @@
 /// # Mono Compatibility
 /// The width parameter allows reducing stereo content to ensure the mix translates well
 /// to mono playback systems. At width = 0, the output is pure mono.
-
 use std::f32::consts::PI;
 
 /// Maximum delay in samples (30ms at 192kHz = ~5760 samples, round up)
@@ -35,11 +34,11 @@ pub struct StereoWidener {
     delay_samples: usize,
 
     // Parameters
-    haas_delay_ms: f32,  // 0.0 to 30.0 ms
-    haas_mix: f32,       // 0.0 to 1.0 (how much Haas effect to apply)
-    width: f32,          // 0.0 (mono) to 2.0 (extra wide), 1.0 = normal
-    mid_gain: f32,       // 0.0 to 2.0, default 1.0
-    side_gain: f32,      // 0.0 to 2.0, default 1.0
+    haas_delay_ms: f32, // 0.0 to 30.0 ms
+    haas_mix: f32,      // 0.0 to 1.0 (how much Haas effect to apply)
+    width: f32,         // 0.0 (mono) to 2.0 (extra wide), 1.0 = normal
+    mid_gain: f32,      // 0.0 to 2.0, default 1.0
+    side_gain: f32,     // 0.0 to 2.0, default 1.0
 
     // High-pass filter on side channel to prevent bass muddiness
     side_hp_x1: f32,

@@ -1,7 +1,7 @@
 // Multiband effects: multiband distortion, stereo widener
 
 use super::super::helpers::{current_normalized, default_normalized, effect_header};
-use crate::gui::widgets::{param_knob};
+use crate::gui::widgets::param_knob;
 use crate::plugin::param_descriptor::*;
 use vizia::prelude::*;
 

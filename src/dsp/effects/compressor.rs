@@ -1,5 +1,5 @@
-/// Dynamic range compressor - reduces dynamic range by attenuating loud signals
-/// Uses envelope follower with attack/release for transparent dynamics control
+//! Dynamic range compressor - reduces dynamic range by attenuating loud signals
+//! Uses envelope follower with attack/release for transparent dynamics control
 
 pub struct Compressor {
     /// Sample rate for time calculations

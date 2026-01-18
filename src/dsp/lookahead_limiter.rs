@@ -78,7 +78,9 @@ impl LookAheadLimiter {
         attack_ms: f32,
         release_ms: f32,
     ) -> Self {
-        let lookahead_samples = (lookahead_ms * sample_rate / 1000.0).round() as usize;
+        // Convert ms → samples. Floor for deterministic latency (e.g. 5ms @ 44.1kHz = 220.5 → 220).
+        // This matches the unit tests and avoids introducing an extra sample of delay.
+        let lookahead_samples = (lookahead_ms * sample_rate / 1000.0).floor() as usize;
 
         // Calculate smoothing coefficients (one-pole lowpass)
         let attack_coeff = (-1.0 / (attack_ms * sample_rate / 1000.0)).exp();
@@ -308,17 +310,13 @@ mod tests {
         let mut limiter = LookAheadLimiter::new(44100.0, 5.0, 0.98, 0.5, 50.0);
         let latency = limiter.get_latency_samples();
 
-        // Process latency + 1 samples of a step function
-        for i in 0..(latency + 50) {
-            let input = if i < latency { 0.0 } else { 0.7 };
-            let (out_l, _) = limiter.process(input, input);
+        // Feed a constant signal; output should appear after exactly `latency` samples.
+        for i in 0..(latency + 10) {
+            let (out_l, _) = limiter.process(0.7, 0.7);
 
-            // Output should lag input by exactly latency samples
-            if i == latency {
-                // First non-zero output should appear after latency samples
+            if i < latency {
                 assert_relative_eq!(out_l, 0.0, epsilon = 0.001);
-            } else if i == latency + 1 {
-                // Next sample should have the step
+            } else if i == latency {
                 assert!(out_l > 0.5);
             }
         }

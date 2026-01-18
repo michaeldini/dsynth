@@ -1,5 +1,5 @@
-use criterion::{BenchmarkId, Criterion, black_box};
-use dsynth::audio::engine::{SynthEngine, create_parameter_buffer};
+use criterion::{black_box, BenchmarkId, Criterion};
+use dsynth::audio::engine::{create_parameter_buffer, SynthEngine};
 use dsynth::audio::voice::Voice;
 use dsynth::dsp::filter::BiquadFilter;
 use dsynth::params::{
@@ -22,7 +22,8 @@ fn benchmark_filter_with_modulation(c: &mut Criterion) {
             // Simulate cutoff modulation every sample
             for i in 0..100 {
                 let modulated = 1000.0 + (i as f32 * 10.0).sin() * 500.0;
-                black_box(filter.set_cutoff(modulated));
+                filter.set_cutoff(modulated);
+                black_box(());
                 black_box(filter.process(black_box(0.5)));
             }
         });
@@ -52,7 +53,8 @@ fn benchmark_filter_coefficient_update_rate(c: &mut Criterion) {
                 b.iter(|| {
                     for i in 0..1024 {
                         let modulated = 1000.0 + (i as f32 * 0.01).sin() * 500.0;
-                        black_box(filter.set_cutoff(modulated));
+                        filter.set_cutoff(modulated);
+                        black_box(());
                     }
                 });
             },
@@ -70,7 +72,8 @@ fn benchmark_filter_coefficient_update_rate(c: &mut Criterion) {
                 b.iter(|| {
                     for i in 0..1024 {
                         let modulated = 1000.0 + (i as f32 * 0.01).sin() * 500.0;
-                        black_box(filter.set_cutoff(modulated));
+                        filter.set_cutoff(modulated);
+                        black_box(());
                         black_box(filter.process(black_box(0.5)));
                     }
                 });

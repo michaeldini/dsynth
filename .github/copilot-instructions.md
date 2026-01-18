@@ -485,6 +485,16 @@ For different use cases:
 
 ## Development Workflows
 
+### Local Quality Gate (Preferred)
+Before committing/pushing refactors, run the local quality gate script:
+```bash
+./scripts/check.sh
+```
+- Auto-format if needed: `./scripts/check.sh --fix`
+- Skip release tests when iterating quickly: `./scripts/check.sh --no-release`
+
+When working as a coding agent on this repo, prefer running `./scripts/check.sh` over ad-hoc individual `cargo` commands (unless you are narrowing down a specific failure).
+
 ### Building
 ```bash
 # Standalone (default features)

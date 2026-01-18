@@ -1,25 +1,25 @@
-/// Freeverb-style algorithmic reverb
-///
-/// This is a classic "Schroeder reverb" design using parallel comb filters
-/// followed by series allpass filters. It's computationally efficient and
-/// produces a smooth, natural-sounding reverb suitable for most synthesizer applications.
-///
-/// # Architecture
-/// - 8 parallel comb filters (tuned to different prime-number delays)
-/// - 4 series allpass filters (for echo density)
-/// - Stereo output with decorrelated left/right channels
-/// - Low-pass damping in feedback path (simulates air absorption)
-///
-/// # Parameters
-/// - **room_size**: Controls feedback amount (0.0 = small room, 1.0 = huge hall)
-/// - **damping**: High-frequency absorption (0.0 = bright, 1.0 = dark/muffled)
-/// - **wet**: Reverb signal level (0.0 = dry, 1.0 = full wet)
-/// - **dry**: Direct signal level (0.0 = none, 1.0 = full dry)
-/// - **width**: Stereo width (0.0 = mono, 1.0 = full stereo)
-///
-/// # Real-Time Safety
-/// All delay buffers are pre-allocated in `new()` with maximum possible size.
-/// No allocations happen during `process()`, making it safe for audio threads.
+//! Freeverb-style algorithmic reverb
+//!
+//! This is a classic "Schroeder reverb" design using parallel comb filters
+//! followed by series allpass filters. It's computationally efficient and
+//! produces a smooth, natural-sounding reverb suitable for most synthesizer applications.
+//!
+//! # Architecture
+//! - 8 parallel comb filters (tuned to different prime-number delays)
+//! - 4 series allpass filters (for echo density)
+//! - Stereo output with decorrelated left/right channels
+//! - Low-pass damping in feedback path (simulates air absorption)
+//!
+//! # Parameters
+//! - **room_size**: Controls feedback amount (0.0 = small room, 1.0 = huge hall)
+//! - **damping**: High-frequency absorption (0.0 = bright, 1.0 = dark/muffled)
+//! - **wet**: Reverb signal level (0.0 = dry, 1.0 = full wet)
+//! - **dry**: Direct signal level (0.0 = none, 1.0 = full dry)
+//! - **width**: Stereo width (0.0 = mono, 1.0 = full stereo)
+//!
+//! # Real-Time Safety
+//! All delay buffers are pre-allocated in `new()` with maximum possible size.
+//! No allocations happen during `process()`, making it safe for audio threads.
 
 /// Comb filter delays (in samples at 44.1kHz)
 /// These are tuned to prime numbers to avoid modal resonances
@@ -367,7 +367,7 @@ mod tests {
 
         for _ in 0..5000 {
             let (out_l, out_r) = reverb.process(0.0, 0.0);
-            
+
             // Check if we're getting output (reverb tail)
             if out_l.abs() > 0.00001 || out_r.abs() > 0.00001 {
                 has_decay = true;
@@ -416,10 +416,10 @@ mod tests {
     #[test]
     fn test_reverb_stereo_decorrelation() {
         let mut reverb = Reverb::new(44100.0);
-        reverb.set_wet(1.0);  // Full wet to hear reverb tail
-        reverb.set_dry(0.0);  // No dry signal
+        reverb.set_wet(1.0); // Full wet to hear reverb tail
+        reverb.set_dry(0.0); // No dry signal
         reverb.set_width(1.0);
-        reverb.set_room_size(0.9);  // Large room for longer tail
+        reverb.set_room_size(0.9); // Large room for longer tail
 
         // Send strong asymmetric impulse (different L/R) to produce clear stereo effect
         for _ in 0..10 {
@@ -430,7 +430,7 @@ mod tests {
         let mut l_samples = Vec::new();
         let mut r_samples = Vec::new();
 
-        // Process to collect reverb tail  
+        // Process to collect reverb tail
         for _ in 0..2000 {
             let (out_l, out_r) = reverb.process(0.0, 0.0);
             l_samples.push(out_l);
@@ -442,7 +442,7 @@ mod tests {
         let mut different_count = 0;
         let mut has_output_l = false;
         let mut has_output_r = false;
-        
+
         for i in 0..2000 {
             let abs_l = l_samples[i].abs();
             let abs_r = r_samples[i].abs();
@@ -458,8 +458,15 @@ mod tests {
         }
 
         // Reverb should produce stereo output (both channels active)
-        assert!(has_output_l && has_output_r, "Reverb should produce output on both channels");
+        assert!(
+            has_output_l && has_output_r,
+            "Reverb should produce output on both channels"
+        );
         // With stereo spread, samples will differ
-        assert!(different_count > 0, "Reverb should produce some stereo decorrelation, found {} different out of 2000", different_count);
+        assert!(
+            different_count > 0,
+            "Reverb should produce some stereo decorrelation, found {} different out of 2000",
+            different_count
+        );
     }
 }

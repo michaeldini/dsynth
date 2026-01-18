@@ -114,11 +114,11 @@ impl Envelope {
     }
 
     /// Apply curve transformation to linear progress
-    /// 
+    ///
     /// # Arguments
     /// * `progress` - Linear progress from 0.0 to 1.0
     /// * `curve` - Curve amount: -1.0 (logarithmic) to +1.0 (exponential)
-    /// 
+    ///
     /// Returns curved value from 0.0 to 1.0
     fn apply_curve(&self, progress: f32, curve: f32) -> f32 {
         if curve.abs() < 0.01 {
@@ -193,7 +193,8 @@ impl Envelope {
                     self.stage = EnvelopeStage::Idle;
                 } else {
                     // Apply curve: start at release_start_level, end at 0.0
-                    let curved_progress = self.apply_curve(self.linear_progress, self.release_curve);
+                    let curved_progress =
+                        self.apply_curve(self.linear_progress, self.release_curve);
                     self.current_level = self.release_start_level * (1.0 - curved_progress);
                 }
             }
@@ -600,7 +601,7 @@ mod tests {
             for progress in [0.0, 0.25, 0.5, 0.75, 1.0].iter() {
                 let result = env.apply_curve(*progress, *curve);
                 assert!(
-                    result >= 0.0 && result <= 1.0,
+                    (0.0..=1.0).contains(&result),
                     "Curve {} at progress {} produced out-of-bounds result {}",
                     curve,
                     progress,
@@ -640,7 +641,7 @@ mod tests {
     fn test_envelope_with_logarithmic_decay_curve() {
         let mut env = Envelope::new(44100.0);
         env.set_attack(0.001); // Very short attack
-        env.set_decay(0.2);    // 200ms decay
+        env.set_decay(0.2); // 200ms decay
         env.set_sustain(0.3);
         env.set_decay_curve(-1.0); // Logarithmic (slow→fast, hangs at high levels)
         env.note_on();

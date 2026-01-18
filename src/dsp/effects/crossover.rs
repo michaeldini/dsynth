@@ -10,11 +10,17 @@
 /// - No magnitude ripple when bands are summed
 ///
 /// # Usage
-/// ```
+/// ```rust
+/// use dsynth::dsp::effects::LR2Crossover;
+///
 /// let mut xover = LR2Crossover::new(44100.0, 150.0);
+/// let input_sample = 0.5_f32;
 /// let (low, high) = xover.process(input_sample);
+///
+/// // Low + high should remain well-behaved.
+/// assert!((low + high).is_finite());
 /// ```
-use std::f32::consts::PI;
+use std::f32::consts::{FRAC_1_SQRT_2, PI};
 
 /// Linkwitz-Riley 2nd order crossover filter pair
 pub struct LR2Crossover {
@@ -98,7 +104,7 @@ impl LR2Crossover {
         let omega = 2.0 * PI * self.frequency / self.sample_rate;
         let cos_omega = omega.cos();
         let sin_omega = omega.sin();
-        let alpha = sin_omega / (2.0 * 0.7071); // Q = 0.7071 for Butterworth
+        let alpha = sin_omega / (2.0 * FRAC_1_SQRT_2); // Q = 1/sqrt(2) for Butterworth
 
         let a0 = 1.0 + alpha;
 
@@ -190,13 +196,15 @@ mod tests {
         // When low + high bands are summed, should equal input
         let mut xover = LR2Crossover::new(44100.0, 1000.0);
 
-        // Process DC signal
+        // Process DC signal.
+        // Allow a short settling period before asserting (startup transients are expected).
         let input = 1.0;
-        for _ in 0..100 {
+        for i in 0..200 {
             let (low, high) = xover.process(input);
             let sum = low + high;
-            // After settling, sum should equal input (flat magnitude response)
-            if sum.is_finite() {
+
+            if i > 64 {
+                assert!(sum.is_finite());
                 assert_relative_eq!(sum, input, epsilon = 0.01);
             }
         }

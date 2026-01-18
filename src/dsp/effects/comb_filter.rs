@@ -1,5 +1,5 @@
-/// Comb filter effect - creates resonant peaks at harmonic frequencies
-/// Used for metallic/robotic tones, reverb building blocks, and Karplus-Strong synthesis
+//! Comb filter effect - creates resonant peaks at harmonic frequencies
+//! Used for metallic/robotic tones, reverb building blocks, and Karplus-Strong synthesis
 
 pub struct CombFilter {
     /// Sample rate for time calculations
@@ -163,7 +163,7 @@ mod tests {
     fn test_comb_filter_creation() {
         let comb = CombFilter::new(44100.0, 10.0, 0.5, 0.5);
         assert_eq!(comb.sample_rate, 44100.0);
-        assert!(comb.delay_buffer_left.len() > 0);
+        assert!(!comb.delay_buffer_left.is_empty());
     }
 
     #[test]

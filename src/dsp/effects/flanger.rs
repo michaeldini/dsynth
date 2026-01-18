@@ -183,7 +183,7 @@ mod tests {
     fn test_flanger_creation() {
         let flanger = Flanger::new(44100.0, 1.0, 10.0, 0.5);
         assert_eq!(flanger.sample_rate, 44100.0);
-        assert!(flanger.delay_buffer_left.len() > 0);
+        assert!(!flanger.delay_buffer_left.is_empty());
         assert_eq!(
             flanger.delay_buffer_left.len(),
             flanger.delay_buffer_right.len()

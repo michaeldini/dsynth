@@ -1,10 +1,12 @@
 // GUI state for VIZIA - shared between plugin and standalone
 
+#[cfg(feature = "standalone")]
 use crate::audio::output::EngineEvent;
 use crate::gui::messages::UiTab;
 use crate::gui::GuiMessage;
 use crate::params::SynthParams;
 use crate::plugin::gui_param_change::GuiParamChange;
+#[cfg(feature = "standalone")]
 use crossbeam_channel::Sender;
 use parking_lot::{Mutex, RwLock};
 use std::collections::HashSet;
@@ -34,6 +36,7 @@ pub struct GuiState {
 
     /// Event sender for standalone features (MIDI, panic) - None for plugin
     #[lens(ignore)]
+    #[cfg(feature = "standalone")]
     pub event_sender: Option<Sender<EngineEvent>>,
 
     /// Track pressed keys to prevent key-repeat note retriggering (standalone only)
@@ -60,6 +63,7 @@ impl GuiState {
             gui_param_producer,
             params_producer: None,
             last_param_text: String::new(),
+            #[cfg(feature = "standalone")]
             event_sender: None,
             pressed_keys: HashSet::new(),
             osc1_waveform: 0, // Default: Sine
@@ -70,6 +74,7 @@ impl GuiState {
     }
 
     /// Create new GUI state for standalone (with event sender for MIDI/panic)
+    #[cfg(feature = "standalone")]
     pub fn new_standalone(
         synth_params: Arc<RwLock<SynthParams>>,
         gui_param_producer: Arc<Mutex<Input<GuiParamChange>>>,

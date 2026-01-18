@@ -2,8 +2,6 @@
 //
 // This module is only compiled when the "kick-clap" feature is enabled.
 
-#![cfg(feature = "kick-clap")]
-
 use crate::gui::theme;
 use crate::gui::widgets::param_knob;
 use crate::gui::GuiMessage;
@@ -119,13 +117,12 @@ impl KickGuiState {
 
 impl Model for KickGuiState {
     fn event(&mut self, cx: &mut EventContext, event: &mut Event) {
-        event.map(|msg, meta| match msg {
-            GuiMessage::ParamChanged(param_id, normalized) => {
+        event.map(|msg, meta| {
+            if let GuiMessage::ParamChanged(param_id, normalized) = msg {
                 self.update_param(*param_id, *normalized);
                 cx.needs_redraw();
                 meta.consume();
             }
-            _ => {}
         });
 
         // Continuous (throttled) polling so DAW automation updates knob visuals.
@@ -187,7 +184,12 @@ struct KickToggle {
 }
 
 impl KickToggle {
-    fn new(cx: &mut Context, initial_checked: bool, param_id: ParamId, default_checked: bool) -> Handle<Self> {
+    fn new(
+        cx: &mut Context,
+        initial_checked: bool,
+        param_id: ParamId,
+        default_checked: bool,
+    ) -> Handle<'_, Self> {
         Self {
             checked: initial_checked,
             default_checked,
@@ -640,12 +642,10 @@ fn build_kick_ui(cx: &mut Context, kick_params: Arc<Mutex<KickParams>>) {
     )];
 
     // Clipper
-    let clipper_knobs = [
-        item(
-            crate::plugin::kick_param_registry::PARAM_KICK_CLIPPER_THRESHOLD,
-            "Threshold",
-        ),
-    ];
+    let clipper_knobs = [item(
+        crate::plugin::kick_param_registry::PARAM_KICK_CLIPPER_THRESHOLD,
+        "Threshold",
+    )];
 
     let clipper_toggles = [toggle(
         crate::plugin::kick_param_registry::PARAM_KICK_CLIPPER_ENABLED,

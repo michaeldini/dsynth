@@ -1,5 +1,5 @@
-use crate::params::LFOWaveform;
 use crate::dsp::waveform;
+use crate::params::LFOWaveform;
 
 /// Low Frequency Oscillator for modulation
 pub struct LFO {
@@ -128,7 +128,7 @@ mod tests {
     #[test]
     fn test_lfo_rate_clamping() {
         let mut lfo = LFO::new(44100.0);
-        
+
         lfo.set_rate(0.001); // Too low
         assert_eq!(lfo.rate, 0.01);
 
@@ -139,14 +139,14 @@ mod tests {
     #[test]
     fn test_lfo_reset() {
         let mut lfo = LFO::new(44100.0);
-        
+
         // Advance phase
         for _ in 0..100 {
             lfo.process();
         }
-        
+
         assert!(lfo.phase > 0.0);
-        
+
         lfo.reset();
         assert_eq!(lfo.phase, 0.0);
     }
@@ -159,7 +159,10 @@ mod tests {
         // Process many samples
         for _ in 0..10000 {
             lfo.process();
-            assert!(lfo.phase >= 0.0 && lfo.phase < 1.0, "Phase not wrapping correctly");
+            assert!(
+                lfo.phase >= 0.0 && lfo.phase < 1.0,
+                "Phase not wrapping correctly"
+            );
         }
     }
 }

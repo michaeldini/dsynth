@@ -18,7 +18,7 @@
 /// - **Bass** (< 200Hz): Can be heavily saturated for "weight" without affecting clarity
 /// - **Mids** (200Hz - 2kHz): The "body" of most sounds, moderate saturation
 /// - **Highs** (> 2kHz): Often left cleaner for "air" and clarity
-use std::f32::consts::PI;
+use std::f32::consts::{FRAC_1_SQRT_2, PI};
 
 /// Linkwitz-Riley 2nd order crossover filter pair
 /// Produces flat magnitude response when low+high outputs are summed
@@ -73,7 +73,7 @@ impl LR2Crossover {
         let omega = 2.0 * PI * freq / sample_rate;
         let cos_omega = omega.cos();
         let sin_omega = omega.sin();
-        let alpha = sin_omega / (2.0 * 0.7071); // Q = 0.7071 for Butterworth
+        let alpha = sin_omega / (2.0 * FRAC_1_SQRT_2); // Q = 1/sqrt(2) for Butterworth
 
         let a0 = 1.0 + alpha;
 

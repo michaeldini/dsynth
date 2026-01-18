@@ -19,7 +19,7 @@ use crate::dsp::effects::parametric_eq::ParametricEQ;
 use crate::dsp::lookahead_limiter::LookAheadLimiter;
 use crate::dsp::oscillator::Oscillator;
 use crate::dsp::pitch_detector::{PitchDetector, PITCH_BUFFER_SIZE};
-use crate::params::{FilterType, Waveform};
+use crate::params::Waveform;
 use crate::params_voice::{SubOscWaveform, VoiceParams};
 
 /// Voice enhancement engine

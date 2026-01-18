@@ -1,9 +1,12 @@
+#![cfg(feature = "standalone")]
+
 use crossbeam_channel::bounded;
+
 use dsynth::audio::{
-    engine::{SynthEngine, create_parameter_buffer},
+    engine::{create_parameter_buffer, SynthEngine},
     output::{AudioOutput, EngineEvent},
 };
-use dsynth::midi::handler::{MidiEvent, velocity_to_float};
+use dsynth::midi::handler::{velocity_to_float, MidiEvent};
 use std::thread;
 use std::time::Duration;
 
@@ -127,30 +130,30 @@ fn test_polyphonic_performance() {
 fn test_hard_sync_creates_harmonics() {
     // Test that hard sync chain (OSC1→OSC2→OSC3) generates additional harmonic content
     // by comparing waveforms with and without hard sync enabled
-    
+
     use dsynth::audio::voice::Voice;
-    use dsynth::params::{SynthParams, Waveform};
     use dsynth::dsp::wavetable_library::WavetableLibrary;
-    
+    use dsynth::params::{SynthParams, Waveform};
+
     let sample_rate = 44100.0;
     let mut voice = Voice::new(sample_rate);
     let wavetable_library = WavetableLibrary::new();
-    
+
     // Setup: All 3 oscillators with slightly different pitches for sync chain
     // OSC1 (master) → OSC2 → OSC3
     let mut params = SynthParams::default();
     params.oscillators[0].waveform = Waveform::Saw;
     params.oscillators[0].gain = 0.4; // Slightly lower to avoid clipping
     params.oscillators[0].pitch = -36.0; // Base frequency
-    
+
     params.oscillators[1].waveform = Waveform::Saw;
     params.oscillators[1].gain = 0.4;
     params.oscillators[1].pitch = -35.0; // Slightly higher than OSC1
-    
+
     params.oscillators[2].waveform = Waveform::Saw;
     params.oscillators[2].gain = 0.4;
     params.oscillators[2].pitch = -34.0; // Even higher (sync chain: OSC1→OSC2→OSC3)
-    
+
     // Test WITHOUT hard sync
     voice.note_on(60, 0.8);
     voice.update_parameters(
@@ -160,7 +163,7 @@ fn test_hard_sync_creates_harmonics() {
         &params.envelope,
         &wavetable_library,
     );
-    
+
     let mut samples_no_sync = Vec::with_capacity(4410); // 100ms at 44.1kHz
     for _ in 0..4410 {
         let (left, _right) = voice.process(
@@ -168,21 +171,30 @@ fn test_hard_sync_creates_harmonics() {
             &params.filters,
             &params.lfos,
             &params.velocity,
-            false, // hard_sync_enabled = false
+            false,               // hard_sync_enabled = false
             &Default::default(), // voice_comp_params
             &Default::default(), // transient_params
         );
         samples_no_sync.push(left);
     }
-    
-    let rms_no_sync = (samples_no_sync.iter().map(|s| s * s).sum::<f32>() / samples_no_sync.len() as f32).sqrt();
-    
+
+    let rms_no_sync =
+        (samples_no_sync.iter().map(|s| s * s).sum::<f32>() / samples_no_sync.len() as f32).sqrt();
+
     // Reset voice for second test
     voice.note_off();
     for _ in 0..4410 {
-        voice.process(&params.oscillators, &params.filters, &params.lfos, &params.velocity, false, &Default::default(), &Default::default());
+        voice.process(
+            &params.oscillators,
+            &params.filters,
+            &params.lfos,
+            &params.velocity,
+            false,
+            &Default::default(),
+            &Default::default(),
+        );
     }
-    
+
     // Test WITH hard sync chain (OSC1→OSC2→OSC3)
     voice.note_on(60, 0.8);
     voice.update_parameters(
@@ -192,7 +204,7 @@ fn test_hard_sync_creates_harmonics() {
         &params.envelope,
         &wavetable_library,
     );
-    
+
     let mut samples_with_sync = Vec::with_capacity(4410);
     for _ in 0..4410 {
         let (left, _right) = voice.process(
@@ -200,26 +212,37 @@ fn test_hard_sync_creates_harmonics() {
             &params.filters,
             &params.lfos,
             &params.velocity,
-            true, // hard_sync_enabled = true (enables full chain)
+            true,                // hard_sync_enabled = true (enables full chain)
             &Default::default(), // voice_comp_params
             &Default::default(), // transient_params
         );
         samples_with_sync.push(left);
     }
-    
-    let rms_with_sync = (samples_with_sync.iter().map(|s| s * s).sum::<f32>() / samples_with_sync.len() as f32).sqrt();
-    
+
+    let rms_with_sync = (samples_with_sync.iter().map(|s| s * s).sum::<f32>()
+        / samples_with_sync.len() as f32)
+        .sqrt();
+
     println!("RMS without hard sync: {:.6}", rms_no_sync);
-    println!("RMS with hard sync chain (OSC1→OSC2→OSC3): {:.6}", rms_with_sync);
-    
+    println!(
+        "RMS with hard sync chain (OSC1→OSC2→OSC3): {:.6}",
+        rms_with_sync
+    );
+
     // Verify both signals have energy (not silent)
-    assert!(rms_no_sync > 0.01, "Signal should have energy without hard sync");
-    assert!(rms_with_sync > 0.01, "Signal should have energy with hard sync");
-    
+    assert!(
+        rms_no_sync > 0.01,
+        "Signal should have energy without hard sync"
+    );
+    assert!(
+        rms_with_sync > 0.01,
+        "Signal should have energy with hard sync"
+    );
+
     // Hard sync chain should produce measurably different output
     let difference_ratio = (rms_with_sync - rms_no_sync).abs() / rms_no_sync;
     println!("RMS difference: {:.1}%", difference_ratio * 100.0);
-    
+
     // With 3 oscillators in sync chain, the effect should be even more pronounced
     assert!(
         difference_ratio > 0.05 || rms_with_sync != rms_no_sync,

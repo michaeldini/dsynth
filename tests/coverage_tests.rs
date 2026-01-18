@@ -10,7 +10,7 @@
 //! - Stereo pan verification
 //! - Edge cases
 
-use dsynth::audio::engine::{SynthEngine, create_parameter_buffer};
+use dsynth::audio::engine::{create_parameter_buffer, SynthEngine};
 use dsynth::params::{FilterType, SynthParams, Waveform};
 
 // ============================================================================
@@ -89,7 +89,7 @@ fn test_envelope_sustain_level() {
 
     // Skip attack + decay to reach sustain
     // Attack: 0.01s * 44100 = 441 samples
-    // Decay: 0.05s * 44100 = 2205 samples  
+    // Decay: 0.05s * 44100 = 2205 samples
     // Total: 2646 samples (need to process this many to guarantee sustain)
     for _ in 0..3000 {
         engine.process_mono();
@@ -114,7 +114,7 @@ fn test_envelope_sustain_level() {
         sustain_peak
     );
     assert!(
-        sustain_peak > 0.001,  // Relaxed from 0.01 to 0.001 - just needs to be audible
+        sustain_peak > 0.001, // Relaxed from 0.01 to 0.001 - just needs to be audible
         "Sustain level too low: {:.3}, should produce meaningful output",
         sustain_peak
     );
@@ -449,7 +449,7 @@ fn test_stereo_pan_affects_balance() {
         let mut right_sum = 0.0f32;
 
         for _ in 0..4410 {
-            let (left, right) = engine.process_stereo();
+            let (left, right) = engine.process();
             left_sum += left.abs();
             right_sum += right.abs();
         }

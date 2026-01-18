@@ -23,7 +23,7 @@ pub fn u32_to_f32_bipolar(x: u32) -> f32 {
 }
 
 #[cfg(feature = "simd")]
-use std::simd::{StdFloat, cmp::SimdPartialOrd, f32x4};
+use std::simd::{cmp::SimdPartialOrd, f32x4, StdFloat};
 
 /// Generate a scalar waveform sample at a given normalized phase [0.0, 1.0)
 ///
@@ -54,7 +54,11 @@ pub fn generate_scalar(phase: f32, waveform: Waveform) -> f32 {
         Waveform::Pulse => {
             // For scalar pulse, default to 50% duty cycle (square)
             // Pulse width modulation is handled by the oscillator
-            if phase < 0.5 { 1.0 } else { -1.0 }
+            if phase < 0.5 {
+                1.0
+            } else {
+                -1.0
+            }
         }
         Waveform::WhiteNoise | Waveform::PinkNoise => {
             // Noise generation requires stateful PRNG, handled by oscillator

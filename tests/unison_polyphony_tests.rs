@@ -3,7 +3,7 @@
 //! This test suite verifies that when multiple notes are played simultaneously
 //! with high unison counts, the audio output doesn't clip or distort.
 
-use dsynth::audio::engine::{SynthEngine, create_parameter_buffer};
+use dsynth::audio::engine::{create_parameter_buffer, SynthEngine};
 use dsynth::params::{SynthParams, Waveform};
 
 /// Test that high unison counts with multiple voices don't cause clipping.

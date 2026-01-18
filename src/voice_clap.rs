@@ -1,7 +1,5 @@
 //! DSynth Voice Enhancer CLAP plugin implemented via dsynth-clap
 
-#![cfg(feature = "voice-clap")]
-
 use crate::audio::voice_engine::VoiceEngine;
 use crate::params_voice::VoiceParams;
 use crate::plugin::voice_param_registry;

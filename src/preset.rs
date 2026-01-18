@@ -39,7 +39,7 @@ mod tests {
 
         let temp_file = NamedTempFile::new().unwrap();
         let path = temp_file.path().to_owned();
-        
+
         preset.save(&path).unwrap();
         let loaded = Preset::load(&path).unwrap();
 

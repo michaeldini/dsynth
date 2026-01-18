@@ -1,6 +1,6 @@
 //! Tests specifically for "sound destruction" issues - phase cancellation, dropouts, etc.
 
-use dsynth::audio::engine::{SynthEngine, create_parameter_buffer};
+use dsynth::audio::engine::{create_parameter_buffer, SynthEngine};
 use dsynth::params::{SynthParams, Waveform};
 
 /// Test for phase cancellation with sine waves + high unison

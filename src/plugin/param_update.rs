@@ -12,8 +12,8 @@
 /// triple-buffer infrastructure. Parameter updates from the host should be
 /// applied to a SynthParams struct and written to the triple-buffer producer.
 use super::param_descriptor::ParamId;
-use std::collections::VecDeque;
 use parking_lot::Mutex;
+use std::collections::VecDeque;
 use std::sync::Arc;
 
 /// Holds parameter updates with timing information

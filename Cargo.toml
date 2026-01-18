@@ -19,6 +19,8 @@ standalone = ["vizia_winit", "cpal", "midir", "rfd"]
 clap = ["vizia_baseview", "clap-sys", "dsynth-clap"]
 kick-clap = ["vizia_baseview", "clap-sys", "dsynth-clap"]  # Kick drum CLAP plugin
 voice-clap = ["vizia_baseview", "clap-sys", "dsynth-clap"] # Voice enhancer CLAP plugin
+# Compatibility feature used by some older macro expansions during clippy runs.
+cargo-clippy = []
 
 [dependencies]
 # VIZIA from git with both backends - baseview for CLAP plugin, winit for standalone

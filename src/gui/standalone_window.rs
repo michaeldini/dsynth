@@ -1,14 +1,14 @@
 // VIZIA standalone window for desktop application
 
 use crate::audio::output::EngineEvent;
+use crate::gui::shared_ui;
 use crate::gui::theme;
 use crate::gui::GuiState;
-use crate::gui::shared_ui;
 use crate::params::SynthParams;
 use crate::plugin::gui_param_change::GuiParamChange;
 use crossbeam_channel::Sender;
-use std::collections::HashSet;
 use parking_lot::{Mutex, RwLock};
+use std::collections::HashSet;
 use std::sync::Arc;
 use triple_buffer::Input;
 use vizia::prelude::*;

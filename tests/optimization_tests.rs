@@ -97,9 +97,14 @@ mod optimization_tests {
         params.oscillators[0].unison = 3;
         producer.write(params);
 
+        // Process enough samples to get past the engine's always-on lookahead limiter
+        // (5ms @ 44.1kHz ≈ 220 samples of initial silence).
+        let lookahead_latency_samples = (44100.0_f32 * 0.005_f32).floor() as usize;
+        let total_samples = lookahead_latency_samples + 200;
+
         // Process multiple samples - parameter changes should be throttled
         let mut outputs = Vec::new();
-        for _ in 0..100 {
+        for _ in 0..total_samples {
             outputs.push(engine.process_mono());
         }
 
@@ -109,9 +114,12 @@ mod optimization_tests {
             "All outputs should be finite"
         );
 
-        // Should produce some audio output
+        // Should produce some audio output (after lookahead latency)
         assert!(
-            outputs.iter().any(|o| o.abs() > 0.001),
+            outputs
+                .iter()
+                .skip(lookahead_latency_samples)
+                .any(|o| o.abs() > 0.001),
             "Engine should produce measurable output"
         );
     }
@@ -371,7 +379,11 @@ mod optimization_tests {
         let mut has_variation = false;
         let mut last_output = 0.0;
 
-        for iteration in 0..100 {
+        // Account for the always-on 5ms lookahead limiter latency.
+        let lookahead_latency_samples = (44100.0_f32 * 0.005_f32).floor() as usize;
+        let total_samples = lookahead_latency_samples + 200;
+
+        for iteration in 0..total_samples {
             // Change parameters every 10 samples
             if iteration % 10 == 0 {
                 let mut params = SynthParams::default();

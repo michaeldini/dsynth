@@ -1,8 +1,8 @@
-/// Wavetable data structure for wavetable synthesis
-///
-/// A wavetable is a single-cycle waveform stored as an array of samples.
-/// This implementation stores both normal-rate and 4× oversampled versions
-/// for anti-aliasing during playback.
+//! Wavetable data structure for wavetable synthesis
+//!
+//! A wavetable is a single-cycle waveform stored as an array of samples.
+//! This implementation stores both normal-rate and 4× oversampled versions
+//! for anti-aliasing during playback.
 
 /// A single wavetable: one snapshot of a waveform
 /// Stored at both normal and 4× oversampled rates for anti-aliasing
@@ -187,19 +187,17 @@ impl Wavetable {
 
         // Use hound to read the WAV data from memory
         let cursor = Cursor::new(wav_bytes);
-        let mut reader = hound::WavReader::new(cursor)
-            .map_err(|e| format!("Failed to parse WAV: {}", e))?;
+        let mut reader =
+            hound::WavReader::new(cursor).map_err(|e| format!("Failed to parse WAV: {}", e))?;
 
         let spec = reader.spec();
 
         // Read all samples from the WAV file
         let samples: Vec<f32> = match spec.sample_format {
-            hound::SampleFormat::Float => {
-                reader
-                    .samples::<f32>()
-                    .collect::<Result<Vec<_>, _>>()
-                    .map_err(|e| format!("Failed to read samples: {}", e))?
-            }
+            hound::SampleFormat::Float => reader
+                .samples::<f32>()
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| format!("Failed to read samples: {}", e))?,
             hound::SampleFormat::Int => {
                 // Convert integer samples to float (-1.0 to 1.0)
                 let max_value = (1 << (spec.bits_per_sample - 1)) as f32;

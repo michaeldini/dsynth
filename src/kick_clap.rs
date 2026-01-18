@@ -1,6 +1,6 @@
 //! DSynth Kick CLAP plugin implemented via dsynth-clap
 
-#![cfg(feature = "kick-clap")]
+#![allow(deprecated)]
 
 use crate::audio::kick_engine::{KickEngine, MidiEvent};
 use crate::params_kick::KickParams;
@@ -192,6 +192,7 @@ impl ClapPlugin for DsynthKickPlugin {
         }
     }
 
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     fn gui_get_preferred_api(&mut self, api: *mut *const i8, is_floating: *mut bool) -> bool {
         if api.is_null() || is_floating.is_null() {
             return false;
@@ -203,19 +204,19 @@ impl ClapPlugin for DsynthKickPlugin {
 
         #[cfg(target_os = "macos")]
         unsafe {
-            *api = CLAP_WINDOW_API_COCOA.as_ptr() as *const i8;
+            *api = CLAP_WINDOW_API_COCOA.as_ptr();
             return true;
         }
 
         #[cfg(target_os = "windows")]
         unsafe {
-            *api = CLAP_WINDOW_API_WIN32.as_ptr() as *const i8;
+            *api = CLAP_WINDOW_API_WIN32.as_ptr();
             return true;
         }
 
         #[cfg(target_os = "linux")]
         unsafe {
-            *api = CLAP_WINDOW_API_X11.as_ptr() as *const i8;
+            *api = CLAP_WINDOW_API_X11.as_ptr();
             return true;
         }
 
@@ -223,6 +224,7 @@ impl ClapPlugin for DsynthKickPlugin {
         false
     }
 
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     fn gui_get_size(&mut self, width: *mut u32, height: *mut u32) -> bool {
         if width.is_null() || height.is_null() {
             return false;
@@ -263,6 +265,7 @@ impl ClapPlugin for DsynthKickPlugin {
         }
     }
 
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     fn gui_set_parent(&mut self, window: *const clap_window) -> bool {
         // Drop any existing window before reparenting.
         if self.gui_window.is_some() {
@@ -402,8 +405,8 @@ impl DsynthKickProcessor {
                     clap_sys::events::CLAP_EVENT_MIDI => {
                         let e = &*(event as *const _ as *const clap_sys::events::clap_event_midi);
                         let status = e.data[0] & 0xF0;
-                        let key = e.data[1] as u8;
-                        let vel = e.data[2] as u8;
+                        let key = e.data[1];
+                        let vel = e.data[2];
 
                         let mut q = self.note_queue.lock();
                         match status {
@@ -449,8 +452,8 @@ impl ClapProcessor for DsynthKickProcessor {
                 return ProcessStatus::Continue;
             };
 
-            for i in 0..frames {
-                out0[i] = self.engine.process_sample();
+            for out in out0.iter_mut().take(frames) {
+                *out = self.engine.process_sample();
             }
         }
 

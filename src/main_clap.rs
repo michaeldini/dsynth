@@ -1,6 +1,6 @@
 //! DSynth (main polyphonic synth) CLAP plugin implemented via dsynth-clap
 
-#![cfg(feature = "clap")]
+#![allow(deprecated)]
 
 use crate::audio::engine::SynthEngine;
 use crate::params::SynthParams;
@@ -220,52 +220,31 @@ impl ClapPlugin for DsynthMainPlugin {
         }
     }
 
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     fn gui_get_preferred_api(&mut self, api: *mut *const i8, is_floating: *mut bool) -> bool {
         if api.is_null() || is_floating.is_null() {
             return false;
         }
 
-        unsafe {
-            *is_floating = false;
-        }
-
-        #[cfg(target_os = "macos")]
-        unsafe {
-            *api = CLAP_WINDOW_API_COCOA.as_ptr() as *const i8;
-            return true;
-        }
-
-        #[cfg(target_os = "windows")]
-        unsafe {
-            *api = CLAP_WINDOW_API_WIN32.as_ptr() as *const i8;
-            return true;
-        }
-
-        #[cfg(target_os = "linux")]
-        unsafe {
-            *api = CLAP_WINDOW_API_X11.as_ptr() as *const i8;
-            return true;
-        }
-
-        #[allow(unreachable_code)]
-        false
+        // Safety: we validated pointers are non-null above.
+        unsafe { self.gui_get_preferred_api_unchecked(api, is_floating) }
     }
 
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     fn gui_get_size(&mut self, width: *mut u32, height: *mut u32) -> bool {
         if width.is_null() || height.is_null() {
             return false;
         }
-        unsafe {
-            *width = self.gui_size.0;
-            *height = self.gui_size.1;
-        }
-        true
+
+        // Safety: we validated pointers are non-null above.
+        unsafe { self.gui_get_size_unchecked(width, height) }
     }
 
     fn gui_can_resize(&mut self) -> bool {
         false
     }
 
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     fn gui_set_parent(&mut self, window: *const clap_window) -> bool {
         // Drop any existing window before reparenting.
         if self.gui_window.is_some() {
@@ -278,7 +257,76 @@ impl ClapPlugin for DsynthMainPlugin {
             return true;
         }
 
-        let window_ref = unsafe { &*window };
+        // Safety: we validated `window` is non-null above.
+        unsafe { self.gui_set_parent_unchecked(window) }
+    }
+
+    fn gui_show(&mut self) -> bool {
+        if self.gui_window.is_some() {
+            return true;
+        }
+
+        let Some(parent) = self.gui_parent else {
+            return false;
+        };
+
+        match crate::gui::plugin_window::open_editor(
+            parent,
+            self.synth_params.clone(),
+            self.gui_param_producer.clone(),
+        ) {
+            Some(handle) => {
+                self.gui_window = Some(handle);
+                true
+            }
+            None => false,
+        }
+    }
+
+    fn gui_hide(&mut self) -> bool {
+        self.gui_window = None;
+        true
+    }
+}
+
+impl DsynthMainPlugin {
+    unsafe fn gui_get_preferred_api_unchecked(
+        &mut self,
+        api: *mut *const i8,
+        is_floating: *mut bool,
+    ) -> bool {
+        *is_floating = false;
+
+        #[cfg(target_os = "macos")]
+        {
+            *api = CLAP_WINDOW_API_COCOA.as_ptr();
+            return true;
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            *api = CLAP_WINDOW_API_WIN32.as_ptr();
+            return true;
+        }
+
+        #[cfg(target_os = "linux")]
+        {
+            *api = CLAP_WINDOW_API_X11.as_ptr();
+            return true;
+        }
+
+        #[allow(unreachable_code)]
+        false
+    }
+
+    unsafe fn gui_get_size_unchecked(&mut self, width: *mut u32, height: *mut u32) -> bool {
+        *width = self.gui_size.0;
+        *height = self.gui_size.1;
+        true
+    }
+
+    unsafe fn gui_set_parent_unchecked(&mut self, window: *const clap_window) -> bool {
+        let window_ref = &*window;
 
         #[cfg(target_os = "macos")]
         let raw_handle = unsafe {
@@ -322,33 +370,6 @@ impl ClapPlugin for DsynthMainPlugin {
             }
             None => false,
         }
-    }
-
-    fn gui_show(&mut self) -> bool {
-        if self.gui_window.is_some() {
-            return true;
-        }
-
-        let Some(parent) = self.gui_parent else {
-            return false;
-        };
-
-        match crate::gui::plugin_window::open_editor(
-            parent,
-            self.synth_params.clone(),
-            self.gui_param_producer.clone(),
-        ) {
-            Some(handle) => {
-                self.gui_window = Some(handle);
-                true
-            }
-            None => false,
-        }
-    }
-
-    fn gui_hide(&mut self) -> bool {
-        self.gui_window = None;
-        true
     }
 }
 
@@ -443,8 +464,8 @@ impl DsynthMainProcessor {
                     clap_sys::events::CLAP_EVENT_MIDI => {
                         let e = &*(event as *const _ as *const clap_sys::events::clap_event_midi);
                         let status = e.data[0] & 0xF0;
-                        let key = e.data[1] as u8;
-                        let vel = e.data[2] as u8;
+                        let key = e.data[1];
+                        let vel = e.data[2];
 
                         match status {
                             0x90 => {
@@ -527,7 +548,7 @@ impl ClapProcessor for DsynthMainProcessor {
         self.sample_rate = sample_rate;
 
         // Recreate engine + param buffer at the new rate.
-        let (mut producer, consumer) = crate::audio::create_parameter_buffer();
+        let (producer, consumer) = crate::audio::create_parameter_buffer();
         self.engine = SynthEngine::new(sample_rate, consumer);
         self.param_producer = producer;
 
@@ -538,7 +559,7 @@ impl ClapProcessor for DsynthMainProcessor {
 
     fn reset(&mut self) {
         // Recreate engine + param buffer, keep GUI consumer.
-        let (mut producer, consumer) = crate::audio::create_parameter_buffer();
+        let (producer, consumer) = crate::audio::create_parameter_buffer();
         self.engine = SynthEngine::new(self.sample_rate, consumer);
         self.param_producer = producer;
         self.last_gui_change = GuiParamChange::default();

@@ -5,7 +5,6 @@
 ///
 /// Note: any mention of "migration" in this module refers to *state schema/version*
 /// migration (e.g. preset format v0 → v1), not the historical CLAP integration migration.
-
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt;
@@ -47,7 +46,7 @@ impl fmt::Display for StateError {
 impl Error for StateError {}
 
 /// Binary plugin state format
-/// 
+///
 /// This is the format used by CLAP's state save/load interface.
 /// Includes version for forward/backward compatibility.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -110,8 +109,8 @@ impl PluginState {
             });
         }
 
-        let state: PluginState =
-            bincode::deserialize(data).map_err(|e| StateError::DeserializationError(e.to_string()))?;
+        let state: PluginState = bincode::deserialize(data)
+            .map_err(|e| StateError::DeserializationError(e.to_string()))?;
 
         // Check version for forward compatibility
         if state.version != STATE_VERSION {
@@ -132,8 +131,8 @@ impl PluginState {
 
     /// Deserialize state from JSON (from user presets)
     pub fn from_json(json: &str) -> Result<Self, StateError> {
-        let state: PluginState =
-            serde_json::from_str(json).map_err(|e| StateError::DeserializationError(e.to_string()))?;
+        let state: PluginState = serde_json::from_str(json)
+            .map_err(|e| StateError::DeserializationError(e.to_string()))?;
 
         // Check version for backward compatibility.
         // If you want to accept older/newer formats, use `PresetMigration::migrate_if_needed()`.
@@ -163,8 +162,8 @@ impl PresetMigration {
         }
 
         // If that fails, try to parse as generic JSON and infer version
-        let v: serde_json::Value =
-            serde_json::from_str(json).map_err(|e| StateError::DeserializationError(e.to_string()))?;
+        let v: serde_json::Value = serde_json::from_str(json)
+            .map_err(|e| StateError::DeserializationError(e.to_string()))?;
 
         let version = v.get("version").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
 
@@ -184,11 +183,18 @@ impl PresetMigration {
     fn upgrade_to_v1(value: serde_json::Value) -> Result<PluginState, StateError> {
         // Extract parameters from v0 format
         // This is a placeholder - actual migration would depend on v0 schema
-        let params_value = value.get("params").cloned().unwrap_or(serde_json::json!({}));
-        let params: SynthParams = serde_json::from_value(params_value)
-            .map_err(|e| StateError::DeserializationError(format!("Failed to migrate preset: {}", e)))?;
+        let params_value = value
+            .get("params")
+            .cloned()
+            .unwrap_or(serde_json::json!({}));
+        let params: SynthParams = serde_json::from_value(params_value).map_err(|e| {
+            StateError::DeserializationError(format!("Failed to migrate preset: {}", e))
+        })?;
 
-        let preset_name = value.get("preset_name").and_then(|v| v.as_str()).map(String::from);
+        let preset_name = value
+            .get("preset_name")
+            .and_then(|v| v.as_str())
+            .map(String::from);
 
         Ok(PluginState {
             version: STATE_VERSION,
@@ -205,15 +211,18 @@ impl PresetManager {
     /// Load a preset from file
     pub fn load_preset(path: &str) -> Result<PluginState, StateError> {
         std::fs::read_to_string(path)
-            .map_err(|e| StateError::DeserializationError(format!("Failed to read preset file: {}", e)))
+            .map_err(|e| {
+                StateError::DeserializationError(format!("Failed to read preset file: {}", e))
+            })
             .and_then(|contents| PresetMigration::migrate_if_needed(&contents))
     }
 
     /// Save a preset to file
     pub fn save_preset(state: &PluginState, path: &str) -> Result<(), StateError> {
         let json = state.to_json()?;
-        std::fs::write(path, json)
-            .map_err(|e| StateError::SerializationError(format!("Failed to write preset file: {}", e)))
+        std::fs::write(path, json).map_err(|e| {
+            StateError::SerializationError(format!("Failed to write preset file: {}", e))
+        })
     }
 
     /// Get default preset
@@ -224,7 +233,9 @@ impl PresetManager {
     /// List all presets in a directory
     pub fn list_presets(dir: &str) -> Result<Vec<String>, StateError> {
         Ok(std::fs::read_dir(dir)
-            .map_err(|e| StateError::InvalidData(format!("Failed to read preset directory: {}", e)))?
+            .map_err(|e| {
+                StateError::InvalidData(format!("Failed to read preset directory: {}", e))
+            })?
             .filter_map(|entry| {
                 entry.ok().and_then(|e| {
                     let path = e.path();
@@ -248,7 +259,7 @@ mod tests {
     #[test]
     fn test_plugin_state_creation() {
         let params = SynthParams::default();
-        let state = PluginState::from_params(params.clone(), Some("Test".to_string()));
+        let state = PluginState::from_params(params, Some("Test".to_string()));
 
         assert_eq!(state.version, STATE_VERSION);
         assert_eq!(state.preset_name(), Some("Test"));
@@ -257,11 +268,12 @@ mod tests {
 
     #[test]
     fn test_binary_serialization() {
-        let state = PluginState::from_params(SynthParams::default(), Some("Binary Test".to_string()));
+        let state =
+            PluginState::from_params(SynthParams::default(), Some("Binary Test".to_string()));
 
         // Serialize
         let bytes = state.to_bytes().expect("Serialization failed");
-        assert!(bytes.len() > 0);
+        assert!(!bytes.is_empty());
         assert!(bytes.len() < MAX_STATE_SIZE);
 
         // Deserialize
@@ -312,7 +324,8 @@ mod tests {
 
     #[test]
     fn test_parameter_serialization_roundtrip() {
-        let mut state = PluginState::from_params(SynthParams::default(), Some("Roundtrip".to_string()));
+        let mut state =
+            PluginState::from_params(SynthParams::default(), Some("Roundtrip".to_string()));
 
         // Modify some parameters
         state.params_mut().master_gain = 0.75;

@@ -104,13 +104,6 @@ impl VoiceParamRegistry {
         let mut descriptors = HashMap::new();
         let mut param_ids = Vec::new();
 
-        macro_rules! add_param {
-            ($id:expr, $desc:expr) => {
-                descriptors.insert($id, $desc);
-                param_ids.push($id);
-            };
-        }
-
         Self::register_params(&mut descriptors, &mut param_ids);
 
         Self {

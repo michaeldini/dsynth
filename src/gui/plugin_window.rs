@@ -2,8 +2,6 @@
 //
 // This module is only compiled when the "clap" feature is enabled.
 
-#![cfg(feature = "clap")]
-
 use crate::gui::shared_ui;
 use crate::gui::theme;
 use crate::gui::GuiState;

@@ -1,24 +1,24 @@
-/// Stereo ping-pong delay effect
-///
-/// This is a classic delay effect where the delayed signal bounces between left
-/// and right channels, creating a spatial "ping-pong" effect. Each repeat alternates
-/// channels, which sounds great on synth leads and pads.
-///
-/// # Architecture
-/// - Two delay lines (left and right) with cross-feedback
-/// - Feedback controls how many repeats (0.0 = single echo, 0.9 = many repeats)
-/// - Delay time in milliseconds (1ms to 2000ms / 2 seconds)
-/// - Wet/dry mix control
-///
-/// # Parameters
-/// - **time_ms**: Delay time in milliseconds (1.0 to 2000.0)
-/// - **feedback**: Amount of repeats (0.0 to 0.95)
-/// - **wet**: Delay signal level (0.0 = dry, 1.0 = full wet)
-/// - **dry**: Direct signal level (0.0 = none, 1.0 = full dry)
-///
-/// # Real-Time Safety
-/// Delay buffer is pre-allocated to maximum size (2 seconds at sample rate).
-/// No allocations happen during `process()`.
+//! Stereo ping-pong delay effect
+//!
+//! This is a classic delay effect where the delayed signal bounces between left
+//! and right channels, creating a spatial "ping-pong" effect. Each repeat alternates
+//! channels, which sounds great on synth leads and pads.
+//!
+//! # Architecture
+//! - Two delay lines (left and right) with cross-feedback
+//! - Feedback controls how many repeats (0.0 = single echo, 0.9 = many repeats)
+//! - Delay time in milliseconds (1ms to 2000ms / 2 seconds)
+//! - Wet/dry mix control
+//!
+//! # Parameters
+//! - **time_ms**: Delay time in milliseconds (1.0 to 2000.0)
+//! - **feedback**: Amount of repeats (0.0 to 0.95)
+//! - **wet**: Delay signal level (0.0 = dry, 1.0 = full wet)
+//! - **dry**: Direct signal level (0.0 = none, 1.0 = full dry)
+//!
+//! # Real-Time Safety
+//! Delay buffer is pre-allocated to maximum size (2 seconds at sample rate).
+//! No allocations happen during `process()`.
 
 const MAX_DELAY_MS: f32 = 2000.0;
 
@@ -198,7 +198,7 @@ mod tests {
     fn test_delay_timing() {
         let sample_rate = 44100.0;
         let mut delay = StereoDelay::new(sample_rate);
-        
+
         // Set 100ms delay
         delay.set_time(100.0);
         delay.set_wet(1.0);
@@ -218,7 +218,10 @@ mod tests {
 
         // At exactly 100ms, we should see the delayed impulse
         let (out_l, _out_r) = delay.process(0.0, 0.0);
-        assert!(out_l.abs() > 0.5, "Delayed signal should appear after delay time");
+        assert!(
+            out_l.abs() > 0.5,
+            "Delayed signal should appear after delay time"
+        );
     }
 
     #[test]
@@ -238,7 +241,7 @@ mod tests {
         // Check for multiple peaks (repeats)
         for _ in 0..2000 {
             let (out_l, _) = delay.process(0.0, 0.0);
-            
+
             // Detect peak (rising edge crosses threshold)
             if out_l.abs() > 0.05 && prev_sample.abs() < 0.05 {
                 peaks_found += 1;
@@ -247,7 +250,11 @@ mod tests {
         }
 
         // Should have multiple repeats with feedback
-        assert!(peaks_found >= 2, "Delay should produce multiple repeats with feedback, found {}", peaks_found);
+        assert!(
+            peaks_found >= 2,
+            "Delay should produce multiple repeats with feedback, found {}",
+            peaks_found
+        );
     }
 
     #[test]
@@ -262,7 +269,7 @@ mod tests {
         delay.process(1.0, 0.0);
 
         let delay_samples = delay.delay_samples;
-        
+
         // Process until we see the signal in right channel (ping-pong)
         let mut found_ping_pong = false;
         for _ in 0..(delay_samples * 3) {
@@ -273,8 +280,11 @@ mod tests {
                 break;
             }
         }
-        
-        assert!(found_ping_pong, "Delayed signal should ping-pong to right channel");
+
+        assert!(
+            found_ping_pong,
+            "Delayed signal should ping-pong to right channel"
+        );
     }
 
     #[test]

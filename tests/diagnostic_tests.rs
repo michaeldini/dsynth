@@ -2,7 +2,7 @@
 //!
 //! These tests capture detailed metrics and can output waveform data for analysis.
 
-use dsynth::audio::engine::{SynthEngine, create_parameter_buffer};
+use dsynth::audio::engine::{create_parameter_buffer, SynthEngine};
 use dsynth::params::{SynthParams, Waveform};
 
 /// Diagnostic test that captures detailed metrics during playback.

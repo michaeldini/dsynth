@@ -1,19 +1,19 @@
-/// Brick-wall clipper for maximum loudness
-///
-/// Hard clips signal at adjustable threshold for aggressive limiting.
-/// Unlike soft saturation (tanh, etc.), this provides true brick-wall
-/// limiting at the cost of harmonic distortion.
-///
-/// # Use Cases
-/// - **Kick drums**: Maximize perceived loudness for competitive mixes
-/// - **Final stage limiting**: Ensure output never exceeds threshold
-/// - **Creative distortion**: Hard clipping adds aggressive harmonics
-///
-/// # Technical Details
-/// - Zero latency (no lookahead)
-/// - Instantaneous clipping (no attack/release)
-/// - Symmetric clipping (positive and negative peaks treated equally)
-/// - Can introduce aliasing at high frequencies (acceptable for kicks)
+//! Brick-wall clipper for maximum loudness
+//!
+//! Hard clips signal at adjustable threshold for aggressive limiting.
+//! Unlike soft saturation (tanh, etc.), this provides true brick-wall
+//! limiting at the cost of harmonic distortion.
+//!
+//! # Use Cases
+//! - **Kick drums**: Maximize perceived loudness for competitive mixes
+//! - **Final stage limiting**: Ensure output never exceeds threshold
+//! - **Creative distortion**: Hard clipping adds aggressive harmonics
+//!
+//! # Technical Details
+//! - Zero latency (no lookahead)
+//! - Instantaneous clipping (no attack/release)
+//! - Symmetric clipping (positive and negative peaks treated equally)
+//! - Can introduce aliasing at high frequencies (acceptable for kicks)
 
 /// Hard clipper with adjustable threshold
 pub struct Clipper {
