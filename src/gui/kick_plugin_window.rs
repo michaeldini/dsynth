@@ -300,6 +300,7 @@ fn build_knob_row(cx: &mut Context, items: &[(ParamId, &str, f32, f32)]) {
     .gap(Pixels(10.0));
 }
 
+#[allow(dead_code)]
 fn build_toggle_row(cx: &mut Context, items: Vec<(ParamId, &'static str, bool, bool)>) {
     HStack::new(cx, move |cx| {
         for item in items.iter() {

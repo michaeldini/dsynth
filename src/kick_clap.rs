@@ -90,8 +90,9 @@ impl ClapPlugin for DsynthKickPlugin {
     fn clap_descriptor() -> &'static clap_sys::plugin::clap_plugin_descriptor {
         use clap_sys::plugin::clap_plugin_descriptor;
 
-        static mut DESCRIPTOR: Option<clap_plugin_descriptor> = None;
-        static mut STRINGS: Option<DescriptorStrings> = None;
+        static DESCRIPTOR: OnceLock<clap_plugin_descriptor> = OnceLock::new();
+        static STRINGS: OnceLock<DescriptorStrings> = OnceLock::new();
+        static FEATURES: OnceLock<DescriptorFeatures> = OnceLock::new();
 
         struct DescriptorStrings {
             id: CString,
@@ -102,11 +103,17 @@ impl ClapPlugin for DsynthKickPlugin {
             feature1: CString,
             feature2: CString,
             feature3: CString,
+        }
+
+        struct DescriptorFeatures {
             features: [*const i8; 4],
         }
 
-        unsafe {
-            if DESCRIPTOR.is_none() {
+        unsafe impl Sync for DescriptorFeatures {}
+        unsafe impl Send for DescriptorFeatures {}
+
+        impl DescriptorStrings {
+            fn new() -> Self {
                 let id = CString::new("com.dsynth.kick").unwrap();
                 let name = CString::new("DSynth Kick").unwrap();
                 let vendor = CString::new("DSynth").unwrap();
@@ -117,14 +124,7 @@ impl ClapPlugin for DsynthKickPlugin {
                 let feature2 = CString::new("synthesizer").unwrap();
                 let feature3 = CString::new("drum").unwrap();
 
-                let features = [
-                    feature1.as_ptr(),
-                    feature2.as_ptr(),
-                    feature3.as_ptr(),
-                    std::ptr::null(),
-                ];
-
-                let strings = DescriptorStrings {
+                Self {
                     id,
                     name,
                     vendor,
@@ -133,27 +133,32 @@ impl ClapPlugin for DsynthKickPlugin {
                     feature1,
                     feature2,
                     feature3,
-                    features,
-                };
-
-                DESCRIPTOR = Some(clap_plugin_descriptor {
-                    clap_version: clap_sys::version::CLAP_VERSION,
-                    id: strings.id.as_ptr(),
-                    name: strings.name.as_ptr(),
-                    vendor: strings.vendor.as_ptr(),
-                    url: std::ptr::null(),
-                    manual_url: std::ptr::null(),
-                    support_url: std::ptr::null(),
-                    version: strings.version.as_ptr(),
-                    description: strings.description.as_ptr(),
-                    features: strings.features.as_ptr(),
-                });
-
-                STRINGS = Some(strings);
+                }
             }
-
-            DESCRIPTOR.as_ref().unwrap()
         }
+
+        let strings = STRINGS.get_or_init(DescriptorStrings::new);
+        let features = FEATURES.get_or_init(|| DescriptorFeatures {
+            features: [
+                strings.feature1.as_ptr(),
+                strings.feature2.as_ptr(),
+                strings.feature3.as_ptr(),
+                std::ptr::null(),
+            ],
+        });
+
+        DESCRIPTOR.get_or_init(|| clap_plugin_descriptor {
+            clap_version: clap_sys::version::CLAP_VERSION,
+            id: strings.id.as_ptr(),
+            name: strings.name.as_ptr(),
+            vendor: strings.vendor.as_ptr(),
+            url: std::ptr::null(),
+            manual_url: std::ptr::null(),
+            support_url: std::ptr::null(),
+            version: strings.version.as_ptr(),
+            description: strings.description.as_ptr(),
+            features: features.features.as_ptr(),
+        })
     }
 
     fn new() -> Self {

@@ -75,10 +75,6 @@ pub struct VoiceEngine {
     /// Lookahead limiter (safety ceiling)
     limiter: LookAheadLimiter,
 
-    /// Dry signal buffer (for dry/wet mixing)
-    dry_buffer_left: Vec<f32>,
-    dry_buffer_right: Vec<f32>,
-
     /// Current parameters
     params: VoiceParams,
 }
@@ -108,8 +104,6 @@ impl VoiceEngine {
             sub_target_amplitude: 0.0,
             exciter: Exciter::new(sample_rate),
             limiter: LookAheadLimiter::new(sample_rate, 5.0, 0.99, 0.5, 50.0), // 5ms lookahead, 0.99 threshold
-            dry_buffer_left: vec![0.0; 8192],
-            dry_buffer_right: vec![0.0; 8192],
             params: VoiceParams::default(),
         }
     }

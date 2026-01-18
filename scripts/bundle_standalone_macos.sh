@@ -77,7 +77,7 @@ if [ -f "assets/AppIcon.icns" ]; then
     cp "assets/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
 else
     echo "Warning: No AppIcon.icns found in assets/"
-    echo "  Run ./create_icns.sh to generate it from assets/icon.png"
+    echo "  Run ./scripts/create_icons.sh to generate it from assets/icon.png"
 fi
 
 echo ""

@@ -10,7 +10,7 @@ For the **standalone macOS application** to show an icon in Finder and the Dock,
 
 2. **Generate ICNS**: 
    ```bash
-   ./create_icns.sh
+   ./scripts/create_icons.sh
    ```
    This creates `assets/AppIcon.icns` with all required resolutions.
 
@@ -46,7 +46,7 @@ The icon in [src/gui/mod.rs](../src/gui/mod.rs) embeds `assets/icon.png` directl
 - Used for: Windows/Linux window icons, source for ICNS conversion
 
 ### For AppIcon.icns (macOS bundle):
-- Auto-generated from icon.png by `create_icns.sh`
+- Auto-generated from icon.png by `scripts/create_icons.sh`
 - Contains multiple resolutions: 16x16 through 1024x1024
 - Used for: Finder, Dock, app switcher on macOS
 

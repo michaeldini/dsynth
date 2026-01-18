@@ -1,8 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Convert PNG icon to macOS ICNS format
 # Requires a source icon.png in assets/ directory
 
-set -e
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
 
 SOURCE_PNG="assets/icon.png"
 ICONSET_DIR="assets/AppIcon.iconset"
@@ -69,5 +71,5 @@ echo "✓ ICNS icon created successfully!"
 echo ""
 echo "Output: $OUTPUT_ICNS"
 echo ""
-echo "Now run: ./bundle_standalone.sh"
+echo "Now run: ./scripts/bundle_standalone_macos.sh"
 echo ""
