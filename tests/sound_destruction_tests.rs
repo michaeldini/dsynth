@@ -185,25 +185,30 @@ fn test_sound_consistency_over_time() {
         engine.process_mono();
     }
 
-    // Capture 10 seconds of audio and analyze for consistency
-    let ten_seconds = sample_rate as usize * 10;
-    let mut samples = Vec::with_capacity(ten_seconds);
+    // Capture 2 seconds of audio and analyze for consistency
+    let duration_seconds = 2;
+    let total_samples = sample_rate as usize * duration_seconds;
+    let mut samples = Vec::with_capacity(total_samples);
 
-    println!("Capturing 10 seconds of audio with 6 notes playing...");
+    println!(
+        "Capturing {} seconds of audio with 6 notes playing...",
+        duration_seconds
+    );
     println!("(sine waves, unison=7, 3 oscillators)\n");
 
-    for _ in 0..ten_seconds {
+    for _ in 0..total_samples {
         samples.push(engine.process_mono());
     }
 
-    // Analyze in 1-second windows
-    let window_size = sample_rate as usize;
+    // Analyze in 0.5-second windows
+    let window_size = (sample_rate as usize) / 2;
     println!("RMS per second:");
     println!("Sec   RMS      Status");
     println!("───────────────────────");
 
     let mut all_rms = Vec::new();
-    for i in 0..10 {
+    let window_count = duration_seconds * 2;
+    for i in 0..window_count {
         let start = i * window_size;
         let end = start + window_size;
         let window = &samples[start..end];

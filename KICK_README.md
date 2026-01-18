@@ -23,8 +23,8 @@ cargo build --release --bin dsynth-kick --features kick-synth --no-default-featu
 # Run directly
 cargo run --release --bin dsynth-kick --features kick-synth --no-default-features
 
-# Create macOS app bundle
-./bundle_kick_standalone.sh
+# macOS .app bundling is not provided for DSynth Kick
+# Use the release binary directly
 ```
 
 ### Running Tests

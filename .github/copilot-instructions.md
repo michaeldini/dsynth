@@ -174,7 +174,7 @@ The project includes a **separate kick drum synthesizer** (`DSynthKick`) optimiz
 ```bash
 # Kick CLAP Plugin
 cargo build --release --lib --features kick-clap
-./bundle_kick_clap.sh  # macOS - creates DSynthKick.clap
+./scripts/bundle_kick_clap_macos.sh  # macOS - creates DSynthKick.clap
 cp -r target/bundled/DSynthKick.clap ~/Library/Audio/Plug-Ins/CLAP/
 ```
 
@@ -381,7 +381,7 @@ The `pitch_confidence_threshold` (0.0-1.0) acts as a quality gate:
 ```bash
 # Voice CLAP Plugin
 cargo build --release --lib --features voice-clap
-./bundle_voice_clap.sh  # macOS - creates DSynthVoice.clap
+./scripts/bundle_voice_clap_macos.sh  # macOS - creates DSynthVoice.clap
 cp -r target/bundled/DSynthVoice.clap ~/Library/Audio/Plug-Ins/CLAP/
 ```
 
@@ -502,7 +502,7 @@ cargo build --release
 
 # CLAP Plugin
 cargo build --release --lib --features clap
-./bundle_clap.sh  # macOS - creates CLAP bundle in target/bundled/
+./scripts/bundle_clap_macos.sh  # macOS - creates CLAP plugin in target/bundled/
 cp -r target/bundled/DSynth.clap ~/Library/Audio/Plug-Ins/CLAP/
 
 # Without SIMD (stable Rust)
@@ -595,11 +595,11 @@ Each DSP component ([dsp/](src/dsp/)) follows this pattern:
 
 ### Bundling Scripts
 - **CLAP Plugin**:
-  - [bundle.sh](bundle.sh) (macOS CLAP)
-  - [bundle_standalone.sh](bundle_standalone.sh) (macOS standalone)
-  - Platform-specific variants for Linux/Windows
+  - [scripts/bundle_clap_macos.sh](scripts/bundle_clap_macos.sh) (macOS CLAP)
+  - [scripts/bundle_clap_windows.bat](scripts/bundle_clap_windows.bat) (Windows CLAP)
+  - [scripts/bundle_standalone_macos.sh](scripts/bundle_standalone_macos.sh) (macOS standalone)
 - See [BUILD_AND_DISTRIBUTE.md](BUILD_AND_DISTRIBUTE.md) for cross-compilation and GitHub Actions setup
-- CLAP plugins install to: `~/Library/Audio/Plug-Ins/CLAP/` (macOS), `%COMMONPROGRAMFILES%\CLAP\` (Windows), `~/.clap/` (Linux)
+- CLAP plugins install to: `~/Library/Audio/Plug-Ins/CLAP/` (macOS), `%COMMONPROGRAMFILES%\CLAP\` (Windows)
 
 ### GUI System
 - [gui/](src/gui/): Unified VIZIA GUI for both targets
@@ -630,11 +630,10 @@ Each DSP component ([dsp/](src/dsp/)) follows this pattern:
 
 ## Distribution
 - Use bundling scripts:
-  - [bundle.sh](bundle.sh) (macOS CLAP plugin)
-  - [bundle_standalone.sh](bundle_standalone.sh) (macOS standalone app)
-  - Platform-specific variants: [bundle.bat](bundle.bat) (Windows), [bundle-linux.sh](bundle-linux.sh) (Linux)
+  - [scripts/bundle_clap_macos.sh](scripts/bundle_clap_macos.sh) (macOS CLAP plugin)
+  - [scripts/bundle_clap_windows.bat](scripts/bundle_clap_windows.bat) (Windows CLAP plugin)
+  - [scripts/bundle_standalone_macos.sh](scripts/bundle_standalone_macos.sh) (macOS standalone app)
 - See [BUILD_AND_DISTRIBUTE.md](BUILD_AND_DISTRIBUTE.md) for cross-compilation and GitHub Actions setup
 - CLAP plugins install to standard locations:
   - macOS: `~/Library/Audio/Plug-Ins/CLAP/`
   - Windows: `%COMMONPROGRAMFILES%\CLAP\`
-  - Linux: `~/.clap/`

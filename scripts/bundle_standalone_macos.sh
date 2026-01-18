@@ -1,36 +1,39 @@
-#!/bin/bash
-# Bundle script for creating a macOS .app bundle for DSynth standalone application
+#!/usr/bin/env bash
+set -euo pipefail
 
-set -e
+cd "$(dirname "$0")/.."
 
 APP_NAME="DSynth"
-BUILD_DIR="target/release"
 BUNDLE_DIR="target/bundled"
 APP_BUNDLE="$BUNDLE_DIR/$APP_NAME.app"
 
+TARGET_DIR="target/release"
+TARGET_ARGS=()
+if [[ -n "${TARGET:-}" ]]; then
+  TARGET_DIR="target/$TARGET/release"
+  TARGET_ARGS=(--target "$TARGET")
+fi
+
 echo "Building DSynth standalone .app bundle..."
 
-# Build the standalone application
 echo "Building release binary..."
-cargo build --release --features standalone
+if ((${#TARGET_ARGS[@]})); then
+    cargo build --release --features standalone "${TARGET_ARGS[@]}"
+else
+    cargo build --release --features standalone
+fi
 
-# Create bundle directories
 echo "Creating bundle structure..."
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_BUNDLE/Contents/MacOS"
 mkdir -p "$APP_BUNDLE/Contents/Resources"
 
-# Copy the executable
 echo "Copying executable..."
-cp "$BUILD_DIR/dsynth" "$APP_BUNDLE/Contents/MacOS/dsynth"
-
-# Make it executable
+cp "$TARGET_DIR/dsynth" "$APP_BUNDLE/Contents/MacOS/dsynth"
 chmod +x "$APP_BUNDLE/Contents/MacOS/dsynth"
 
-# Create PkgInfo (legacy but some tools expect it)
 echo "APPL????" > "$APP_BUNDLE/Contents/PkgInfo"
 
-# Create Info.plist
 echo "Creating Info.plist..."
 cat > "$APP_BUNDLE/Contents/Info.plist" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -69,7 +72,6 @@ cat > "$APP_BUNDLE/Contents/Info.plist" << 'EOF'
 </plist>
 EOF
 
-# Copy icon if it exists
 if [ -f "assets/AppIcon.icns" ]; then
     echo "Copying app icon..."
     cp "assets/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
@@ -80,12 +82,4 @@ fi
 
 echo ""
 echo "✓ Bundle created successfully!"
-echo ""
 echo "Location: $APP_BUNDLE"
-echo ""
-echo "To run:"
-echo "  open $APP_BUNDLE"
-echo ""
-echo "To install to Applications:"
-echo "  cp -r $APP_BUNDLE /Applications/"
-echo ""

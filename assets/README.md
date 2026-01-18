@@ -16,7 +16,7 @@ For the **standalone macOS application** to show an icon in Finder and the Dock,
 
 3. **Build app bundle**:
    ```bash
-   ./bundle_standalone.sh
+   ./scripts/bundle_standalone_macos.sh
    ```
    This creates `target/bundled/DSynth.app`
 
@@ -81,12 +81,12 @@ rsvg-convert -w 512 -h 512 icon.svg -o assets/icon.png
 
 - **`cargo run`**: Debug build, no icon visible (running from terminal)
 - **`cargo build --release`**: Release binary, embedded icon (Windows/Linux only)
-- **`./bundle_standalone.sh`**: Complete .app bundle with ICNS icon (macOS)
+- **`./scripts/bundle_standalone_macos.sh`**: Complete .app bundle with ICNS icon (macOS)
 
 ---
 
 ## Platform Support
 
-- **macOS**: Requires `.app` bundle for visible icons (use `bundle_standalone.sh`)
+- **macOS**: Requires `.app` bundle for visible icons (use `scripts/bundle_standalone_macos.sh`)
 - **Windows**: Window icon from embedded PNG works directly
 - **Linux**: Window icon from embedded PNG works directly

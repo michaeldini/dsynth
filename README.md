@@ -112,8 +112,8 @@ cargo build --release --no-default-features
 
 **Local builds** (for testing):
 ```bash
-./bundle_clap.sh    # macOS
-./bundle_standalone.sh  # macOS standalone app
+./scripts/bundle_clap_macos.sh
+./scripts/bundle_standalone_macos.sh
 ```
 
 **Automated builds** (recommended for releases):
@@ -122,7 +122,7 @@ cargo build --release --no-default-features
 git tag v0.1.1 && git push --tags
 
 # Downloads available in GitHub Releases tab
-# Includes: Standalone + CLAP for macOS/Windows/Linux
+# Includes: Standalone + CLAP for macOS/Windows
 ```
 
 See [GITHUB_ACTIONS_GUIDE.md](GITHUB_ACTIONS_GUIDE.md) for the automated workflow details.

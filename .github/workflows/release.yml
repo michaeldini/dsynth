@@ -66,187 +66,134 @@ jobs:
           name: ${{ matrix.asset_name }}
           path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
 
-      - name: Build CLAP Plugin
+      - name: Build CLAP Plugin (macOS)
         timeout-minutes: 90
         id: clap_build
+        if: matrix.os == 'macos-latest'
         env:
           CARGO_INCREMENTAL: 0
           RUST_BACKTRACE: 1
           CARGO_NET_GIT_FETCH_WITH_CLI: true
           CARGO_NET_RETRY: 10
-        run: cargo build --release --lib --features clap --target ${{ matrix.target }} -v
+          TARGET: ${{ matrix.target }}
+        run: ./scripts/bundle_clap_macos.sh
 
-      - name: Build Kick CLAP Plugin
+      - name: Build CLAP Plugin (Windows)
+        timeout-minutes: 90
+        id: clap_build_windows
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        env:
+          CARGO_INCREMENTAL: 0
+          RUST_BACKTRACE: 1
+          CARGO_NET_GIT_FETCH_WITH_CLI: true
+          CARGO_NET_RETRY: 10
+          TARGET: ${{ matrix.target }}
+        run: |
+          cmd /c scripts\bundle_clap_windows.bat
+
+      - name: Build Kick CLAP Plugin (macOS)
         timeout-minutes: 90
         id: kick_clap_build
+        if: matrix.os == 'macos-latest'
         env:
           CARGO_INCREMENTAL: 0
           RUST_BACKTRACE: 1
           CARGO_NET_GIT_FETCH_WITH_CLI: true
           CARGO_NET_RETRY: 10
-        run: cargo build --release --lib --no-default-features --features kick-clap --target ${{ matrix.target }} -v
+          TARGET: ${{ matrix.target }}
+        run: ./scripts/bundle_kick_clap_macos.sh
+
+      - name: Build Kick CLAP Plugin (Windows)
+        timeout-minutes: 90
+        id: kick_clap_build_windows
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        env:
+          CARGO_INCREMENTAL: 0
+          RUST_BACKTRACE: 1
+          CARGO_NET_GIT_FETCH_WITH_CLI: true
+          CARGO_NET_RETRY: 10
+          TARGET: ${{ matrix.target }}
+        run: |
+          cmd /c scripts\bundle_kick_clap_windows.bat
+
+      - name: Build Voice CLAP Plugin (macOS)
+        timeout-minutes: 90
+        id: voice_clap_build
+        if: matrix.os == 'macos-latest'
+        env:
+          CARGO_INCREMENTAL: 0
+          RUST_BACKTRACE: 1
+          CARGO_NET_GIT_FETCH_WITH_CLI: true
+          CARGO_NET_RETRY: 10
+          TARGET: ${{ matrix.target }}
+        run: ./scripts/bundle_voice_clap_macos.sh
+
+      - name: Build Voice CLAP Plugin (Windows)
+        timeout-minutes: 90
+        id: voice_clap_build_windows
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        env:
+          CARGO_INCREMENTAL: 0
+          RUST_BACKTRACE: 1
+          CARGO_NET_GIT_FETCH_WITH_CLI: true
+          CARGO_NET_RETRY: 10
+          TARGET: ${{ matrix.target }}
+        run: |
+          cmd /c scripts\bundle_voice_clap_windows.bat
 
       - name: Create Plugin Bundles (macOS)
         if: matrix.os == 'macos-latest'
         run: |
           mkdir -p bundles
-
-          VERSION="${GITHUB_REF_NAME#v}"
-          
-          # CLAP Bundle
-          CLAP_BUNDLE="bundles/DSynth.clap"
-          mkdir -p "$CLAP_BUNDLE/Contents/MacOS"
-          cp "target/${{ matrix.target }}/release/libdsynth.dylib" "$CLAP_BUNDLE/Contents/MacOS/DSynth"
-          echo "BNDL????" > "$CLAP_BUNDLE/Contents/PkgInfo"
-          
-          cat > "$CLAP_BUNDLE/Contents/Info.plist" << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>CFBundleExecutable</key>
-              <string>DSynth</string>
-              <key>CFBundleIdentifier</key>
-              <string>com.dsynth.clap</string>
-              <key>CFBundleName</key>
-              <string>DSynth</string>
-              <key>CFBundlePackageType</key>
-              <string>BNDL</string>
-              <key>CFBundleShortVersionString</key>
-              <string>__VERSION__</string>
-          </dict>
-          </plist>
-          EOF
-
-          perl -pi -e "s/__VERSION__/$VERSION/g" "$CLAP_BUNDLE/Contents/Info.plist"
-          
-          # Code sign the bundle (ad-hoc signing)
-          codesign --force --deep --sign - "$CLAP_BUNDLE"
-          
-          # Verify signature
-          codesign -dv "$CLAP_BUNDLE" 2>&1
-          
-          # Create archive
-          cd bundles
-          tar -czf DSynth-${{ matrix.target }}-clap.tar.gz DSynth.clap
+          cp "target/bundled/DSynth.clap" "bundles/"
+          tar -czf "bundles/DSynth-${{ matrix.target }}-clap.tar.gz" -C bundles DSynth.clap
 
       - name: Create Kick Plugin Bundles (macOS)
         if: matrix.os == 'macos-latest'
         run: |
           mkdir -p bundles
+          cp "target/bundled/DSynthKick.clap" "bundles/"
+          tar -czf "bundles/DSynthKick-${{ matrix.target }}-clap.tar.gz" -C bundles DSynthKick.clap
 
-          VERSION="${GITHUB_REF_NAME#v}"
-
-          # CLAP Bundle (Kick)
-          CLAP_BUNDLE="bundles/DSynthKick.clap"
-          mkdir -p "$CLAP_BUNDLE/Contents/MacOS"
-          cp "target/${{ matrix.target }}/release/libdsynth.dylib" "$CLAP_BUNDLE/Contents/MacOS/DSynthKick"
-          echo "BNDL????" > "$CLAP_BUNDLE/Contents/PkgInfo"
-
-          cat > "$CLAP_BUNDLE/Contents/Info.plist" << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>CFBundleExecutable</key>
-              <string>DSynthKick</string>
-              <key>CFBundleIdentifier</key>
-              <string>com.dsynth.kick.clap</string>
-              <key>CFBundleName</key>
-              <string>DSynthKick</string>
-              <key>CFBundlePackageType</key>
-              <string>BNDL</string>
-              <key>CFBundleShortVersionString</key>
-              <string>__VERSION__</string>
-          </dict>
-          </plist>
-          EOF
-
-          perl -pi -e "s/__VERSION__/$VERSION/g" "$CLAP_BUNDLE/Contents/Info.plist"
-
-          # Code sign the bundle (ad-hoc signing)
-          codesign --force --deep --sign - "$CLAP_BUNDLE"
-
-          # Verify signature
-          codesign -dv "$CLAP_BUNDLE" 2>&1
-
-          # Create archive
-          cd bundles
-          tar -czf DSynthKick-${{ matrix.target }}-clap.tar.gz DSynthKick.clap
+      - name: Create Voice Plugin Bundles (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          mkdir -p bundles
+          cp "target/bundled/DSynthVoice.clap" "bundles/"
+          tar -czf "bundles/DSynthVoice-${{ matrix.target }}-clap.tar.gz" -C bundles DSynthVoice.clap
 
       - name: Create Plugin Bundles (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path bundles
-
-          $version = "${{ github.ref_name }}" -replace '^v',''
-          
-          # CLAP Bundle - Windows CLAP is just the DLL with .clap extension
-          $clapBundle = "bundles\DSynth.clap"
-          New-Item -ItemType Directory -Force -Path $clapBundle
-          
-          # Verify the DLL exists
-          if (-Not (Test-Path "target\${{ matrix.target }}\release\dsynth.dll")) {
-            Write-Error "dsynth.dll not found!"
-            exit 1
-          }
-          
-          Copy-Item "target\${{ matrix.target }}\release\dsynth.dll" "$clapBundle\DSynth.clap"
-          
-          # Verify the copy succeeded
-          if (-Not (Test-Path "$clapBundle\DSynth.clap")) {
-            Write-Error "Failed to create DSynth.clap!"
-            exit 1
-          }
-          
-          # Create archive
-          Compress-Archive -Path "$clapBundle\*" -DestinationPath "bundles\DSynth-${{ matrix.target }}-clap.zip" -Force
-          
-          # Verify archive was created
-          if (-Not (Test-Path "bundles\DSynth-${{ matrix.target }}-clap.zip")) {
-            Write-Error "Failed to create archive!"
-            exit 1
-          }
-          
-          Write-Host "Successfully created bundles\DSynth-${{ matrix.target }}-clap.zip"
+          $env:TARGET = "${{ matrix.target }}"
+          cmd /c scripts\bundle_clap_windows.bat
+          Copy-Item "target\bundled\DSynth.clap" "bundles\DSynth.clap" -Force
+          Compress-Archive -Path "bundles\DSynth.clap" -DestinationPath "bundles\DSynth-${{ matrix.target }}-clap.zip" -Force
 
       - name: Create Kick Plugin Bundles (Windows)
         if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path bundles
+          $env:TARGET = "${{ matrix.target }}"
+          cmd /c scripts\bundle_kick_clap_windows.bat
+          Copy-Item "target\bundled\DSynthKick.clap" "bundles\DSynthKick.clap" -Force
+          Compress-Archive -Path "bundles\DSynthKick.clap" -DestinationPath "bundles\DSynthKick-${{ matrix.target }}-clap.zip" -Force
 
-          $version = "${{ github.ref_name }}" -replace '^v',''
-
-          # CLAP Bundle - Windows CLAP is just the DLL with .clap extension
-          $clapBundle = "bundles\DSynthKick.clap"
-          New-Item -ItemType Directory -Force -Path $clapBundle
-
-          # Verify the DLL exists
-          if (-Not (Test-Path "target\${{ matrix.target }}\release\dsynth.dll")) {
-            Write-Error "dsynth.dll not found!"
-            exit 1
-          }
-
-          Copy-Item "target\${{ matrix.target }}\release\dsynth.dll" "$clapBundle\DSynthKick.clap"
-
-          # Verify the copy succeeded
-          if (-Not (Test-Path "$clapBundle\DSynthKick.clap")) {
-            Write-Error "Failed to create DSynthKick.clap!"
-            exit 1
-          }
-
-          # Create archive
-          Compress-Archive -Path "$clapBundle\*" -DestinationPath "bundles\DSynthKick-${{ matrix.target }}-clap.zip" -Force
-
-          # Verify archive was created
-          if (-Not (Test-Path "bundles\DSynthKick-${{ matrix.target }}-clap.zip")) {
-            Write-Error "Failed to create archive!"
-            exit 1
-          }
-
-          Write-Host "Successfully created bundles\DSynthKick-${{ matrix.target }}-clap.zip"
+      - name: Create Voice Plugin Bundles (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path bundles
+          $env:TARGET = "${{ matrix.target }}"
+          cmd /c scripts\bundle_voice_clap_windows.bat
+          Copy-Item "target\bundled\DSynthVoice.clap" "bundles\DSynthVoice.clap" -Force
+          Compress-Archive -Path "bundles\DSynthVoice.clap" -DestinationPath "bundles\DSynthVoice-${{ matrix.target }}-clap.zip" -Force
 
       - name: Upload CLAP Plugin
         uses: actions/upload-artifact@v4
@@ -259,6 +206,12 @@ jobs:
         with:
           name: DSynthKick-${{ matrix.target }}-clap
           path: bundles/DSynthKick-${{ matrix.target }}-clap.*
+
+      - name: Upload Voice CLAP Plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: DSynthVoice-${{ matrix.target }}-clap
+          path: bundles/DSynthVoice-${{ matrix.target }}-clap.*
 
   create-release:
     needs: build
@@ -290,6 +243,7 @@ jobs:
             ### CLAP Plugins
             - `DSynth-*-clap.tar.gz` / `.zip` - DSynth CLAP plugin for macOS and Windows
             - `DSynthKick-*-clap.tar.gz` / `.zip` - DSynth Kick CLAP plugin for macOS and Windows
+            - `DSynthVoice-*-clap.tar.gz` / `.zip` - DSynth Voice CLAP plugin for macOS and Windows
             
             ### Installation
             

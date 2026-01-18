@@ -24,7 +24,7 @@ DSynth is a **100% cross-platform** synthesizer plugin. The same Rust code build
 
 ### macOS
 ```bash
-./bundle.sh
+./scripts/bundle_clap_macos.sh
 # Creates CLAP plugin in target/bundled/
 
 # Install
@@ -33,21 +33,11 @@ cp -r target/bundled/DSynth.clap ~/Library/Audio/Plug-Ins/CLAP/
 
 ### Windows
 ```batch
-bundle.bat
+scripts\bundle_clap_windows.bat
 REM Creates CLAP plugin in target\bundled\
 
 REM Install
 copy target\bundled\DSynth.clap\DSynth.clap "%COMMONPROGRAMFILES%\CLAP\"
-```
-
-### Linux
-```bash
-chmod +x bundle-linux.sh
-./bundle-linux.sh
-# Creates CLAP plugin in target/bundled/
-
-# Install
-cp target/bundled/DSynth.clap/DSynth.clap ~/.clap/
 ```
 
 ---
@@ -58,19 +48,6 @@ cp target/bundled/DSynth.clap/DSynth.clap ~/.clap/
 - Rust nightly toolchain
 - Xcode Command Line Tools: `xcode-select --install`
 - ✅ Already have this
-
-### Linux (Ubuntu/Debian)
-```bash
-sudo apt-get update
-sudo apt-get install -y \
-    libasound2-dev \
-    pkg-config \
-    libx11-dev \
-    libxcb1-dev \
-    libxcb-render0-dev \
-    libxcb-shape0-dev \
-    libxcb-xfixes0-dev
-```
 
 ### Windows
 - Rust nightly toolchain
@@ -105,9 +82,8 @@ cargo build --release --lib --features clap
 ### Using Build Scripts
 Each platform has a ready-to-use build script:
 
-- **macOS**: `./bundle.sh` - Creates CLAP bundle
-- **Windows**: `bundle.bat` - Creates CLAP bundle
-- **Linux**: `bundle-linux.sh` - Creates CLAP bundle
+- **macOS**: `./scripts/bundle_clap_macos.sh` - Creates CLAP plugin (flat .clap)
+- **Windows**: `scripts\bundle_clap_windows.bat` - Creates CLAP plugin (flat .clap)
 
 ---
 
@@ -174,7 +150,7 @@ DSynth.clap/
 │   └── Info.plist
 ```
 
-**Created by**: `./bundle.sh`
+**Created by**: `./scripts/bundle_clap_macos.sh`
 
 ### Windows CLAP Bundle Structure
 ```
@@ -182,15 +158,7 @@ DSynth.clap/
 └── DSynth.clap (DLL)
 ```
 
-**Created by**: `bundle.bat`
-
-### Linux CLAP Bundle Structure
-```
-DSynth.clap/
-└── DSynth.clap (shared object)
-```
-
-**Created by**: `bundle-linux.sh`
+**Created by**: `scripts\\bundle_clap_windows.bat`
 
 ---
 
@@ -209,9 +177,15 @@ strip = true        # Strip debug symbols
 
 ### macOS - Create .app Bundle
 
+Use the provided script:
+```bash
+./scripts/bundle_standalone_macos.sh
+```
+
+Example manual steps (if you need a custom bundle):
 ```bash
 #!/bin/bash
-# create_macos_bundle.sh
+# create_macos_bundle.sh (example only)
 
 APP_NAME="DSynth"
 BUNDLE_NAME="${APP_NAME}.app"
@@ -501,7 +475,7 @@ cp target/bundled/DSynth.clap/DSynth.clap ~/.clap
 | ✅ Plugin bundles | Ready | Scripts create autclap/Contents/MacOS/`) |
 | Windows | `.dll` | Flat file (`DSynth.clap`) |
 
-**Important:** Compiled binaries are NOT cross-platform. A `.dylib` only works on macOS, `.dll` only on Windows(CLAP-only) | Ready | Run `./bundle.sh` on macOS |
+**Important:** Compiled binaries are NOT cross-platform. A `.dylib` only works on macOS, `.dll` only on Windows(CLAP-only) | Ready | Run `./scripts/bundle_clap_macos.sh` on macOS |
 | ✅ GitHub Actions (CLAP-only) | Ready | Push tag to trigger builds |
 | ✅ CLAP bundles | Ready | Scripts create automatically |
 | ✅ Distribution ready | Ready | Use GitHub Releases for distribution |
