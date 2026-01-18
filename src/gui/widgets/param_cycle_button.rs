@@ -93,7 +93,7 @@ impl EnumPopupButton {
                         }
 
                         let num_options = options.len();
-                        let num_cols = (num_options + POPUP_ROWS_PER_COL - 1) / POPUP_ROWS_PER_COL;
+                        let num_cols = num_options.div_ceil(POPUP_ROWS_PER_COL);
 
                         let max_len =
                             options.iter().map(|s| s.chars().count()).max().unwrap_or(0) as f32;

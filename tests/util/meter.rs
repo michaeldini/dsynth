@@ -5,6 +5,7 @@ pub struct LoudnessMetrics {
     pub crest: f32,
 }
 
+#[allow(dead_code)]
 pub fn analyze_mono(samples: &[f32]) -> LoudnessMetrics {
     if samples.is_empty() {
         return LoudnessMetrics {

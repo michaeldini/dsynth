@@ -156,9 +156,14 @@ impl Chorus {
 
         // Update all voices with their rate offsets
         let rate_variations = [0.0, 0.1, -0.05, 0.15];
-        for i in 0..NUM_VOICES {
-            self.voices_l[i].set_rate(self.rate, rate_variations[i]);
-            self.voices_r[i].set_rate(self.rate, rate_variations[i]);
+        for ((voice_l, voice_r), rate_variation) in self
+            .voices_l
+            .iter_mut()
+            .zip(self.voices_r.iter_mut())
+            .zip(rate_variations.iter())
+        {
+            voice_l.set_rate(self.rate, *rate_variation);
+            voice_r.set_rate(self.rate, *rate_variation);
         }
     }
 
@@ -177,9 +182,14 @@ impl Chorus {
     /// This is called when tempo sync mode changes to ensure predictable timing.
     pub fn reset_phase(&mut self) {
         let phase_offsets = [0.0, 0.25, 0.5, 0.75];
-        for i in 0..NUM_VOICES {
-            self.voices_l[i].lfo_phase = phase_offsets[i];
-            self.voices_r[i].lfo_phase = phase_offsets[i] + 0.125;
+        for ((voice_l, voice_r), phase_offset) in self
+            .voices_l
+            .iter_mut()
+            .zip(self.voices_r.iter_mut())
+            .zip(phase_offsets.iter())
+        {
+            voice_l.lfo_phase = *phase_offset;
+            voice_r.lfo_phase = *phase_offset + 0.125;
         }
     }
 
@@ -196,9 +206,9 @@ impl Chorus {
         let mut chorus_l = 0.0;
         let mut chorus_r = 0.0;
 
-        for i in 0..NUM_VOICES {
-            chorus_l += self.voices_l[i].process(input_l, self.depth);
-            chorus_r += self.voices_r[i].process(input_r, self.depth);
+        for (voice_l, voice_r) in self.voices_l.iter_mut().zip(self.voices_r.iter_mut()) {
+            chorus_l += voice_l.process(input_l, self.depth);
+            chorus_r += voice_r.process(input_r, self.depth);
         }
 
         // Normalize by number of voices

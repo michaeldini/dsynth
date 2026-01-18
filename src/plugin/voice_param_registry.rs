@@ -99,6 +99,12 @@ pub struct VoiceParamRegistry {
     param_ids: Vec<ParamId>,
 }
 
+impl Default for VoiceParamRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VoiceParamRegistry {
     pub fn new() -> Self {
         let mut descriptors = HashMap::new();
@@ -114,6 +120,10 @@ impl VoiceParamRegistry {
 
     pub fn len(&self) -> usize {
         self.descriptors.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.descriptors.is_empty()
     }
 
     pub fn get(&self, param_id: &ParamId) -> Option<&ParamDescriptor> {

@@ -530,10 +530,8 @@ impl Voice {
         // anti-click fades. By only clearing the downsampler buffers and letting phase
         // continue, we maintain waveform continuity while still removing stale samples.
         for osc_slot in &mut self.oscillators {
-            for osc_opt in osc_slot.iter_mut() {
-                if let Some(osc) = osc_opt {
-                    osc.reset_buffers();
-                }
+            for osc in osc_slot.iter_mut().flatten() {
+                osc.reset_buffers();
             }
         }
 
@@ -671,8 +669,8 @@ impl Voice {
         // Update it whenever either the note changes or filter params change.
         if needs_filter_update || note_changed {
             let note_offset = self.note as f32 - 60.0; // C4 reference
-            for i in 0..3 {
-                let key_tracking = filter_params[i].key_tracking.clamp(0.0, 1.0);
+            for (i, filter_param) in filter_params.iter().enumerate() {
+                let key_tracking = filter_param.key_tracking.clamp(0.0, 1.0);
                 // Matches the previous per-sample formula:
                 // cutoff_mult = 2^((note_offset * 100cents * key_tracking) / 1200)
                 //            = 2^((note_offset * key_tracking) / 12)
@@ -680,9 +678,14 @@ impl Voice {
             }
         }
 
-        for i in 0..3 {
+        for (i, ((osc_param, filter_param), lfo_param)) in osc_params
+            .iter()
+            .zip(filter_params.iter())
+            .zip(lfo_params.iter())
+            .enumerate()
+        {
             if needs_osc_update {
-                let param = &osc_params[i];
+                let param = osc_param;
 
                 let target_unison = param.unison.clamp(1, MAX_UNISON_VOICES);
                 self.active_unison[i] = target_unison;
@@ -732,20 +735,19 @@ impl Voice {
             }
 
             if needs_filter_update {
-                self.filters[i].set_filter_type(filter_params[i].filter_type);
-                self.filters[i].set_resonance(filter_params[i].resonance);
-                self.filters[i].set_bandwidth(filter_params[i].bandwidth);
+                self.filters[i].set_filter_type(filter_param.filter_type);
+                self.filters[i].set_resonance(filter_param.resonance);
+                self.filters[i].set_bandwidth(filter_param.bandwidth);
 
-                self.filter_envelopes[i].set_attack(filter_params[i].envelope.attack);
-                self.filter_envelopes[i].set_decay(filter_params[i].envelope.decay);
-                self.filter_envelopes[i].set_sustain(filter_params[i].envelope.sustain);
-                self.filter_envelopes[i].set_release(filter_params[i].envelope.release);
+                self.filter_envelopes[i].set_attack(filter_param.envelope.attack);
+                self.filter_envelopes[i].set_decay(filter_param.envelope.decay);
+                self.filter_envelopes[i].set_sustain(filter_param.envelope.sustain);
+                self.filter_envelopes[i].set_release(filter_param.envelope.release);
             }
 
             if needs_lfo_update {
-                let lfo = &lfo_params[i];
-                self.lfos[i].set_rate(lfo.rate);
-                self.lfos[i].set_waveform(lfo.waveform);
+                self.lfos[i].set_rate(lfo_param.rate);
+                self.lfos[i].set_waveform(lfo_param.waveform);
             }
         }
 
@@ -760,8 +762,8 @@ impl Voice {
             self.pan_mod_active = new_pan_mod_active;
 
             if !self.pan_mod_active && (osc_params_changed || pan_mod_just_disabled) {
-                for i in 0..3 {
-                    let pan = osc_params[i].pan.clamp(-1.0, 1.0);
+                for (i, osc_param) in osc_params.iter().enumerate() {
+                    let pan = osc_param.pan.clamp(-1.0, 1.0);
                     let pan_radians = (pan + 1.0) * std::f32::consts::PI / 4.0;
                     self.cached_pan_left_gain[i] = pan_radians.cos();
                     self.cached_pan_right_gain[i] = pan_radians.sin();
@@ -869,6 +871,7 @@ impl Voice {
     /// - No locks (all data is voice-local or read-only)
     /// - Minimal branching (predictable execution paths)
     /// - ~10-15 μs per voice on modern CPUs (target: <20 μs to stay under 1ms for 16 voices)
+    #[allow(clippy::too_many_arguments)] // Hot path; grouping would add overhead/indirection.
     pub fn process(
         &mut self,
         osc_params: &[OscillatorParams; 3],
@@ -1571,10 +1574,8 @@ impl Voice {
         // Reset all oscillators (clear phase, DC offset, downsampler state)
         // We iterate through all 21 pre-allocated oscillators (3 slots × 7 unison)
         for osc_slot in &mut self.oscillators {
-            for osc_opt in osc_slot.iter_mut() {
-                if let Some(osc) = osc_opt {
-                    osc.reset();
-                }
+            for osc in osc_slot.iter_mut().flatten() {
+                osc.reset();
             }
         }
 

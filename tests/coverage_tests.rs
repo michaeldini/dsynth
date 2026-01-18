@@ -11,7 +11,7 @@
 //! - Edge cases
 
 use dsynth::audio::engine::{create_parameter_buffer, SynthEngine};
-use dsynth::params::{FilterType, SynthParams, Waveform};
+use dsynth::params::{EnvelopeParams, FilterType, SynthParams, Waveform};
 
 // ============================================================================
 // ADSR ENVELOPE TESTS
@@ -795,8 +795,10 @@ fn test_monophonic_mode_last_note_priority() {
     let (mut param_producer, param_consumer) = create_parameter_buffer();
     let mut engine = SynthEngine::new(sample_rate, param_consumer);
 
-    let mut params = SynthParams::default();
-    params.monophonic = true; // Enable monophonic mode
+    let params = SynthParams {
+        monophonic: true, // Enable monophonic mode
+        ..Default::default()
+    };
 
     param_producer.write(params);
 
@@ -852,10 +854,15 @@ fn test_monophonic_note_transitions() {
     let (mut param_producer, param_consumer) = create_parameter_buffer();
     let mut engine = SynthEngine::new(sample_rate, param_consumer);
 
-    let mut params = SynthParams::default();
-    params.monophonic = true;
-    params.envelope.attack = 0.01; // Fast attack for testing
-    params.envelope.release = 0.1; // Some release time
+    let params = SynthParams {
+        monophonic: true,
+        envelope: EnvelopeParams {
+            attack: 0.01, // Fast attack for testing
+            release: 0.1, // Some release time
+            ..Default::default()
+        },
+        ..Default::default()
+    };
 
     param_producer.write(params);
 
@@ -898,10 +905,7 @@ fn test_monophonic_mode_toggle() {
     let (mut param_producer, param_consumer) = create_parameter_buffer();
     let mut engine = SynthEngine::new(sample_rate, param_consumer);
 
-    let mut params = SynthParams::default();
-    params.monophonic = false;
-
-    param_producer.write(params);
+    param_producer.write(SynthParams::default());
 
     // Play multiple notes in polyphonic mode
     engine.note_on(60, 0.8);
@@ -919,7 +923,10 @@ fn test_monophonic_mode_toggle() {
     );
 
     // Switch to monophonic mode
-    params.monophonic = true;
+    let params = SynthParams {
+        monophonic: true,
+        ..Default::default()
+    };
     param_producer.write(params);
 
     for _ in 0..2205 {

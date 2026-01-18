@@ -417,9 +417,11 @@ mod tests {
     #[test]
     fn test_process_audio_signal() {
         let mut engine = VoiceEngine::new(44100.0);
-        let mut params = VoiceParams::default();
-        params.sub_level = 0.0; // Disable sub for this test
-        params.gate_threshold = -80.0; // Very low threshold
+        let params = VoiceParams {
+            sub_level: 0.0,        // Disable sub for this test
+            gate_threshold: -80.0, // Very low threshold
+            ..Default::default()
+        };
         engine.update_params(params);
 
         // Generate a 220Hz sine wave (A3)
@@ -441,8 +443,10 @@ mod tests {
     #[test]
     fn test_pitch_detection_integration() {
         let mut engine = VoiceEngine::new(44100.0);
-        let mut params = VoiceParams::default();
-        params.pitch_confidence_threshold = 0.5;
+        let params = VoiceParams {
+            pitch_confidence_threshold: 0.5,
+            ..Default::default()
+        };
         engine.update_params(params);
 
         // Feed a stable 110Hz signal (A2)
@@ -468,10 +472,12 @@ mod tests {
     #[test]
     fn test_sub_oscillator_amplitude_ramping() {
         let mut engine = VoiceEngine::new(44100.0);
-        let mut params = VoiceParams::default();
-        params.sub_level = 0.5;
-        params.sub_ramp_time = 10.0; // 10ms ramp
-        params.pitch_confidence_threshold = 0.0; // Always enable sub
+        let params = VoiceParams {
+            sub_level: 0.5,
+            sub_ramp_time: 10.0,             // 10ms ramp
+            pitch_confidence_threshold: 0.0, // Always enable sub
+            ..Default::default()
+        };
         engine.update_params(params);
 
         // Initial amplitude should be zero
@@ -498,8 +504,10 @@ mod tests {
         let mut engine = VoiceEngine::new(44100.0);
 
         // Test 100% dry (bypass)
-        let mut params = VoiceParams::default();
-        params.dry_wet = 0.0;
+        let params = VoiceParams {
+            dry_wet: 0.0,
+            ..Default::default()
+        };
         engine.update_params(params);
 
         let input = 0.5;
@@ -514,8 +522,10 @@ mod tests {
         );
 
         // Test 100% wet
-        let mut params = VoiceParams::default();
-        params.dry_wet = 1.0;
+        let params = VoiceParams {
+            dry_wet: 1.0,
+            ..Default::default()
+        };
         engine.update_params(params);
         engine.reset();
 
@@ -530,10 +540,12 @@ mod tests {
     fn test_parameter_update() {
         let mut engine = VoiceEngine::new(44100.0);
 
-        let mut params = VoiceParams::default();
-        params.gate_threshold = -40.0;
-        params.comp_ratio = 8.0;
-        params.sub_level = 0.7;
+        let params = VoiceParams {
+            gate_threshold: -40.0,
+            comp_ratio: 8.0,
+            sub_level: 0.7,
+            ..Default::default()
+        };
 
         engine.update_params(params.clone());
 

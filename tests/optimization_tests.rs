@@ -1,6 +1,5 @@
-/// Tests for optimization implementations
-/// These tests verify that the optimizations maintain correctness and audio quality
-
+//! Tests for optimization implementations
+//! These tests verify that the optimizations maintain correctness and audio quality
 #[cfg(test)]
 mod optimization_tests {
     use dsynth::audio::engine::{create_parameter_buffer, SynthEngine};
@@ -55,10 +54,13 @@ mod optimization_tests {
         // Change should be applied due to the large jump
         // Verify by making another change and processing
         filter.set_cutoff(8000.0);
-        let _out3 = filter.process(0.5);
+        let out3 = filter.process(0.5);
 
         // Filter should still be stable
-        assert!(true, "Large cutoff changes should be handled correctly");
+        assert!(
+            out3.is_finite(),
+            "Large cutoff changes should be handled correctly"
+        );
     }
 
     #[test]
@@ -69,7 +71,7 @@ mod optimization_tests {
         filter.set_resonance(0.707);
 
         // Process a few samples to calculate coefficients
-        let _out = filter.process(0.5);
+        let out = filter.process(0.5);
         let _out = filter.process(0.3);
         let _out = filter.process(0.1);
 
@@ -79,7 +81,10 @@ mod optimization_tests {
         let _out = filter.process(0.5);
 
         // Should remain stable
-        assert!(true, "Coefficient calculation should maintain stability");
+        assert!(
+            out.is_finite(),
+            "Coefficient calculation should maintain stability"
+        );
     }
 
     // ========== PARAMETER UPDATE THROTTLING TESTS ==========
@@ -217,7 +222,7 @@ mod optimization_tests {
             &envelope_params,
             &wavetable_library,
         );
-        let _output = voice.process(
+        let (out_l, out_r) = voice.process(
             &osc_params,
             &filter_params,
             &lfo_params,
@@ -227,7 +232,10 @@ mod optimization_tests {
             &Default::default(), // transient_params
         );
 
-        assert!(true, "Unison count changes should work without panicking");
+        assert!(
+            out_l.is_finite() && out_r.is_finite(),
+            "Unison count changes should work without panicking"
+        );
     }
 
     #[test]
@@ -388,7 +396,7 @@ mod optimization_tests {
             if iteration % 10 == 0 {
                 let mut params = SynthParams::default();
                 params.oscillators[0].gain = 0.25; // Enable oscillator 1
-                params.oscillators[0].unison = 1 + (iteration / 10) as usize % 7;
+                params.oscillators[0].unison = 1 + (iteration / 10) % 7;
                 params.filters[0].cutoff = 500.0 + (iteration as f32 * 15.0);
                 producer.write(params);
             }

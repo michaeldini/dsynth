@@ -776,7 +776,7 @@ impl Default for ExciterParams {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub struct EffectsParams {
     pub reverb: ReverbParams,
     pub delay: DelayParams,
@@ -808,29 +808,6 @@ pub struct EffectsParams {
     pub exciter: ExciterParams,
 }
 
-impl Default for EffectsParams {
-    fn default() -> Self {
-        Self {
-            reverb: ReverbParams::default(),
-            delay: DelayParams::default(),
-            chorus: ChorusParams::default(),
-            distortion: DistortionParams::default(),
-            multiband_distortion: MultibandDistortionParams::default(),
-            stereo_widener: StereoWidenerParams::default(),
-            phaser: PhaserParams::default(),
-            flanger: FlangerParams::default(),
-            tremolo: TremoloParams::default(),
-            auto_pan: AutoPanParams::default(),
-            comb_filter: CombFilterParams::default(),
-            ring_mod: RingModParams::default(),
-            compressor: CompressorParams::default(),
-            bitcrusher: BitcrusherParams::default(),
-            waveshaper: WaveshaperParams::default(),
-            exciter: ExciterParams::default(),
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SynthParams {
     pub oscillators: [OscillatorParams; 3],
@@ -854,16 +831,22 @@ pub struct SynthParams {
 impl Default for SynthParams {
     fn default() -> Self {
         // Create oscillator defaults with only the first oscillator enabled
-        let mut osc1 = OscillatorParams::default();
-        osc1.gain = 0.7; // Higher gain for more "in your face" sound (-3dB instead of -12dB)
+        let osc1 = OscillatorParams {
+            gain: 0.7, // Higher gain for more "in your face" sound (-3dB instead of -12dB)
+            ..Default::default()
+        };
 
-        let mut osc2 = OscillatorParams::default();
-        osc2.waveform = Waveform::Saw; // Different waveform for variety
-        osc2.gain = 0.0; // Oscillator 2 is disabled by default
+        let osc2 = OscillatorParams {
+            waveform: Waveform::Saw, // Different waveform for variety
+            gain: 0.0,               // Oscillator 2 is disabled by default
+            ..Default::default()
+        };
 
-        let mut osc3 = OscillatorParams::default();
-        osc3.waveform = Waveform::Square; // Different waveform for variety
-        osc3.gain = 0.0; // Oscillator 3 is disabled by default
+        let osc3 = OscillatorParams {
+            waveform: Waveform::Square, // Different waveform for variety
+            gain: 0.0,                  // Oscillator 3 is disabled by default
+            ..Default::default()
+        };
 
         Self {
             oscillators: [osc1, osc2, osc3],

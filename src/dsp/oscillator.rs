@@ -493,7 +493,7 @@ impl Oscillator {
     fn generate_pink_noise(&mut self, white: f32) -> f32 {
         self.pink_b0 = 0.99886 * self.pink_b0 + white * 0.0555179;
         self.pink_b1 = 0.99332 * self.pink_b1 + white * 0.0750759;
-        self.pink_b2 = 0.96900 * self.pink_b2 + white * 0.1538520;
+        self.pink_b2 = 0.96900 * self.pink_b2 + white * 0.153_852;
 
         let pink = self.pink_b0 + self.pink_b1 + self.pink_b2 + white * 0.3104856;
         pink * 0.11 // Scale to roughly match white noise amplitude
@@ -520,8 +520,7 @@ impl Oscillator {
             // Soft clipping reduces harmonic content
             let amount = f32x4::splat(-self.shape);
             let one = f32x4::splat(1.0);
-            let dampened = samples * (one - amount * f32x4::splat(0.3));
-            dampened
+            samples * (one - amount * f32x4::splat(0.3))
         }
     }
 

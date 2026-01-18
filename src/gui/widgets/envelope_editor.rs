@@ -44,6 +44,7 @@ pub(crate) enum DraggedHandle {
 }
 
 impl EnvelopeEditor {
+    #[allow(clippy::too_many_arguments)] // UI builder; params map directly to UI controls.
     pub fn new(
         cx: &mut Context,
         _attack_value: f32,
@@ -409,6 +410,7 @@ impl EnvelopeEditor {
         }
     }
 
+    #[allow(clippy::too_many_arguments)] // Rendering helper; clarity over bundling.
     fn draw_envelope_curve(
         &self,
         canvas: &Canvas,

@@ -65,11 +65,11 @@ echo "  - voice-clap"
 cargo clippy --workspace --all-targets --no-default-features --features voice-clap
 
 echo "==> tests (debug)"
-cargo test
+cargo test -q
 
 if [[ "$run_release" -eq 1 ]]; then
   echo "==> tests (release)"
-  cargo test --release
+  cargo test --release -q
 fi
 
 echo "OK: checks passed"

@@ -543,8 +543,10 @@ impl PluginParams for DsynthKickParams {
         let reg = Self::registry();
         let params = shared_params().lock();
 
-        let mut state = PluginState::default();
-        state.version = 1;
+        let mut state = PluginState {
+            version: 1,
+            ..Default::default()
+        };
 
         for &id in reg.param_ids() {
             let normalized = reg.get_param(&params, id) as f32;

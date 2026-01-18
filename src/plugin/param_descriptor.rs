@@ -442,6 +442,7 @@ impl ParamDescriptor {
     }
 
     /// Create a new float parameter with exponential skewing
+    #[allow(clippy::too_many_arguments)] // Descriptor builder; args map 1:1 to fields.
     pub fn float_exp(
         id: ParamId,
         name: impl Into<String>,

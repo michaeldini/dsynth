@@ -48,6 +48,11 @@ impl Wavetable {
         self.samples.len()
     }
 
+    /// Return true if the wavetable has no samples
+    pub fn is_empty(&self) -> bool {
+        self.samples.is_empty()
+    }
+
     /// Get access to the 4× oversampled buffer
     ///
     /// Returns a slice containing the pre-computed 4× oversampled version

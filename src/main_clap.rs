@@ -656,8 +656,10 @@ impl PluginParams for DsynthMainParams {
         let reg = Self::registry();
         let params = shared_params().read();
 
-        let mut state = PluginState::default();
-        state.version = 1;
+        let mut state = PluginState {
+            version: 1,
+            ..Default::default()
+        };
 
         for id in reg.iter_ids() {
             if let Some(normalized) = Self::get_normalized(&params, id) {

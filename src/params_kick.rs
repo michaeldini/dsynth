@@ -189,40 +189,37 @@ impl KickParams {
 
     /// More aggressive techno-style kick (more click and saturation).
     pub fn preset_techno() -> Self {
-        let mut params = Self::default();
-        params.osc1_pitch_start = 220.0;
-        params.osc1_pitch_end = 50.0;
-        params.osc1_pitch_decay = 70.0;
-
-        params.osc2_pitch_start = 6000.0;
-        params.osc2_pitch_end = 250.0;
-        params.osc2_pitch_decay = 12.0;
-        params.osc2_level = 0.45;
-
-        params.amp_decay = 220.0;
-        params.filter_cutoff = 12000.0;
-
-        params.distortion_enabled = true;
-        params.distortion_amount = 0.25;
-        params.distortion_type = DistortionType::Soft;
-
-        params.master_level = 0.9;
-        params
+        Self {
+            osc1_pitch_start: 220.0,
+            osc1_pitch_end: 50.0,
+            osc1_pitch_decay: 70.0,
+            osc2_pitch_start: 6000.0,
+            osc2_pitch_end: 250.0,
+            osc2_pitch_decay: 12.0,
+            osc2_level: 0.45,
+            amp_decay: 220.0,
+            filter_cutoff: 12000.0,
+            distortion_enabled: true,
+            distortion_amount: 0.25,
+            distortion_type: DistortionType::Soft,
+            master_level: 0.9,
+            ..Default::default()
+        }
     }
 
     /// Deep sub-heavy kick preset.
     pub fn preset_sub() -> Self {
-        let mut params = Self::default();
-        params.osc1_pitch_start = 120.0;
-        params.osc1_pitch_end = 42.0;
-        params.osc1_pitch_decay = 140.0;
-        params.osc1_level = 0.95;
-
-        params.osc2_level = 0.15;
-        params.amp_decay = 420.0;
-        params.filter_cutoff = 6500.0;
-        params.master_level = 0.95;
-        params
+        Self {
+            osc1_pitch_start: 120.0,
+            osc1_pitch_end: 42.0,
+            osc1_pitch_decay: 140.0,
+            osc1_level: 0.95,
+            osc2_level: 0.15,
+            amp_decay: 420.0,
+            filter_cutoff: 6500.0,
+            master_level: 0.95,
+            ..Default::default()
+        }
     }
 }
 

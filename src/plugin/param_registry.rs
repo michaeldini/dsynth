@@ -28,6 +28,12 @@ pub struct ParamRegistry {
     param_ids: Vec<ParamId>,
 }
 
+impl Default for ParamRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ParamRegistry {
     /// Create a new parameter registry with all DSynth parameters
     pub fn new() -> Self {

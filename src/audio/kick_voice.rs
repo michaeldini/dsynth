@@ -374,11 +374,12 @@ mod tests {
     #[test]
     fn test_voice_eventually_stops() {
         let mut voice = KickVoice::new(44100.0);
-        let mut params = KickParams::default();
-
-        // Very short envelope for faster test
-        params.amp_decay = 10.0; // 10ms
-        params.amp_release = 5.0; // 5ms
+        let params = KickParams {
+            // Very short envelope for faster test
+            amp_decay: 10.0,  // 10ms
+            amp_release: 5.0, // 5ms
+            ..Default::default()
+        };
 
         voice.trigger(60, 1.0, &params);
 
@@ -415,9 +416,10 @@ mod tests {
     fn test_velocity_sensitivity() {
         let mut voice1 = KickVoice::new(44100.0);
         let mut voice2 = KickVoice::new(44100.0);
-        let mut params = KickParams::default();
-
-        params.velocity_sensitivity = 1.0; // Full velocity sensitivity
+        let params = KickParams {
+            velocity_sensitivity: 1.0, // Full velocity sensitivity
+            ..Default::default()
+        };
 
         voice1.trigger(60, 1.0, &params); // Full velocity
         voice2.trigger(60, 0.5, &params); // Half velocity
@@ -433,11 +435,12 @@ mod tests {
     fn test_key_tracking() {
         let mut voice_c4 = KickVoice::new(44100.0);
         let mut voice_c5 = KickVoice::new(44100.0);
-        let mut params = KickParams::default();
-
-        params.key_tracking = 1.0; // Full key tracking
-        params.osc1_pitch_start = 100.0;
-        params.osc1_pitch_end = 50.0;
+        let params = KickParams {
+            key_tracking: 1.0, // Full key tracking
+            osc1_pitch_start: 100.0,
+            osc1_pitch_end: 50.0,
+            ..Default::default()
+        };
 
         // Trigger C4 (note 60) and C5 (note 72, one octave higher)
         voice_c4.trigger(60, 1.0, &params);
@@ -464,9 +467,7 @@ mod tests {
     fn test_key_tracking_disabled() {
         let mut voice_c4 = KickVoice::new(44100.0);
         let mut voice_c5 = KickVoice::new(44100.0);
-        let mut params = KickParams::default();
-
-        params.key_tracking = 0.0; // No key tracking (default)
+        let params = KickParams::default();
 
         // Trigger different notes
         voice_c4.trigger(60, 1.0, &params);

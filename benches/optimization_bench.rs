@@ -200,13 +200,16 @@ fn benchmark_voice_worst_case(c: &mut Criterion) {
         let envelope_params = EnvelopeParams::default();
         let velocity_params = VelocityParams::default();
 
-        let mut voice_comp_params = VoiceCompressorParams::default();
-        voice_comp_params.enabled = true;
+        let voice_comp_params = VoiceCompressorParams {
+            enabled: true,
+            ..Default::default()
+        };
 
-        let mut transient_params = TransientShaperParams::default();
-        transient_params.enabled = true;
-        transient_params.attack_boost = 0.5;
-        transient_params.sustain_reduction = 0.25;
+        let transient_params = TransientShaperParams {
+            enabled: true,
+            attack_boost: 0.5,
+            sustain_reduction: 0.25,
+        };
 
         let wavetable_library = dsynth::dsp::wavetable_library::WavetableLibrary::new();
 

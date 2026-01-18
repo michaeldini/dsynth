@@ -96,8 +96,8 @@ impl AudioOutput {
                             frame[0] = cpal::Sample::from_sample(sample_left);
                             frame[1] = cpal::Sample::from_sample(sample_right);
                             // Fill any additional channels with right channel
-                            for i in 2..channels {
-                                frame[i] = cpal::Sample::from_sample(sample_right);
+                            for channel_sample in frame.iter_mut().skip(2) {
+                                *channel_sample = cpal::Sample::from_sample(sample_right);
                             }
                         } else {
                             // Mono output fallback - explicitly use process_mono()

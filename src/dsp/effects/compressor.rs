@@ -209,7 +209,7 @@ impl Compressor {
     /// The envelope follower updates every 4 samples (~11kHz at 44.1kHz = imperceptible for transients).
     pub fn process_fast(&mut self, left: f32, right: f32) -> (f32, f32) {
         // Update envelope follower every 4 samples to reduce CPU usage
-        if self.sample_counter % 4 == 0 {
+        if self.sample_counter.is_multiple_of(4) {
             // Mono compression: use max of both channels for envelope detection
             let input_peak = left.abs().max(right.abs()).max(0.000001);
             let input_db = Self::amp_to_db(input_peak);

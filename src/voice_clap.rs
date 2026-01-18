@@ -308,8 +308,10 @@ impl PluginParams for DsynthVoiceParams {
         let reg = Self::registry();
         let params = shared_params().lock();
 
-        let mut state = PluginState::default();
-        state.version = 1;
+        let mut state = PluginState {
+            version: 1,
+            ..Default::default()
+        };
 
         for &id in reg.keys() {
             if let Some(value) = voice_param_registry::get_param(&params, id) {

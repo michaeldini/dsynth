@@ -99,6 +99,12 @@ pub struct KickParamRegistry {
     param_ids: Vec<ParamId>,
 }
 
+impl Default for KickParamRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl KickParamRegistry {
     pub fn new() -> Self {
         let mut descriptors = HashMap::new();

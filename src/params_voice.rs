@@ -14,18 +14,13 @@
 use serde::{Deserialize, Serialize};
 
 /// Waveform types for sub oscillator
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
 pub enum SubOscWaveform {
+    #[default]
     Sine,
     Triangle,
     Square,
     Saw,
-}
-
-impl Default for SubOscWaveform {
-    fn default() -> Self {
-        Self::Sine
-    }
 }
 
 impl SubOscWaveform {
