@@ -180,6 +180,19 @@ impl ClapPlugin for DsynthKickPlugin {
         true
     }
 
+    fn gui_create(&mut self, _api: &CStr, _is_floating: bool) -> bool {
+        // Called before gui_set_parent. We don't create the window here,
+        // we wait for gui_set_parent + gui_show.
+        true
+    }
+
+    fn gui_destroy(&mut self) {
+        // Explicitly drop the window and clear parent reference.
+        // This ensures proper cleanup when Reaper closes the plugin window.
+        self.gui_window = None;
+        self.gui_parent = None;
+    }
+
     fn gui_is_api_supported(&mut self, api: &CStr, _is_floating: bool) -> bool {
         #[cfg(target_os = "macos")]
         return api.to_bytes() == CLAP_WINDOW_API_COCOA.to_bytes();
@@ -355,7 +368,11 @@ impl ClapPlugin for DsynthKickPlugin {
     }
 
     fn gui_hide(&mut self) -> bool {
-        self.gui_window = None;
+        // Explicitly drop the window handle.
+        // Setting to None drops the EditorWindowHandle, which drops the baseview window.
+        if self.gui_window.is_some() {
+            self.gui_window = None;
+        }
         true
     }
 }
