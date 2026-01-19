@@ -7,6 +7,12 @@ use clap_sys::events::{clap_input_events, clap_output_events};
 pub enum AudioBuffersError {
     /// The host passed a null `clap_process` pointer.
     NullProcess,
+    /// Audio port counts don't match expected configuration.
+    PortCountMismatch,
+    /// Channel count for a port doesn't match expected configuration.
+    ChannelCountMismatch,
+    /// Required audio buffer pointer is null.
+    NullBuffer,
 }
 
 /// Stereo input (L,R) + stereo output (L,R) view.
@@ -41,6 +47,91 @@ struct OutputPort {
 }
 
 impl AudioBuffers {
+    /// Create a reusable buffer wrapper with fixed port/channel counts.
+    ///
+    /// This avoids allocations in the audio thread by reusing internal storage.
+    pub fn new(input_ports: usize, output_ports: usize, channels_per_port: usize) -> Self {
+        let mut in_ports = Vec::with_capacity(input_ports);
+        for _ in 0..input_ports {
+            in_ports.push(InputPort {
+                channels: vec![std::ptr::null(); channels_per_port],
+            });
+        }
+
+        let mut out_ports = Vec::with_capacity(output_ports);
+        for _ in 0..output_ports {
+            out_ports.push(OutputPort {
+                channels: vec![std::ptr::null_mut(); channels_per_port],
+            });
+        }
+
+        Self {
+            input_ports: in_ports,
+            output_ports: out_ports,
+            frames_count: 0,
+        }
+    }
+
+    /// Refresh pointers from a CLAP process struct without allocating.
+    ///
+    /// # Safety
+    /// `process` must be a valid pointer to a CLAP `clap_process` provided by the host.
+    pub unsafe fn refresh_from_clap_process(
+        &mut self,
+        process: *const clap_sys::process::clap_process,
+    ) -> Result<(), AudioBuffersError> {
+        if process.is_null() {
+            return Err(AudioBuffersError::NullProcess);
+        }
+
+        let process = &*process;
+        self.frames_count = process.frames_count;
+
+        if process.audio_inputs_count as usize != self.input_ports.len() {
+            return Err(AudioBuffersError::PortCountMismatch);
+        }
+        if process.audio_outputs_count as usize != self.output_ports.len() {
+            return Err(AudioBuffersError::PortCountMismatch);
+        }
+
+        if !self.input_ports.is_empty() && process.audio_inputs.is_null() {
+            return Err(AudioBuffersError::NullBuffer);
+        }
+        if !self.output_ports.is_empty() && process.audio_outputs.is_null() {
+            return Err(AudioBuffersError::NullBuffer);
+        }
+
+        for i in 0..self.input_ports.len() {
+            let port = &*process.audio_inputs.add(i);
+            if port.channel_count as usize != self.input_ports[i].channels.len() {
+                return Err(AudioBuffersError::ChannelCountMismatch);
+            }
+            for ch in 0..port.channel_count as usize {
+                let ptr = *port.data32.add(ch);
+                if ptr.is_null() {
+                    return Err(AudioBuffersError::NullBuffer);
+                }
+                self.input_ports[i].channels[ch] = ptr;
+            }
+        }
+
+        for i in 0..self.output_ports.len() {
+            let port = &*process.audio_outputs.add(i);
+            if port.channel_count as usize != self.output_ports[i].channels.len() {
+                return Err(AudioBuffersError::ChannelCountMismatch);
+            }
+            for ch in 0..port.channel_count as usize {
+                let ptr = *port.data32.add(ch) as *mut f32;
+                if ptr.is_null() {
+                    return Err(AudioBuffersError::NullBuffer);
+                }
+                self.output_ports[i].channels[ch] = ptr;
+            }
+        }
+
+        Ok(())
+    }
+
     /// Create from CLAP process struct
     ///
     /// # Safety
@@ -54,21 +145,6 @@ impl AudioBuffers {
 
         let process = &*process;
         let frames_count = process.frames_count;
-
-        // CRITICAL DEBUG: Write to a file to verify this is being called
-        use std::fs::OpenOptions;
-        use std::io::Write;
-        let _ = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("/tmp/dsynth_voice_debug.log")
-            .and_then(|mut f| {
-                writeln!(
-                    f,
-                    "[AudioBuffers] inputs={}, outputs={}, frames={}",
-                    process.audio_inputs_count, process.audio_outputs_count, frames_count
-                )
-            });
 
         // Extract input ports (const pointers)
         let mut input_ports = Vec::new();
@@ -194,51 +270,15 @@ impl AudioBuffers {
         input_port: usize,
         output_port: usize,
     ) -> Option<StereoIo<'_>> {
-        use std::fs::OpenOptions;
-        use std::io::Write;
-
-        let in_port = self.input_ports.get(input_port);
-        let out_port = self.output_ports.get(output_port);
-
-        let _ = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("/tmp/dsynth_voice_debug.log")
-            .and_then(|mut f| {
-                writeln!(
-                    f,
-                    "[io_stereo_mut] in_port={}, out_port={}",
-                    in_port.is_some(),
-                    out_port.is_some()
-                )
-            });
-
-        let in_port = in_port?;
-        let out_port = out_port?;
+        let in_port = self.input_ports.get(input_port)?;
+        let out_port = self.output_ports.get(output_port)?;
 
         let in_l_ptr = *in_port.channels.first()?;
         let in_r_ptr = *in_port.channels.get(1)?;
         let out_l_ptr = *out_port.channels.first()?;
         let out_r_ptr = *out_port.channels.get(1)?;
 
-        let _ = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("/tmp/dsynth_voice_debug.log")
-            .and_then(|mut f| {
-                writeln!(
-                    f,
-                    "[io_stereo_mut] ptrs: in_l={:?}, in_r={:?}, out_l={:?}, out_r={:?}",
-                    in_l_ptr, in_r_ptr, out_l_ptr, out_r_ptr
-                )
-            });
-
         if in_l_ptr.is_null() || in_r_ptr.is_null() || out_l_ptr.is_null() || out_r_ptr.is_null() {
-            let _ = OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open("/tmp/dsynth_voice_debug.log")
-                .and_then(|mut f| writeln!(f, "[io_stereo_mut] NULL POINTER DETECTED!"));
             return None;
         }
 
@@ -247,12 +287,6 @@ impl AudioBuffers {
         let in_r = std::slice::from_raw_parts(in_r_ptr, frames);
         let out_l = std::slice::from_raw_parts_mut(out_l_ptr, frames);
         let out_r = std::slice::from_raw_parts_mut(out_r_ptr, frames);
-
-        let _ = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("/tmp/dsynth_voice_debug.log")
-            .and_then(|mut f| writeln!(f, "[io_stereo_mut] SUCCESS! frames={}", frames));
 
         Some((in_l, in_r, out_l, out_r))
     }
@@ -308,6 +342,15 @@ impl Events {
             return None;
         }
         let events = &*self.input_events;
+
+        // Validate index is within bounds
+        if let Some(size_fn) = events.size {
+            let count = size_fn(events);
+            if index >= count {
+                return None;
+            }
+        }
+
         if let Some(get_fn) = events.get {
             let event = get_fn(events, index);
             if event.is_null() {

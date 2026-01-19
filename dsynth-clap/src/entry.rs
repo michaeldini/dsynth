@@ -171,7 +171,7 @@ macro_rules! generate_clap_entry {
         // CLAP requires a static symbol named `clap_entry`.
         // Export it with C linkage in a data section so hosts can find it.
         #[no_mangle]
-        #[link_section = "__DATA,__data"]
+        #[cfg_attr(target_os = "macos", link_section = "__DATA,__data")]
         pub static clap_entry: $crate::clap_sys::entry::clap_plugin_entry =
             $crate::clap_sys::entry::clap_plugin_entry {
                 clap_version: $crate::clap_sys::version::CLAP_VERSION,

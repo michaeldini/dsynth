@@ -283,8 +283,11 @@ impl BiquadFilter {
         a2 /= a0;
 
         // Final safety: if any coefficient is NaN/Inf, use bypass
-        if !b0.is_finite() || !b1.is_finite() || !b2.is_finite()
-            || !a1.is_finite() || !a2.is_finite()
+        if !b0.is_finite()
+            || !b1.is_finite()
+            || !b2.is_finite()
+            || !a1.is_finite()
+            || !a2.is_finite()
         {
             self.b0 = 1.0;
             self.b1 = 0.0;

@@ -16,6 +16,8 @@ pub struct PluginInstance<P: ClapPlugin> {
     pub(crate) plugin: P,
     /// The processor instance (created during activate)
     processor: Option<P::Processor>,
+    /// Reusable audio buffer wrapper (avoid allocations in process)
+    audio_buffers: AudioBuffers,
     /// Host callback
     host: *const clap_host,
     /// Current sample rate
@@ -28,9 +30,17 @@ impl<P: ClapPlugin> PluginInstance<P> {
     /// Create a new plugin instance
     pub fn new(host: *const clap_host) -> Box<Self> {
         log_entry("PluginInstance::new() called");
+        let descriptor = P::descriptor();
+        let (inputs, outputs) = match descriptor.audio_ports {
+            crate::PortConfig::Instrument => (0, 1),
+            crate::PortConfig::Effect => (1, 1),
+            crate::PortConfig::Custom { inputs, outputs } => (inputs as usize, outputs as usize),
+        };
+        let audio_buffers = AudioBuffers::new(inputs, outputs, 2);
         Box::new(Self {
             plugin: P::new(),
             processor: None,
+            audio_buffers,
             host,
             sample_rate: 44100.0, // Default, will be set during activate
             is_activated: false,
@@ -121,17 +131,20 @@ impl<P: ClapPlugin> PluginInstance<P> {
             None => return CLAP_PROCESS_ERROR,
         };
 
-        // Create safe audio buffers wrapper
-        let mut audio_buffers = match AudioBuffers::from_clap_process(process) {
-            Ok(buffers) => buffers,
-            Err(_) => return CLAP_PROCESS_ERROR,
-        };
+        // Refresh safe audio buffers wrapper (no allocations)
+        if self
+            .audio_buffers
+            .refresh_from_clap_process(process)
+            .is_err()
+        {
+            return CLAP_PROCESS_ERROR;
+        }
 
         // Create events wrapper
         let events = Events::from_clap_process(process);
 
         // Call the trait-based processor
-        let status = processor.process(&mut audio_buffers, &events);
+        let status = processor.process(&mut self.audio_buffers, &events);
 
         // Convert status back to CLAP constants
         match status {
@@ -266,7 +279,7 @@ unsafe extern "C" fn plugin_get_extension<P: ClapPlugin>(
         Err(_) => return std::ptr::null(),
     };
 
-    let instance = PluginInstance::<P>::from_ptr(plugin);
+    let _instance = PluginInstance::<P>::from_ptr(plugin);
 
     // Convert CStr constants to str for matching
     let audio_ports_id = clap_sys::ext::audio_ports::CLAP_EXT_AUDIO_PORTS
@@ -286,7 +299,7 @@ unsafe extern "C" fn plugin_get_extension<P: ClapPlugin>(
     } else if id_str == note_ports_id {
         crate::extensions::note_ports::get_extension::<P>() as *const _ as *const c_void
     } else if id_str == params_id {
-        crate::extensions::params::get_extension::<P>(instance.host) as *const _ as *const c_void
+        crate::extensions::params::get_extension::<P>() as *const _ as *const c_void
     } else if id_str == state_id {
         crate::extensions::state::get_extension::<P>() as *const _ as *const c_void
     } else if id_str == gui_id {

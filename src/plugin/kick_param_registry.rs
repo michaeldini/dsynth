@@ -842,7 +842,7 @@ impl KickParamRegistry {
         }
     }
 
-    /// Get normalized parameter value from KickParams
+    /// Get denormalized parameter value from KickParams (returns raw internal value)
     pub fn get_param(&self, params: &KickParams, id: ParamId) -> f64 {
         let value: f64 = match id {
             PARAM_KICK_OSC1_PITCH_START => params.osc1_pitch_start as f64,
@@ -968,7 +968,7 @@ impl KickParamRegistry {
             _ => 0.0,
         };
 
-        self.normalize_value(id, value)
+        value
     }
 }
 
@@ -1006,9 +1006,9 @@ mod tests {
 
         assert!((params.osc1_pitch_start - target_value as f32).abs() < 0.1);
 
-        // Verify we can read it back
-        let read_normalized = registry.get_param(&params, PARAM_KICK_OSC1_PITCH_START);
-        assert!((read_normalized - normalized).abs() < 0.01);
+        // Verify we can read it back (now returns denormalized value)
+        let read_denorm = registry.get_param(&params, PARAM_KICK_OSC1_PITCH_START);
+        assert!((read_denorm - target_value).abs() < 0.1);
     }
 
     #[test]
@@ -1020,8 +1020,8 @@ mod tests {
         registry.apply_param(&mut params, PARAM_KICK_DISTORTION_TYPE, 0.33); // ~1/3 = index 1
         assert_eq!(params.distortion_type, DistortionType::Hard);
 
-        // Verify readback
-        let normalized = registry.get_param(&params, PARAM_KICK_DISTORTION_TYPE);
-        assert!((normalized - 0.25).abs() < 0.1); // Index 1 of 4 options = 0.25 normalized
+        // Verify readback (now returns denormalized enum index)
+        let denorm = registry.get_param(&params, PARAM_KICK_DISTORTION_TYPE);
+        assert!((denorm - 1.0).abs() < 0.1); // Index 1 for Hard
     }
 }

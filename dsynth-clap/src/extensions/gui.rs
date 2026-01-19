@@ -46,6 +46,8 @@ unsafe extern "C" fn gui_is_api_supported<P: ClapPlugin>(
         Err(_) => return false,
     };
 
+    // SAFETY: This is a read-only query, but gui_is_api_supported takes &mut self
+    // in the trait. We use from_ptr_mut to match the trait signature.
     let instance = PluginInstance::<P>::from_ptr_mut(plugin);
     instance.plugin.gui_is_api_supported(api_str, is_floating)
 }
@@ -136,6 +138,8 @@ unsafe extern "C" fn gui_can_resize<P: ClapPlugin>(
         return false;
     }
 
+    // SAFETY: This is a read-only query, but gui_can_resize takes &mut self
+    // in the trait. We use from_ptr_mut to match the trait signature.
     let instance = PluginInstance::<P>::from_ptr_mut(plugin);
     instance.plugin.gui_can_resize()
 }

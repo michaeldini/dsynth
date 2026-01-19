@@ -92,7 +92,7 @@ impl ParamDescriptor {
                     ((value - min) / (max - min)).clamp(0.0, 1.0)
                 }
             }
-            ParamType::Bool { .. } => value,
+            ParamType::Bool { .. } => value.clamp(0.0, 1.0),
             ParamType::Int { min, max, .. } => {
                 if max == min {
                     0.0
@@ -116,7 +116,13 @@ impl ParamDescriptor {
             ParamType::Float { min, max, .. } => min + normalized * (max - min),
             ParamType::Bool { .. } => normalized,
             ParamType::Int { min, max, .. } => (*min as f32) + normalized * ((*max - *min) as f32),
-            ParamType::Enum { variants, .. } => (normalized * (variants.len() - 1) as f32).round(),
+            ParamType::Enum { variants, .. } => {
+                if variants.len() <= 1 {
+                    0.0
+                } else {
+                    (normalized * (variants.len() - 1) as f32).round()
+                }
+            }
         }
     }
 

@@ -3,16 +3,12 @@
 use crate::{instance::PluginInstance, param::PluginParams, plugin::ClapPlugin};
 use clap_sys::events::*;
 use clap_sys::ext::params::*;
-use clap_sys::host::clap_host;
 use clap_sys::string_sizes::{CLAP_NAME_SIZE, CLAP_PATH_SIZE};
 use std::ffi::CStr;
 use std::sync::OnceLock;
 
 /// Get the parameters extension for a plugin type
-pub fn get_extension<P: ClapPlugin>(host: *const clap_host) -> &'static clap_plugin_params {
-    // Store host for later use (for rescan callbacks)
-    // For now, we'll use a static - in production, this should be per-instance
-    let _ = host;
+pub fn get_extension<P: ClapPlugin>() -> &'static clap_plugin_params {
     static EXT: OnceLock<clap_plugin_params> = OnceLock::new();
     EXT.get_or_init(|| clap_plugin_params {
         count: Some(params_count::<P>),
@@ -49,10 +45,18 @@ unsafe extern "C" fn params_get_info<P: ClapPlugin>(
         info.id = descriptor.id;
 
         // Set flags
-        info.flags = CLAP_PARAM_IS_AUTOMATABLE;
+        info.flags = 0;
+        if descriptor.is_automatable {
+            info.flags |= CLAP_PARAM_IS_AUTOMATABLE;
+        }
+        if descriptor.is_hidden {
+            info.flags |= CLAP_PARAM_IS_HIDDEN;
+        }
         if descriptor.is_stepped() {
             info.flags |= CLAP_PARAM_IS_STEPPED;
         }
+        // clap-sys 0.3.0 does not expose boolean/enum flags, so we only
+        // use CLAP_PARAM_IS_STEPPED to indicate discrete params.
 
         // Copy name
         let name_bytes = descriptor.name.as_bytes();
