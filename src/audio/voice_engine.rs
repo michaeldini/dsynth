@@ -199,10 +199,40 @@ impl VoiceEngine {
     /// # Returns
     /// Tuple of (output_left, output_right)
     pub fn process(&mut self, input_left: f32, input_right: f32) -> (f32, f32) {
+        // Debug: Check input
+        use std::io::Write;
+        if !input_left.is_finite() || !input_right.is_finite() {
+            let _ = writeln!(
+                &mut std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("/tmp/dsynth_voice_debug.log")
+                    .unwrap(),
+                "[NaN DETECTED] Input: left={}, right={}",
+                input_left,
+                input_right
+            );
+        }
+
         // Apply input gain
         let input_gain = VoiceParams::db_to_gain(self.params.input_gain);
         let mut left = input_left * input_gain;
         let mut right = input_right * input_gain;
+
+        // Debug: Check after input gain
+        if !left.is_finite() || !right.is_finite() {
+            let _ = writeln!(
+                &mut std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("/tmp/dsynth_voice_debug.log")
+                    .unwrap(),
+                "[NaN DETECTED] After input gain ({}): left={}, right={}",
+                input_gain,
+                left,
+                right
+            );
+        }
 
         // Store dry signal for later mixing
         let dry_left = left;
@@ -212,6 +242,21 @@ impl VoiceEngine {
         let (left_gated, right_gated) = self.noise_gate.process(left, right);
         left = left_gated;
         right = right_gated;
+
+        // Debug: Check after noise gate
+        if !left.is_finite() || !right.is_finite() {
+            use std::io::Write;
+            let _ = writeln!(
+                &mut std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("/tmp/dsynth_voice_debug.log")
+                    .unwrap(),
+                "[NaN] After noise gate: left={}, right={}",
+                left,
+                right
+            );
+        }
 
         // 2. Pitch Detection (mono sum) - now runs on GATED signal
         // This prevents the sub oscillator from tracking noise/silence
@@ -266,15 +311,61 @@ impl VoiceEngine {
         left = left_eq;
         right = right_eq;
 
+        // Debug: Check after EQ
+        if !left.is_finite() || !right.is_finite() {
+            use std::io::Write;
+            let _ = writeln!(
+                &mut std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("/tmp/dsynth_voice_debug.log")
+                    .unwrap(),
+                "[NaN] After EQ: left={}, right={}",
+                left,
+                right
+            );
+        }
+
         // Apply EQ master gain
         let eq_master_gain = VoiceParams::db_to_gain(self.params.eq_master_gain);
         left *= eq_master_gain;
         right *= eq_master_gain;
 
+        // Debug: Check after EQ master gain
+        if !left.is_finite() || !right.is_finite() {
+            use std::io::Write;
+            let _ = writeln!(
+                &mut std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("/tmp/dsynth_voice_debug.log")
+                    .unwrap(),
+                "[NaN] After EQ master gain ({}): left={}, right={}",
+                eq_master_gain,
+                left,
+                right
+            );
+        }
+
         // 4. Compressor
         let (left_comp, right_comp) = self.compressor.process(left, right);
         left = left_comp;
         right = right_comp;
+
+        // Debug: Check after compressor
+        if !left.is_finite() || !right.is_finite() {
+            use std::io::Write;
+            let _ = writeln!(
+                &mut std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("/tmp/dsynth_voice_debug.log")
+                    .unwrap(),
+                "[NaN] After compressor: left={}, right={}",
+                left,
+                right
+            );
+        }
 
         // 5. De-Esser
         let (left_deess, right_deess) = self.de_esser.process(left, right);
@@ -291,15 +382,61 @@ impl VoiceEngine {
         left += sub_sample;
         right += sub_sample;
 
+        // Debug: Check before exciter
+        if !left.is_finite() || !right.is_finite() {
+            use std::io::Write;
+            let _ = writeln!(
+                &mut std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("/tmp/dsynth_voice_debug.log")
+                    .unwrap(),
+                "[NaN DETECTED] BEFORE exciter (after sub osc): left={}, right={}, sub_sample={}",
+                left,
+                right,
+                sub_sample
+            );
+        }
+
         // 7. Exciter (harmonic enhancement)
         let (left_excited, right_excited) = self.exciter.process(left, right);
         left = left_excited;
         right = right_excited;
 
+        // Debug: Check after exciter
+        if !left.is_finite() || !right.is_finite() {
+            use std::io::Write;
+            let _ = writeln!(
+                &mut std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("/tmp/dsynth_voice_debug.log")
+                    .unwrap(),
+                "[NaN DETECTED] After exciter: left={}, right={}",
+                left,
+                right
+            );
+        }
+
         // 8. Lookahead Limiter (safety ceiling at 0dB)
         let (left_limited, right_limited) = self.limiter.process(left, right);
         left = left_limited;
         right = right_limited;
+
+        // Debug: Check after limiter
+        if !left.is_finite() || !right.is_finite() {
+            use std::io::Write;
+            let _ = writeln!(
+                &mut std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("/tmp/dsynth_voice_debug.log")
+                    .unwrap(),
+                "[NaN DETECTED] After limiter: left={}, right={}",
+                left,
+                right
+            );
+        }
 
         // 9. Dry/Wet Mix
         left = left * self.params.dry_wet + dry_left * (1.0 - self.params.dry_wet);
@@ -309,6 +446,14 @@ impl VoiceEngine {
         let output_gain = VoiceParams::db_to_gain(self.params.output_gain);
         left *= output_gain;
         right *= output_gain;
+
+        // Safety: Check for NaN/Inf and replace with silence
+        if !left.is_finite() {
+            left = 0.0;
+        }
+        if !right.is_finite() {
+            right = 0.0;
+        }
 
         (left, right)
     }

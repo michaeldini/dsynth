@@ -1,0 +1,13 @@
+[package]
+name = "simple-synth"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+dsynth-clap = { path = "../.." }
+clap-sys = "0.3"

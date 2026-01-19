@@ -113,12 +113,21 @@ impl Exciter {
         let a1 = -2.0 * cos_omega;
         let a2 = 1.0 - alpha;
 
-        // Normalize by a0
-        self.hp_b0 = b0 / a0;
-        self.hp_b1 = b1 / a0;
-        self.hp_b2 = b2 / a0;
-        self.hp_a1 = a1 / a0;
-        self.hp_a2 = a2 / a0;
+        // Normalize by a0 (with safety check)
+        if a0.abs() < 1e-6 {
+            // Invalid a0 - use bypass coefficients
+            self.hp_b0 = 1.0;
+            self.hp_b1 = 0.0;
+            self.hp_b2 = 0.0;
+            self.hp_a1 = 0.0;
+            self.hp_a2 = 0.0;
+        } else {
+            self.hp_b0 = b0 / a0;
+            self.hp_b1 = b1 / a0;
+            self.hp_b2 = b2 / a0;
+            self.hp_a1 = a1 / a0;
+            self.hp_a2 = a2 / a0;
+        }
     }
 
     /// Apply harmonic distortion to enhance high frequencies
@@ -136,8 +145,12 @@ impl Exciter {
         // This adds odd harmonics that create "presence" and "air"
         let saturated = driven.tanh();
 
-        // Compensate for gain
-        saturated / gain.sqrt()
+        // Compensate for gain (with safety check)
+        if gain > 0.0 && gain.is_finite() {
+            saturated / gain.sqrt()
+        } else {
+            saturated
+        }
     }
 
     /// Process stereo audio

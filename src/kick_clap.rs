@@ -431,6 +431,13 @@ impl DsynthKickProcessor {
                             _ => {}
                         }
                     }
+                    clap_sys::events::CLAP_EVENT_PARAM_VALUE => {
+                        let e = &*(event as *const _
+                            as *const clap_sys::events::clap_event_param_value);
+                        let normalized = (e.value as f32).clamp(0.0, 1.0);
+                        let mut params = shared_params().lock();
+                        get_kick_registry().apply_param(&mut params, e.param_id, normalized as f64);
+                    }
                     _ => {}
                 }
             }
@@ -509,9 +516,8 @@ impl PluginParams for DsynthKickParams {
         let reg = Self::registry();
         let desc = reg.get_descriptor(id)?;
 
-        // dsynth-clap currently normalizes values based on ParamDescriptor;
-        // we keep the CLAP-facing domain strictly 0..1 and let KickParamRegistry
-        // handle any skewing (log/exp) when applying to KickParams.
+        // CLAP-facing domain is strictly 0..1; KickParamRegistry handles
+        // any skewing (log/exp) when applying to KickParams.
         Some(ParamDescriptor {
             id,
             name: desc.name.clone(),
@@ -530,8 +536,10 @@ impl PluginParams for DsynthKickParams {
 
     fn get_param(id: ParamId) -> Option<f32> {
         let params = shared_params().lock();
-        let value = Self::registry().get_param(&params, id);
-        Some(value as f32)
+        let reg = Self::registry();
+        let denorm = reg.get_param(&params, id);
+        let normalized = reg.normalize_value(id, denorm);
+        Some(normalized as f32)
     }
 
     fn set_param(id: ParamId, value: f32) {
@@ -549,7 +557,8 @@ impl PluginParams for DsynthKickParams {
         };
 
         for &id in reg.param_ids() {
-            let normalized = reg.get_param(&params, id) as f32;
+            let denorm = reg.get_param(&params, id);
+            let normalized = reg.normalize_value(id, denorm) as f32;
             state.set_param(id, normalized);
         }
 

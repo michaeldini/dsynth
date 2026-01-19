@@ -210,8 +210,13 @@ impl BiquadFilter {
             FilterType::LowShelf => {
                 // Low shelf - Audio EQ Cookbook formula
                 let a_coef = 10.0_f32.powf(self.gain_db / 40.0);
-                let alpha = sin_omega / 2.0
-                    * ((a_coef + 1.0 / a_coef) * (1.0 / self.resonance - 1.0) + 2.0).sqrt();
+                let sqrt_arg = (a_coef + 1.0 / a_coef) * (1.0 / self.resonance - 1.0) + 2.0;
+                // Safety: if sqrt argument is negative, return fallback values
+                let alpha = if sqrt_arg < 0.0 {
+                    0.0 // Fallback to no filtering
+                } else {
+                    sin_omega / 2.0 * sqrt_arg.sqrt()
+                };
                 let b0_temp = a_coef
                     * ((a_coef + 1.0) - (a_coef - 1.0) * cos_omega + 2.0 * a_coef.sqrt() * alpha);
                 let b1_temp = 2.0 * a_coef * ((a_coef - 1.0) - (a_coef + 1.0) * cos_omega);
@@ -227,8 +232,13 @@ impl BiquadFilter {
             FilterType::HighShelf => {
                 // High shelf - Audio EQ Cookbook formula
                 let a_coef = 10.0_f32.powf(self.gain_db / 40.0);
-                let alpha = sin_omega / 2.0
-                    * ((a_coef + 1.0 / a_coef) * (1.0 / self.resonance - 1.0) + 2.0).sqrt();
+                let sqrt_arg = (a_coef + 1.0 / a_coef) * (1.0 / self.resonance - 1.0) + 2.0;
+                // Safety: if sqrt argument is negative, return fallback values
+                let alpha = if sqrt_arg < 0.0 {
+                    0.0 // Fallback to no filtering
+                } else {
+                    sin_omega / 2.0 * sqrt_arg.sqrt()
+                };
                 let b0_temp = a_coef
                     * ((a_coef + 1.0) + (a_coef - 1.0) * cos_omega + 2.0 * a_coef.sqrt() * alpha);
                 let b1_temp = -2.0 * a_coef * ((a_coef - 1.0) + (a_coef + 1.0) * cos_omega);
@@ -255,12 +265,34 @@ impl BiquadFilter {
             }
         };
 
-        // Normalize by a0
+        // Normalize by a0 (with safety check for division by zero)
+        if a0.abs() < 1e-10 || !a0.is_finite() {
+            // Invalid a0 - use bypass coefficients to prevent NaN/Inf
+            self.b0 = 1.0;
+            self.b1 = 0.0;
+            self.b2 = 0.0;
+            self.a1 = 0.0;
+            self.a2 = 0.0;
+            return;
+        }
+
         b0 /= a0;
         b1 /= a0;
         b2 /= a0;
         a1 /= a0;
         a2 /= a0;
+
+        // Final safety: if any coefficient is NaN/Inf, use bypass
+        if !b0.is_finite() || !b1.is_finite() || !b2.is_finite()
+            || !a1.is_finite() || !a2.is_finite()
+        {
+            self.b0 = 1.0;
+            self.b1 = 0.0;
+            self.b2 = 0.0;
+            self.a1 = 0.0;
+            self.a2 = 0.0;
+            return;
+        }
 
         self.b0 = b0;
         self.b1 = b1;

@@ -494,6 +494,14 @@ impl DsynthMainProcessor {
                         let normalized = e.value as f32;
                         param_apply::apply_param(&mut self.current_params, id, normalized);
                         self.param_producer.write(self.current_params);
+
+                        // Keep shared params in sync so hosts reading get_value
+                        // don't snap UI back to stale defaults.
+                        {
+                            let mut params = shared_params().write();
+                            param_apply::apply_param(&mut params, id, normalized);
+                        }
+                        PARAMS_DIRTY.store(true, Ordering::Release);
                     }
                     clap_sys::events::CLAP_EVENT_TRANSPORT => {
                         let e =

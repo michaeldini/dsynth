@@ -162,42 +162,91 @@ impl DsynthVoiceProcessor {
             self.engine.update_params(params);
         }
     }
+
+    fn handle_events(&mut self, events: &Events) {
+        unsafe {
+            for i in 0..events.input_event_count() {
+                let Some(event) = events.input_event(i) else {
+                    continue;
+                };
+
+                if event.space_id != clap_sys::events::CLAP_CORE_EVENT_SPACE_ID {
+                    continue;
+                }
+
+                if event.type_ == clap_sys::events::CLAP_EVENT_PARAM_VALUE {
+                    let e =
+                        &*(event as *const _ as *const clap_sys::events::clap_event_param_value);
+                    let normalized = (e.value as f32).clamp(0.0, 1.0);
+
+                    let mut params = shared_params().lock();
+                    if let Some(desc) = DsynthVoiceParams::descriptor_by_id(e.param_id) {
+                        let denorm = desc.denormalize(normalized);
+                        voice_param_registry::apply_param(&mut params, e.param_id, denorm);
+                        PARAMS_DIRTY.store(true, Ordering::Release);
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl ClapProcessor for DsynthVoiceProcessor {
-    fn process(
-        &mut self,
-        audio: &mut dsynth_clap::AudioBuffers,
-        _events: &Events,
-    ) -> ProcessStatus {
+    fn process(&mut self, audio: &mut dsynth_clap::AudioBuffers, events: &Events) -> ProcessStatus {
+        self.handle_events(events);
         self.sync_params_if_dirty();
 
         let frames = audio.frames_count() as usize;
 
         unsafe {
             // Voice is an effect: requires stereo input and produces stereo output.
-            let Some((in_l, in_r, out_l, out_r)) = audio.io_stereo_mut(0, 0) else {
-                self.engine.reset();
-                return ProcessStatus::Sleep;
-            };
+            if let Some((in_l, in_r, out_l, out_r)) = audio.io_stereo_mut(0, 0) {
+                // Process audio through the enhancement chain
+                let n = frames
+                    .min(in_l.len())
+                    .min(in_r.len())
+                    .min(out_l.len())
+                    .min(out_r.len());
 
-            // Defensive: hosts should provide matching sizes, but keep safe.
-            let n = frames
-                .min(in_l.len())
-                .min(in_r.len())
-                .min(out_l.len())
-                .min(out_r.len());
+                // DEBUG: Check input values
+                let input_sum: f32 = in_l.iter().take(n).map(|v| v.abs()).sum();
 
-            self.engine.process_buffer(in_l, in_r, out_l, out_r, n);
+                self.engine.process_buffer(in_l, in_r, out_l, out_r, n);
 
-            // If host gave more frames than we processed, clear remainder.
-            for i in n..frames {
-                if i < out_l.len() {
+                // DEBUG: Check output values
+                let output_sum: f32 = out_l.iter().take(n).map(|v| v.abs()).sum();
+
+                use std::fs::OpenOptions;
+                use std::io::Write;
+                let _ = OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open("/tmp/dsynth_voice_debug.log")
+                    .and_then(|mut f| {
+                        writeln!(
+                            f,
+                            "[PROCESS] frames={}, input_sum={:.6}, output_sum={:.6}",
+                            n, input_sum, output_sum
+                        )
+                    });
+
+                // If host gave more frames than we processed, clear remainder.
+                for i in n..frames.min(out_l.len()) {
                     out_l[i] = 0.0;
                 }
-                if i < out_r.len() {
+                for i in n..frames.min(out_r.len()) {
                     out_r[i] = 0.0;
                 }
+            } else {
+                // Fallback: can't get stereo I/O - try to at least output silence
+                // This should never happen for a properly configured effect plugin
+                if let Some((out_l, out_r)) = audio.output_stereo_mut(0) {
+                    for i in 0..frames.min(out_l.len()).min(out_r.len()) {
+                        out_l[i] = 0.0;
+                        out_r[i] = 0.0;
+                    }
+                }
+                // Return Continue (not Sleep) so host keeps calling us
             }
         }
 
@@ -225,7 +274,7 @@ impl ClapProcessor for DsynthVoiceProcessor {
 }
 
 // =============================================================================
-// Parameters (denormalized values, normalized by dsynth-clap ParamDescriptor)
+// Parameters (normalized 0..1, mapped via VoiceParamRegistry)
 // =============================================================================
 
 pub struct DsynthVoiceParams;
@@ -257,26 +306,24 @@ impl PluginParams for DsynthVoiceParams {
         let desc = Self::descriptor_by_id(id)?;
 
         let param_type = match &desc.param_type {
-            crate::plugin::param_descriptor::ParamType::Float { min, max, .. } => {
-                ParamType::Float {
-                    min: *min,
-                    max: *max,
-                    default: desc.default,
-                }
-            }
+            crate::plugin::param_descriptor::ParamType::Float { .. } => ParamType::Float {
+                min: 0.0,
+                max: 1.0,
+                default: desc.default,
+            },
             crate::plugin::param_descriptor::ParamType::Bool => ParamType::Bool {
                 default: desc.default > 0.5,
             },
             crate::plugin::param_descriptor::ParamType::Enum { variants } => {
-                let default_idx = desc.default.round().max(0.0) as usize;
+                let default_idx = desc.denormalize(desc.default).round().max(0.0) as usize;
                 ParamType::Enum {
                     variants: variants.clone(),
                     default: default_idx.min(variants.len().saturating_sub(1)),
                 }
             }
-            crate::plugin::param_descriptor::ParamType::Int { min, max } => ParamType::Int {
-                min: *min,
-                max: *max,
+            crate::plugin::param_descriptor::ParamType::Int { .. } => ParamType::Int {
+                min: 0,
+                max: 1,
                 default: desc.default.round() as i32,
             },
         };
@@ -295,12 +342,17 @@ impl PluginParams for DsynthVoiceParams {
 
     fn get_param(id: ParamId) -> Option<f32> {
         let params = shared_params().lock();
-        voice_param_registry::get_param(&params, id)
+        let denorm = voice_param_registry::get_param(&params, id)?;
+        let desc = Self::descriptor_by_id(id)?;
+        Some(desc.normalize_value(denorm))
     }
 
     fn set_param(id: ParamId, value: f32) {
         let mut params = shared_params().lock();
-        voice_param_registry::apply_param(&mut params, id, value);
+        if let Some(desc) = Self::descriptor_by_id(id) {
+            let denorm = desc.denormalize(value);
+            voice_param_registry::apply_param(&mut params, id, denorm);
+        }
         PARAMS_DIRTY.store(true, Ordering::Release);
     }
 
@@ -314,8 +366,11 @@ impl PluginParams for DsynthVoiceParams {
         };
 
         for &id in reg.keys() {
-            if let Some(value) = voice_param_registry::get_param(&params, id) {
-                state.set_param(id, value);
+            if let Some(desc) = Self::descriptor_by_id(id) {
+                if let Some(denorm) = voice_param_registry::get_param(&params, id) {
+                    let normalized = desc.normalize_value(denorm);
+                    state.set_param(id, normalized);
+                }
             }
         }
 
@@ -326,7 +381,10 @@ impl PluginParams for DsynthVoiceParams {
         {
             let mut params = shared_params().lock();
             for (&id, &value) in state.params.iter() {
-                voice_param_registry::apply_param(&mut params, id, value);
+                if let Some(desc) = Self::descriptor_by_id(id) {
+                    let denorm = desc.denormalize(value);
+                    voice_param_registry::apply_param(&mut params, id, denorm);
+                }
             }
         }
         PARAMS_DIRTY.store(true, Ordering::Release);
@@ -337,29 +395,8 @@ impl PluginParams for DsynthVoiceParams {
             return format!("{:.2}", value);
         };
 
-        match &desc.param_type {
-            crate::plugin::param_descriptor::ParamType::Enum { variants } => {
-                let idx = value.round().max(0.0) as usize;
-                variants
-                    .get(idx)
-                    .cloned()
-                    .unwrap_or_else(|| format!("{}", idx))
-            }
-            crate::plugin::param_descriptor::ParamType::Bool => {
-                if value > 0.5 {
-                    "On".to_string()
-                } else {
-                    "Off".to_string()
-                }
-            }
-            _ => {
-                if let Some(unit) = &desc.unit {
-                    format!("{:.2} {}", value, unit)
-                } else {
-                    format!("{:.2}", value)
-                }
-            }
-        }
+        // `value` is normalized 0..1
+        desc.format_value(value)
     }
 
     fn parse_param(id: ParamId, text: &str) -> Option<f32> {
@@ -381,7 +418,7 @@ impl PluginParams for DsynthVoiceParams {
                         .enumerate()
                         .find(|(_, v)| v.eq_ignore_ascii_case(t))
                     {
-                        return Some(idx as f32);
+                        return Some(desc.normalize_value(idx as f32));
                     }
                 }
                 _ => {}
@@ -390,7 +427,8 @@ impl PluginParams for DsynthVoiceParams {
 
         // Fallback: parse leading number (strip any trailing unit).
         let number_str = t.split_whitespace().next().unwrap_or("");
-        number_str.parse::<f32>().ok()
+        let plain = number_str.parse::<f32>().ok()?;
+        Self::descriptor_by_id(id).map(|desc| desc.normalize_value(plain))
     }
 }
 
