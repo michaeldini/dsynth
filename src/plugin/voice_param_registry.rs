@@ -604,7 +604,12 @@ impl VoiceParamRegistry {
                 PARAM_VOICE_SUB_WAVEFORM,
                 "Sub Waveform",
                 "Sub Oscillator",
-                vec!["Sine".to_string(), "Square".to_string(), "Saw".to_string()],
+                vec![
+                    "Sine".to_string(),
+                    "Triangle".to_string(),
+                    "Square".to_string(),
+                    "Saw".to_string()
+                ],
                 0
             )
         );
@@ -835,5 +840,52 @@ pub fn get_param(params: &VoiceParams, param_id: ParamId) -> Option<f32> {
         PARAM_VOICE_DRY_WET => Some(params.dry_wet),
 
         _ => None, // Unknown parameter
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sub_waveform_has_four_variants() {
+        let registry = get_voice_registry();
+        let descriptor = registry
+            .get(&PARAM_VOICE_SUB_WAVEFORM)
+            .expect("Sub waveform parameter should exist");
+
+        if let crate::plugin::param_descriptor::ParamType::Enum { variants } =
+            &descriptor.param_type
+        {
+            assert_eq!(variants.len(), 4, "Sub waveform should have 4 variants");
+            assert_eq!(variants[0], "Sine");
+            assert_eq!(variants[1], "Triangle");
+            assert_eq!(variants[2], "Square");
+            assert_eq!(variants[3], "Saw");
+        } else {
+            panic!("Sub waveform parameter should be an Enum type");
+        }
+    }
+
+    #[test]
+    fn test_clap_descriptor_is_enum() {
+        // Test that the CLAP wrapper returns Enum type
+        use crate::voice_clap::DsynthVoiceParams;
+        use dsynth_clap::param::{ParamType, PluginParams};
+
+        let descriptor = DsynthVoiceParams::param_descriptor_by_id(PARAM_VOICE_SUB_WAVEFORM)
+            .expect("Sub waveform parameter should exist");
+
+        match &descriptor.param_type {
+            ParamType::Enum { variants, .. } => {
+                assert_eq!(variants.len(), 4, "CLAP descriptor should have 4 variants");
+                assert_eq!(variants[0], "Sine");
+                assert_eq!(variants[1], "Triangle");
+                assert_eq!(variants[2], "Square");
+                assert_eq!(variants[3], "Saw");
+            }
+            ParamType::Bool { .. } => panic!("CLAP descriptor is Bool, should be Enum!"),
+            _ => panic!("CLAP descriptor is wrong type, should be Enum!"),
+        }
     }
 }

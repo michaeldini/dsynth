@@ -53,7 +53,14 @@ DSynth is a **high-performance audio synthesis suite** built in Rust with multip
   - Global `ParamRegistry` for parameter lookup by ID
   - Handles normalization (internal range ↔ CLAP 0.0-1.0 range)
 - **Parameter flow**: DAW automation → `params_flush()` → `param_apply::apply_param()` → `SynthParams` → triple-buffer → audio thread
-- **Enum parameters**: Must return indices (0, 1, 2, ...) in `param_get`, CLAP normalizes to 0-1
+- **Enum parameters**: 
+  - **CRITICAL**: Expose as `Float` type in CLAP wrapper, not `Enum` type
+  - DAWs like Reaper don't properly support CLAP's Enum type (shows as boolean dropdown)
+  - Use `is_stepped()` flag to make float discrete (set automatically for enum descriptors)
+  - Main synth pattern: all non-Bool params → Float, rely on stepped flag for enums
+  - Internal descriptors can use Enum type, but convert to Float in `param_descriptor_by_id()`
+  - Must return indices (0, 1, 2, ...) in `param_get`, CLAP normalizes to 0-1
+  - Use `format_param()` to convert indices back to text labels for display
 - **Important**: Always clamp parameter values to prevent extreme values (see pitch ±24 semitones)
 
 ### Voice Management & Polyphony
@@ -474,6 +481,9 @@ Key test coverage:
 
 ❌ **DON'T** run pitch detection every sample (expensive!)  
 ✅ **DO** throttle to every 512 samples (~11ms) for 513× CPU savings
+
+❌ **DON'T** use CLAP's Enum parameter type in `param_descriptor_by_id()` (Reaper shows as boolean)  
+✅ **DO** expose all enums as Float with `is_stepped()` flag (like main synth pattern)
 
 ### Recommended Confidence Settings
 

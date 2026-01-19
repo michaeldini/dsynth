@@ -305,26 +305,15 @@ impl PluginParams for DsynthVoiceParams {
     fn param_descriptor_by_id(id: ParamId) -> Option<ParamDescriptor> {
         let desc = Self::descriptor_by_id(id)?;
 
+        // Match main synth behavior: treat enums and ints as Float (stepped via is_stepped flag)
         let param_type = match &desc.param_type {
-            crate::plugin::param_descriptor::ParamType::Float { .. } => ParamType::Float {
-                min: 0.0,
-                max: 1.0,
-                default: desc.default,
-            },
             crate::plugin::param_descriptor::ParamType::Bool => ParamType::Bool {
                 default: desc.default > 0.5,
             },
-            crate::plugin::param_descriptor::ParamType::Enum { variants } => {
-                let default_idx = desc.denormalize(desc.default).round().max(0.0) as usize;
-                ParamType::Enum {
-                    variants: variants.clone(),
-                    default: default_idx.min(variants.len().saturating_sub(1)),
-                }
-            }
-            crate::plugin::param_descriptor::ParamType::Int { .. } => ParamType::Int {
-                min: 0,
-                max: 1,
-                default: desc.default.round() as i32,
+            _ => ParamType::Float {
+                min: 0.0,
+                max: 1.0,
+                default: desc.default,
             },
         };
 
