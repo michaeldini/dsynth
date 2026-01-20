@@ -178,12 +178,12 @@ pub struct VoiceParams {
     pub ring_mod_mix: f32,                  // 0.0 to 1.0 (dry/wet)
 
     // Exciter (6 params)
-    pub exciter_amount: f32,    // 0.0 to 1.0 (drive amount)
-    pub exciter_frequency: f32, // 2kHz to 10kHz (high-pass cutoff)
-    pub exciter_harmonics: f32, // 0.0 to 1.0 (harmonic generation)
-    pub exciter_mix: f32,       // 0.0 to 1.0 (dry/wet)
-    pub exciter_follow_enable: bool,  // Enable pitch tracking
-    pub exciter_follow_amount: f32,   // 1.0 to 4.0× (multiply factor above pitch)
+    pub exciter_amount: f32,         // 0.0 to 1.0 (drive amount)
+    pub exciter_frequency: f32,      // 2kHz to 10kHz (high-pass cutoff)
+    pub exciter_harmonics: f32,      // 0.0 to 1.0 (harmonic generation)
+    pub exciter_mix: f32,            // 0.0 to 1.0 (dry/wet)
+    pub exciter_follow_enable: bool, // Enable pitch tracking
+    pub exciter_follow_amount: f32,  // 1.0 to 4.0× (multiply factor above pitch)
 
     // Vocal Doubler (5 params)
     pub doubler_enable: bool,      // Enable/disable doubler
@@ -201,16 +201,16 @@ pub struct VoiceParams {
     pub choir_mix: f32,           // 0.0 to 1.0 (dry/wet)
 
     // Multiband Distortion (9 params)
-    pub mb_dist_enable: bool,      // Enable/disable multiband distortion
-    pub mb_dist_low_mid_freq: f32, // 50.0 to 500.0 Hz (bass/mid crossover)
+    pub mb_dist_enable: bool,       // Enable/disable multiband distortion
+    pub mb_dist_low_mid_freq: f32,  // 50.0 to 500.0 Hz (bass/mid crossover)
     pub mb_dist_mid_high_freq: f32, // 1000.0 to 8000.0 Hz (mid/high crossover)
-    pub mb_dist_drive_low: f32,    // 0.0 to 1.0 (bass drive)
-    pub mb_dist_drive_mid: f32,    // 0.0 to 1.0 (mid drive)
-    pub mb_dist_drive_high: f32,   // 0.0 to 1.0 (high drive)
-    pub mb_dist_gain_low: f32,     // 0.0 to 2.0 (bass output gain)
-    pub mb_dist_gain_mid: f32,     // 0.0 to 2.0 (mid output gain)
-    pub mb_dist_gain_high: f32,    // 0.0 to 2.0 (high output gain)
-    pub mb_dist_mix: f32,          // 0.0 to 1.0 (dry/wet)
+    pub mb_dist_drive_low: f32,     // 0.0 to 1.0 (bass drive)
+    pub mb_dist_drive_mid: f32,     // 0.0 to 1.0 (mid drive)
+    pub mb_dist_drive_high: f32,    // 0.0 to 1.0 (high drive)
+    pub mb_dist_gain_low: f32,      // 0.0 to 2.0 (bass output gain)
+    pub mb_dist_gain_mid: f32,      // 0.0 to 2.0 (mid output gain)
+    pub mb_dist_gain_high: f32,     // 0.0 to 2.0 (high output gain)
+    pub mb_dist_mix: f32,           // 0.0 to 1.0 (dry/wet)
 
     // Master (1 param)
     pub dry_wet: f32, // 0.0 to 1.0 (processed vs original)
@@ -348,8 +348,8 @@ impl Default for VoiceParams {
             mb_dist_gain_high: 1.0,        // Unity gain
             mb_dist_mix: 0.5,              // 50% mix
             // Exciter follow
-            exciter_follow_enable: false,  // Pitch tracking off by default
-            exciter_follow_amount: 1.5,    // 1.5× = major 3rd above pitch
+            exciter_follow_enable: false, // Pitch tracking off by default
+            exciter_follow_amount: 1.5,   // 1.5× = major 3rd above pitch
             // Master - 100% wet (fully processed)
             dry_wet: 1.0,
         }
@@ -748,12 +748,12 @@ impl VoiceParams {
             choir_mix: 0.5,
             // Multiband Distortion - heavy bass for deep_bass
             mb_dist_enable: false,
-            mb_dist_low_mid_freq: 150.0,   // Lower split for more bass
+            mb_dist_low_mid_freq: 150.0, // Lower split for more bass
             mb_dist_mid_high_freq: 1500.0,
-            mb_dist_drive_low: 0.6,        // Heavy bass saturation
+            mb_dist_drive_low: 0.6, // Heavy bass saturation
             mb_dist_drive_mid: 0.3,
             mb_dist_drive_high: 0.1,
-            mb_dist_gain_low: 1.2,         // Boost bass
+            mb_dist_gain_low: 1.2, // Boost bass
             mb_dist_gain_mid: 1.0,
             mb_dist_gain_high: 0.9,
             mb_dist_mix: 0.6,

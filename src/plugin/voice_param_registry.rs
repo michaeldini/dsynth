@@ -1792,7 +1792,11 @@ pub fn get_param(params: &VoiceParams, param_id: ParamId) -> Option<f32> {
         PARAM_VOICE_EXCITER_FREQUENCY => Some(params.exciter_frequency),
         PARAM_VOICE_EXCITER_HARMONICS => Some(params.exciter_harmonics),
         PARAM_VOICE_EXCITER_MIX => Some(params.exciter_mix),
-        PARAM_VOICE_EXCITER_FOLLOW_ENABLE => Some(if params.exciter_follow_enable { 1.0 } else { 0.0 }),
+        PARAM_VOICE_EXCITER_FOLLOW_ENABLE => Some(if params.exciter_follow_enable {
+            1.0
+        } else {
+            0.0
+        }),
         PARAM_VOICE_EXCITER_FOLLOW_AMOUNT => Some(params.exciter_follow_amount),
 
         // Multiband Distortion
