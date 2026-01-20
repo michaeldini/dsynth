@@ -7,30 +7,23 @@
 /// 4. Parametric EQ (4-band vocal shaping)
 /// 5. Compressor (dynamics control)
 /// 6. De-Esser (sibilance reduction)
-/// 7. Sub oscillator (pitch-tracked bass enhancement with amplitude ramping)
-/// 8. Ring modulator (pitch-tracked harmonically-related robotic effects)
-/// 9. Pitch-controlled filter sweep (talking synthesizer effect)
-/// 10. Exciter (harmonic enhancement)
-/// 11. Vocal doubler (stereo double-tracking effect)
-/// 12. Vocal choir (multi-voice ensemble effect)
-/// 13. Multiband distortion (frequency-dependent saturation)
-/// 14. Lookahead limiter (safety ceiling)
-/// 15. Dry/wet mix and stereo output
+/// 7. Exciter (harmonic enhancement)
+/// 8. Vocal doubler (stereo double-tracking effect)
+/// 9. Vocal choir (multi-voice ensemble effect)
+/// 10. Multiband distortion (frequency-dependent saturation)
+/// 11. Lookahead limiter (safety ceiling)
+/// 12. Dry/wet mix and stereo output
 use crate::dsp::effects::compressor::Compressor;
 use crate::dsp::effects::de_esser::DeEsser;
 use crate::dsp::effects::exciter::Exciter;
 use crate::dsp::effects::noise_gate::NoiseGate;
 use crate::dsp::effects::parametric_eq::ParametricEQ;
-use crate::dsp::effects::ring_modulator::RingModulator;
 use crate::dsp::effects::vocal_choir::VocalChoir;
 use crate::dsp::effects::MultibandDistortion;
-use crate::dsp::filter::BiquadFilter;
 use crate::dsp::lookahead_limiter::LookAheadLimiter;
-use crate::dsp::oscillator::Oscillator;
 use crate::dsp::pitch_detector::{PitchDetector, PITCH_BUFFER_SIZE};
 use crate::dsp::pitch_quantizer::{PitchQuantizer, RootNote, ScaleType};
-use crate::params::{FilterType, Waveform};
-use crate::params_voice::{RingModWaveform, SubOscWaveform, VoiceParams};
+use crate::params_voice::VoiceParams;
 
 /// Voice enhancement engine
 pub struct VoiceEngine {
@@ -73,42 +66,6 @@ pub struct VoiceEngine {
     /// De-esser for sibilance reduction
     de_esser: DeEsser,
 
-    /// Sub oscillator for bass enhancement
-    sub_oscillator: Oscillator,
-
-    /// Target pitch for sub oscillator (smoothed + octave shifted)
-    sub_target_pitch: f32,
-
-    /// Current amplitude for sub oscillator (for ramping)
-    sub_amplitude: f32,
-
-    /// Target amplitude for sub oscillator
-    sub_target_amplitude: f32,
-
-    /// Harmonizer oscillator 2 (major 3rd by default)
-    harm2_oscillator: Oscillator,
-    harm2_target_pitch: f32,
-    harm2_amplitude: f32,
-    harm2_target_amplitude: f32,
-
-    /// Harmonizer oscillator 3 (perfect 5th by default)
-    harm3_oscillator: Oscillator,
-    harm3_target_pitch: f32,
-    harm3_amplitude: f32,
-    harm3_target_amplitude: f32,
-
-    /// Harmonizer oscillator 4 (octave up by default)
-    harm4_oscillator: Oscillator,
-    harm4_target_pitch: f32,
-    harm4_amplitude: f32,
-    harm4_target_amplitude: f32,
-
-    /// Ring modulator for harmonically-related robotic effects
-    ring_modulator: RingModulator,
-
-    /// Pitch-controlled filter sweep (talking synthesizer effect)
-    filter_follow: BiquadFilter,
-
     /// Exciter for harmonic enhancement
     exciter: Exciter,
 
@@ -135,7 +92,7 @@ impl VoiceEngine {
             sample_rate,
             pitch_detector: PitchDetector::new(sample_rate),
             pitch_quantizer: PitchQuantizer::new(sample_rate),
-            detected_pitch: 100.0, // Default to ~100Hz
+            detected_pitch: 100.0,  // Default to ~100Hz
             corrected_pitch: 100.0, // Default to ~100Hz
             smoothed_pitch: 100.0,
             pitch_confidence: 0.0,
@@ -145,46 +102,6 @@ impl VoiceEngine {
             parametric_eq: ParametricEQ::new(sample_rate),
             compressor: Compressor::new(sample_rate, -20.0, 3.0, 10.0, 100.0),
             de_esser: DeEsser::new(sample_rate),
-            sub_oscillator: {
-                let mut osc = Oscillator::new(sample_rate);
-                osc.set_waveform(Waveform::Sine);
-                osc
-            },
-            sub_target_pitch: 50.0,
-            sub_amplitude: 0.0,
-            sub_target_amplitude: 0.0,
-            harm2_oscillator: {
-                let mut osc = Oscillator::new(sample_rate);
-                osc.set_waveform(Waveform::Sine);
-                osc
-            },
-            harm2_target_pitch: 100.0,
-            harm2_amplitude: 0.0,
-            harm2_target_amplitude: 0.0,
-            harm3_oscillator: {
-                let mut osc = Oscillator::new(sample_rate);
-                osc.set_waveform(Waveform::Sine);
-                osc
-            },
-            harm3_target_pitch: 100.0,
-            harm3_amplitude: 0.0,
-            harm3_target_amplitude: 0.0,
-            harm4_oscillator: {
-                let mut osc = Oscillator::new(sample_rate);
-                osc.set_waveform(Waveform::Sine);
-                osc
-            },
-            harm4_target_pitch: 100.0,
-            harm4_amplitude: 0.0,
-            harm4_target_amplitude: 0.0,
-            ring_modulator: RingModulator::new(sample_rate, 200.0), // Default 200Hz carrier
-            filter_follow: {
-                let mut filter = BiquadFilter::new(sample_rate);
-                filter.set_filter_type(FilterType::Lowpass);
-                filter.set_cutoff(8000.0);
-                filter.set_resonance(1.0);
-                filter
-            },
             exciter: Exciter::new(sample_rate),
             doubler: crate::dsp::effects::VocalDoubler::new(sample_rate),
             choir: VocalChoir::new(sample_rate),
@@ -204,10 +121,6 @@ impl VoiceEngine {
     /// Update parameters
     pub fn update_params(&mut self, params: VoiceParams) {
         // Store params
-        let old_sub_waveform = self.params.sub_waveform;
-        let old_harm2_waveform = self.params.harm2_waveform;
-        let old_harm3_waveform = self.params.harm3_waveform;
-        let old_harm4_waveform = self.params.harm4_waveform;
         self.params = params;
 
         // Update noise gate
@@ -277,61 +190,6 @@ impl VoiceEngine {
         self.pitch_quantizer
             .set_correction_amount(self.params.pitch_correction_amount);
 
-        // Update sub oscillator waveform if changed
-        if self.params.sub_waveform != old_sub_waveform {
-            let waveform = match self.params.sub_waveform {
-                SubOscWaveform::Sine => Waveform::Sine,
-                SubOscWaveform::Triangle => Waveform::Triangle,
-                SubOscWaveform::Square => Waveform::Square,
-                SubOscWaveform::Saw => Waveform::Saw,
-            };
-            self.sub_oscillator.set_waveform(waveform);
-        }
-
-        // Update harmonizer 2 waveform if changed
-        if self.params.harm2_waveform != old_harm2_waveform {
-            let waveform = match self.params.harm2_waveform {
-                SubOscWaveform::Sine => Waveform::Sine,
-                SubOscWaveform::Triangle => Waveform::Triangle,
-                SubOscWaveform::Square => Waveform::Square,
-                SubOscWaveform::Saw => Waveform::Saw,
-            };
-            self.harm2_oscillator.set_waveform(waveform);
-        }
-
-        // Update harmonizer 3 waveform if changed
-        if self.params.harm3_waveform != old_harm3_waveform {
-            let waveform = match self.params.harm3_waveform {
-                SubOscWaveform::Sine => Waveform::Sine,
-                SubOscWaveform::Triangle => Waveform::Triangle,
-                SubOscWaveform::Square => Waveform::Square,
-                SubOscWaveform::Saw => Waveform::Saw,
-            };
-            self.harm3_oscillator.set_waveform(waveform);
-        }
-
-        // Update harmonizer 4 waveform if changed
-        if self.params.harm4_waveform != old_harm4_waveform {
-            let waveform = match self.params.harm4_waveform {
-                SubOscWaveform::Sine => Waveform::Sine,
-                SubOscWaveform::Triangle => Waveform::Triangle,
-                SubOscWaveform::Square => Waveform::Square,
-                SubOscWaveform::Saw => Waveform::Saw,
-            };
-            self.harm4_oscillator.set_waveform(waveform);
-        }
-
-        // Update ring modulator
-        let ring_waveform = match self.params.ring_mod_waveform {
-            RingModWaveform::Sine => crate::dsp::effects::ring_modulator::Waveform::Sine,
-            RingModWaveform::Triangle => crate::dsp::effects::ring_modulator::Waveform::Triangle,
-            RingModWaveform::Square => crate::dsp::effects::ring_modulator::Waveform::Square,
-            RingModWaveform::Saw => crate::dsp::effects::ring_modulator::Waveform::Saw,
-        };
-        self.ring_modulator.set_waveform(ring_waveform);
-        self.ring_modulator.set_depth(self.params.ring_mod_depth);
-        self.ring_modulator.set_mix(self.params.ring_mod_mix);
-
         // Update exciter
         self.exciter.set_drive(self.params.exciter_amount);
         self.exciter.set_frequency(self.params.exciter_frequency);
@@ -348,8 +206,7 @@ impl VoiceEngine {
         // Update vocal choir
         self.choir.set_num_voices(self.params.choir_num_voices);
         self.choir.set_detune_amount(self.params.choir_detune);
-        self.choir
-            .set_delay_spread(self.params.choir_delay_spread);
+        self.choir.set_delay_spread(self.params.choir_delay_spread);
         self.choir
             .set_stereo_spread(self.params.choir_stereo_spread);
         self.choir.set_mix(self.params.choir_mix);
@@ -371,8 +228,7 @@ impl VoiceEngine {
             .set_gain_mid(self.params.mb_dist_gain_mid);
         self.multiband_distortion
             .set_gain_high(self.params.mb_dist_gain_high);
-        self.multiband_distortion
-            .set_mix(self.params.mb_dist_mix);
+        self.multiband_distortion.set_mix(self.params.mb_dist_mix);
     }
 
     /// Process a stereo sample pair
@@ -483,71 +339,13 @@ impl VoiceEngine {
                 } else {
                     0.9 // Slow smoothing on small wobbles (<20Hz)
                 };
-                
-                self.smoothed_pitch =
-                    adaptive_alpha * self.corrected_pitch + (1.0 - adaptive_alpha) * self.smoothed_pitch;
+
+                self.smoothed_pitch = adaptive_alpha * self.corrected_pitch
+                    + (1.0 - adaptive_alpha) * self.smoothed_pitch;
             } else {
                 // Below threshold - clear confidence to stop sub oscillator
                 self.pitch_confidence = 0.0;
             }
-        }
-
-        // Calculate sub oscillator target pitch (octave shift)
-        let octave_multiplier = 2.0_f32.powf(self.params.sub_octave);
-        self.sub_target_pitch = self.smoothed_pitch * octave_multiplier;
-
-        // Update sub oscillator frequency (continuous phase)
-        self.sub_oscillator.set_frequency(self.sub_target_pitch);
-
-        // Calculate sub oscillator target amplitude based on pitch confidence and enable
-        self.sub_target_amplitude = if self.params.sub_enable
-            && self.pitch_confidence >= self.params.pitch_confidence_threshold
-        {
-            self.params.sub_level
-        } else {
-            0.0 // Fade out sub when disabled or no confident pitch detected
-        };
-
-        // Calculate harmonizer 2 target pitch (semitone shift: +4 = major 3rd)
-        let harm2_multiplier = 2.0_f32.powf(self.params.harm2_semitones / 12.0);
-        self.harm2_target_pitch = self.smoothed_pitch * harm2_multiplier;
-        self.harm2_oscillator.set_frequency(self.harm2_target_pitch);
-        self.harm2_target_amplitude = if self.params.harm2_enable
-            && self.pitch_confidence >= self.params.pitch_confidence_threshold
-        {
-            self.params.harm2_level
-        } else {
-            0.0
-        };
-
-        // Calculate harmonizer 3 target pitch (semitone shift: +7 = perfect 5th)
-        let harm3_multiplier = 2.0_f32.powf(self.params.harm3_semitones / 12.0);
-        self.harm3_target_pitch = self.smoothed_pitch * harm3_multiplier;
-        self.harm3_oscillator.set_frequency(self.harm3_target_pitch);
-        self.harm3_target_amplitude = if self.params.harm3_enable
-            && self.pitch_confidence >= self.params.pitch_confidence_threshold
-        {
-            self.params.harm3_level
-        } else {
-            0.0
-        };
-
-        // Calculate harmonizer 4 target pitch (semitone shift: +12 = octave up)
-        let harm4_multiplier = 2.0_f32.powf(self.params.harm4_semitones / 12.0);
-        self.harm4_target_pitch = self.smoothed_pitch * harm4_multiplier;
-        self.harm4_oscillator.set_frequency(self.harm4_target_pitch);
-        self.harm4_target_amplitude = if self.params.harm4_enable
-            && self.pitch_confidence >= self.params.pitch_confidence_threshold
-        {
-            self.params.harm4_level
-        } else {
-            0.0
-        };
-
-        // Update ring modulator carrier frequency (harmonic ratio × detected pitch)
-        if self.params.ring_mod_enable {
-            let carrier_freq = self.smoothed_pitch * self.params.ring_mod_harmonic;
-            self.ring_modulator.set_frequency(carrier_freq);
         }
 
         // 3. Parametric EQ
@@ -616,117 +414,7 @@ impl VoiceEngine {
         left = left_deess * self.params.deess_amount + left * (1.0 - self.params.deess_amount);
         right = right_deess * self.params.deess_amount + right * (1.0 - self.params.deess_amount);
 
-        // 6. Sub Oscillator (with amplitude ramping to avoid clicks)
-        if self.params.sub_enable {
-            let ramp_samples = (self.params.sub_ramp_time * 0.001 * self.sample_rate).max(1.0);
-            let ramp_step = (self.sub_target_amplitude - self.sub_amplitude) / ramp_samples;
-            self.sub_amplitude += ramp_step;
-            self.sub_amplitude = self.sub_amplitude.clamp(0.0, 1.0);
-
-            let sub_sample = self.sub_oscillator.process() * self.sub_amplitude;
-            left += sub_sample;
-            right += sub_sample;
-        }
-
-        // 6b. Harmonizer Oscillator 2 (major 3rd)
-        if self.params.harm2_enable {
-            let ramp_samples = (self.params.harm2_ramp_time * 0.001 * self.sample_rate).max(1.0);
-            let ramp_step = (self.harm2_target_amplitude - self.harm2_amplitude) / ramp_samples;
-            self.harm2_amplitude += ramp_step;
-            self.harm2_amplitude = self.harm2_amplitude.clamp(0.0, 1.0);
-
-            let harm2_sample = self.harm2_oscillator.process() * self.harm2_amplitude;
-            left += harm2_sample;
-            right += harm2_sample;
-        }
-
-        // 6c. Harmonizer Oscillator 3 (perfect 5th)
-        if self.params.harm3_enable {
-            let ramp_samples = (self.params.harm3_ramp_time * 0.001 * self.sample_rate).max(1.0);
-            let ramp_step = (self.harm3_target_amplitude - self.harm3_amplitude) / ramp_samples;
-            self.harm3_amplitude += ramp_step;
-            self.harm3_amplitude = self.harm3_amplitude.clamp(0.0, 1.0);
-
-            let harm3_sample = self.harm3_oscillator.process() * self.harm3_amplitude;
-            left += harm3_sample;
-            right += harm3_sample;
-        }
-
-        // 6d. Harmonizer Oscillator 4 (octave up)
-        if self.params.harm4_enable {
-            let ramp_samples = (self.params.harm4_ramp_time * 0.001 * self.sample_rate).max(1.0);
-            let ramp_step = (self.harm4_target_amplitude - self.harm4_amplitude) / ramp_samples;
-            self.harm4_amplitude += ramp_step;
-            self.harm4_amplitude = self.harm4_amplitude.clamp(0.0, 1.0);
-
-            let harm4_sample = self.harm4_oscillator.process() * self.harm4_amplitude;
-            left += harm4_sample;
-            right += harm4_sample;
-        }
-
-        // Debug: Check before exciter
-        if !left.is_finite() || !right.is_finite() {
-            use std::io::Write;
-            let _ = writeln!(
-                &mut std::fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open("/tmp/dsynth_voice_debug.log")
-                    .unwrap(),
-                "[NaN DETECTED] BEFORE exciter (after harmonizer oscs): left={}, right={}",
-                left,
-                right
-            );
-        }
-
-        // 7. Ring Modulator (pitch-tracked harmonically-related modulation)
-        if self.params.ring_mod_enable {
-            let (left_ring, right_ring) = self.ring_modulator.process(left, right);
-            left = left_ring;
-            right = right_ring;
-        }
-
-        // 7b. Pitch-Controlled Filter Sweep (talking synthesizer effect)
-        if self.params.filter_follow_enable {
-            // Store dry signal for mixing
-            let dry_left = left;
-            let dry_right = right;
-            
-            // Map detected pitch to filter cutoff
-            // Use a narrower pitch range that better matches typical singing/speaking
-            // Most vocals stay in 100-400Hz range, not the full 80-800Hz potential
-            const MIN_VOCAL_PITCH: f32 = 100.0;  // Male low notes
-            const MAX_VOCAL_PITCH: f32 = 500.0;  // Female/falsetto high notes
-            
-            let pitch_normalized = ((self.smoothed_pitch - MIN_VOCAL_PITCH) 
-                / (MAX_VOCAL_PITCH - MIN_VOCAL_PITCH)).clamp(0.0, 1.0);
-            
-            // Apply tracking amount (sensitivity): >1.0 exaggerates the response
-            // For amount > 1.5, use squared exaggeration for even more drama
-            let exaggerated_pitch = if self.params.filter_follow_amount > 1.5 {
-                // Very exaggerated: combine power curve with squaring
-                let pow_curve = pitch_normalized.powf(1.0 / self.params.filter_follow_amount.max(0.1));
-                pow_curve * pow_curve  // Square it for extreme response
-            } else {
-                // Normal exaggeration
-                pitch_normalized.powf(1.0 / self.params.filter_follow_amount.max(0.1))
-            };
-            
-            let cutoff_hz = self.params.filter_follow_min_freq 
-                + exaggerated_pitch * (self.params.filter_follow_max_freq - self.params.filter_follow_min_freq);
-            
-            self.filter_follow.set_cutoff(cutoff_hz);
-            self.filter_follow.set_resonance(self.params.filter_follow_resonance);
-            
-            let wet_left = self.filter_follow.process(left);
-            let wet_right = self.filter_follow.process(right);
-            
-            // Mix dry and wet
-            left = dry_left * (1.0 - self.params.filter_follow_mix) + wet_left * self.params.filter_follow_mix;
-            right = dry_right * (1.0 - self.params.filter_follow_mix) + wet_right * self.params.filter_follow_mix;
-        }
-
-        // 8. Exciter (harmonic enhancement)
+        // 6. Exciter (harmonic enhancement)
         // Update frequency based on pitch tracking if enabled
         if self.params.exciter_follow_enable {
             if self.pitch_confidence >= self.params.pitch_confidence_threshold {
@@ -759,28 +447,28 @@ impl VoiceEngine {
             );
         }
 
-        // 9. Vocal Doubler (stereo double-tracking effect)
+        // 7. Vocal Doubler (stereo double-tracking effect)
         if self.params.doubler_enable {
             let (left_doubled, right_doubled) = self.doubler.process(left, right);
             left = left_doubled;
             right = right_doubled;
         }
 
-        // 10. Vocal Choir (multi-voice ensemble effect)
+        // 8. Vocal Choir (multi-voice ensemble effect)
         if self.params.choir_enable {
             let (left_choir, right_choir) = self.choir.process(left, right);
             left = left_choir;
             right = right_choir;
         }
 
-        // 11. Multiband Distortion (frequency-dependent saturation)
+        // 9. Multiband Distortion (frequency-dependent saturation)
         if self.params.mb_dist_enable {
             let (left_dist, right_dist) = self.multiband_distortion.process_stereo(left, right);
             left = left_dist;
             right = right_dist;
         }
 
-        // 12. Lookahead Limiter (safety ceiling at 0dB)
+        // 10. Lookahead Limiter (safety ceiling at 0dB)
         let (left_limited, right_limited) = self.limiter.process(left, right);
         left = left_limited;
         right = right_limited;
@@ -800,11 +488,11 @@ impl VoiceEngine {
             );
         }
 
-        // 13. Dry/Wet Mix
+        // 11. Dry/Wet Mix
         left = left * self.params.dry_wet + dry_left * (1.0 - self.params.dry_wet);
         right = right * self.params.dry_wet + dry_right * (1.0 - self.params.dry_wet);
 
-        // 14. Output Gain
+        // 12. Output Gain
         let output_gain = VoiceParams::db_to_gain(self.params.output_gain);
         left *= output_gain;
         right *= output_gain;
@@ -850,14 +538,6 @@ impl VoiceEngine {
         self.smoothed_pitch = 100.0;
         self.pitch_confidence = 0.0;
         self.pitch_detection_counter = 0;
-        self.sub_amplitude = 0.0;
-        self.sub_target_amplitude = 0.0;
-        self.harm2_amplitude = 0.0;
-        self.harm2_target_amplitude = 0.0;
-        self.harm3_amplitude = 0.0;
-        self.harm3_target_amplitude = 0.0;
-        self.harm4_amplitude = 0.0;
-        self.harm4_target_amplitude = 0.0;
 
         self.pitch_detector = PitchDetector::new(self.sample_rate);
         self.pitch_quantizer.reset();
@@ -865,34 +545,6 @@ impl VoiceEngine {
         self.parametric_eq.reset();
         self.compressor.reset();
         self.de_esser.reset();
-        self.sub_oscillator = {
-            let mut osc = Oscillator::new(self.sample_rate);
-            osc.set_waveform(Waveform::Sine);
-            osc
-        };
-        self.harm2_oscillator = {
-            let mut osc = Oscillator::new(self.sample_rate);
-            osc.set_waveform(Waveform::Sine);
-            osc
-        };
-        self.harm3_oscillator = {
-            let mut osc = Oscillator::new(self.sample_rate);
-            osc.set_waveform(Waveform::Sine);
-            osc
-        };
-        self.harm4_oscillator = {
-            let mut osc = Oscillator::new(self.sample_rate);
-            osc.set_waveform(Waveform::Sine);
-            osc
-        };
-        self.ring_modulator = RingModulator::new(self.sample_rate, 200.0);
-        self.filter_follow = {
-            let mut filter = BiquadFilter::new(self.sample_rate);
-            filter.set_filter_type(FilterType::Lowpass);
-            filter.set_cutoff(8000.0);
-            filter.set_resonance(1.0);
-            filter
-        };
         self.exciter.reset();
         self.doubler.reset();
         self.choir.reset();
@@ -908,11 +560,6 @@ impl VoiceEngine {
     /// Get current pitch confidence (0.0-1.0)
     pub fn get_pitch_confidence(&self) -> f32 {
         self.pitch_confidence
-    }
-
-    /// Get current sub oscillator amplitude (for visualization)
-    pub fn get_sub_amplitude(&self) -> f32 {
-        self.sub_amplitude
     }
 }
 
@@ -959,7 +606,6 @@ mod tests {
     fn test_process_audio_signal() {
         let mut engine = VoiceEngine::new(44100.0);
         let params = VoiceParams {
-            sub_level: 0.0,        // Disable sub for this test
             gate_threshold: -80.0, // Very low threshold
             ..Default::default()
         };
@@ -1011,36 +657,6 @@ mod tests {
     }
 
     #[test]
-    fn test_sub_oscillator_amplitude_ramping() {
-        let mut engine = VoiceEngine::new(44100.0);
-        let params = VoiceParams {
-            sub_level: 0.5,
-            sub_ramp_time: 10.0,             // 10ms ramp
-            pitch_confidence_threshold: 0.0, // Always enable sub
-            ..Default::default()
-        };
-        engine.update_params(params);
-
-        // Initial amplitude should be zero
-        assert_eq!(engine.get_sub_amplitude(), 0.0);
-
-        // Process samples and watch amplitude ramp up
-        let mut last_amp = 0.0;
-        for _ in 0..1000 {
-            engine.process(0.1, 0.1);
-            let current_amp = engine.get_sub_amplitude();
-            assert!(current_amp >= last_amp, "Amplitude should ramp up smoothly");
-            last_amp = current_amp;
-        }
-
-        // After enough samples, should reach target
-        assert!(
-            engine.get_sub_amplitude() > 0.4,
-            "Should ramp to near target level"
-        );
-    }
-
-    #[test]
     fn test_dry_wet_mixing() {
         let mut engine = VoiceEngine::new(44100.0);
 
@@ -1084,7 +700,7 @@ mod tests {
         let params = VoiceParams {
             gate_threshold: -40.0,
             comp_ratio: 8.0,
-            sub_level: 0.7,
+            exciter_amount: 0.3,
             ..Default::default()
         };
 
@@ -1094,7 +710,7 @@ mod tests {
         // but we can verify the engine doesn't crash and accepts the params)
         assert_eq!(engine.params.gate_threshold, -40.0);
         assert_eq!(engine.params.comp_ratio, 8.0);
-        assert_eq!(engine.params.sub_level, 0.7);
+        assert_eq!(engine.params.exciter_amount, 0.3);
     }
 
     #[test]
@@ -1143,29 +759,5 @@ mod tests {
         assert_eq!(engine.detected_pitch, 100.0);
         assert_eq!(engine.smoothed_pitch, 100.0);
         assert_eq!(engine.pitch_confidence, 0.0);
-        assert_eq!(engine.sub_amplitude, 0.0);
-    }
-
-    #[test]
-    fn test_waveform_change() {
-        let mut engine = VoiceEngine::new(44100.0);
-
-        let mut params = VoiceParams::default();
-
-        // Change waveform to each type
-        for waveform in [
-            SubOscWaveform::Sine,
-            SubOscWaveform::Triangle,
-            SubOscWaveform::Square,
-            SubOscWaveform::Saw,
-        ] {
-            params.sub_waveform = waveform;
-            engine.update_params(params.clone());
-
-            // Process a sample to ensure it doesn't crash
-            let (out_l, out_r) = engine.process(0.1, 0.1);
-            assert!(out_l.is_finite());
-            assert!(out_r.is_finite());
-        }
     }
 }

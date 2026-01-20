@@ -1,81 +1,16 @@
 /// Voice Enhancer Parameters
 ///
-/// Audio processing chain for vocal enhancement with pitch-tracked effects:
+/// Audio processing chain for vocal enhancement:
 /// 1. Input Gain
 /// 2. Pitch Detection (mono sum, auto-detected with adaptive smoothing)
 /// 3. Noise Gate (remove background noise)
 /// 4. Parametric EQ (4-band vocal shaping)
 /// 5. Compressor (dynamics control)
 /// 6. De-Esser (sibilance reduction)
-/// 7. Sub Oscillator (pitch-tracked bass enhancement with amplitude ramping)
-/// 8. Ring Modulator (pitch-tracked harmonically-related robotic effects)
-/// 9. Pitch-Controlled Filter Sweep (talking synthesizer effect)
-/// 10. Exciter (harmonic enhancement)
-/// 11. Lookahead Limiter (safety ceiling)
-/// 12. Output Gain & Dry/Wet Mix
+/// 7. Exciter (harmonic enhancement)
+/// 8. Lookahead Limiter (safety ceiling)
+/// 9. Output Gain & Dry/Wet Mix
 use serde::{Deserialize, Serialize};
-
-/// Waveform types for sub oscillator
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
-pub enum SubOscWaveform {
-    #[default]
-    Sine,
-    Triangle,
-    Square,
-    Saw,
-}
-
-/// Waveform types for ring modulator
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
-pub enum RingModWaveform {
-    #[default]
-    Sine,
-    Triangle,
-    Square,
-    Saw,
-}
-
-impl SubOscWaveform {
-    pub fn to_index(self) -> usize {
-        match self {
-            Self::Sine => 0,
-            Self::Triangle => 1,
-            Self::Square => 2,
-            Self::Saw => 3,
-        }
-    }
-
-    pub fn from_index(index: usize) -> Self {
-        match index {
-            0 => Self::Sine,
-            1 => Self::Triangle,
-            2 => Self::Square,
-            3 => Self::Saw,
-            _ => Self::Sine,
-        }
-    }
-}
-
-impl RingModWaveform {
-    pub fn to_index(self) -> usize {
-        match self {
-            Self::Sine => 0,
-            Self::Triangle => 1,
-            Self::Square => 2,
-            Self::Saw => 3,
-        }
-    }
-
-    pub fn from_index(index: usize) -> Self {
-        match index {
-            0 => Self::Sine,
-            1 => Self::Triangle,
-            2 => Self::Square,
-            3 => Self::Saw,
-            _ => Self::Sine,
-        }
-    }
-}
 
 /// Complete parameter set for voice enhancement plugin
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -133,49 +68,6 @@ pub struct VoiceParams {
     pub pitch_correction_root: u8,  // Root note: 0=C, 1=C#, 2=D, ... 11=B
     pub pitch_correction_speed: f32, // 0.0 to 1.0 (0=instant/robotic, 1=slow/natural)
     pub pitch_correction_amount: f32, // 0.0 to 1.0 (0=off, 1=full correction)
-
-    // Pitch-Controlled Filter Sweep (6 params)
-    pub filter_follow_enable: bool,   // Enable/disable filter follow
-    pub filter_follow_min_freq: f32,  // 100Hz to 2kHz (minimum cutoff at low pitch)
-    pub filter_follow_max_freq: f32,  // 2kHz to 20kHz (maximum cutoff at high pitch)
-    pub filter_follow_resonance: f32, // 0.1 to 10.0 (Q factor)
-    pub filter_follow_amount: f32, // 0.0 to 2.0 (tracking sensitivity: 1.0=linear, >1.0=exaggerated)
-    pub filter_follow_mix: f32,    // 0.0 to 1.0 (dry/wet mix)
-
-    // Sub Oscillator (5 params)
-    pub sub_enable: bool,             // Enable/disable sub oscillator
-    pub sub_octave: f32,              // -2 to 0 (octaves below detected pitch)
-    pub sub_level: f32,               // 0.0 to 1.0 (mix level)
-    pub sub_waveform: SubOscWaveform, // Sine, Triangle, Square, Saw
-    pub sub_ramp_time: f32,           // 1ms to 100ms (amplitude ramping to avoid clicks)
-
-    // Harmonizer Oscillator 2 - Major 3rd (5 params)
-    pub harm2_enable: bool,             // Enable/disable harm2
-    pub harm2_semitones: f32,           // -24 to +24 semitones (default +4 = major 3rd)
-    pub harm2_level: f32,               // 0.0 to 1.0 (mix level)
-    pub harm2_waveform: SubOscWaveform, // Sine, Triangle, Square, Saw
-    pub harm2_ramp_time: f32,           // 1ms to 100ms (amplitude ramping)
-
-    // Harmonizer Oscillator 3 - Perfect 5th (5 params)
-    pub harm3_enable: bool,             // Enable/disable harm3
-    pub harm3_semitones: f32,           // -24 to +24 semitones (default +7 = perfect 5th)
-    pub harm3_level: f32,               // 0.0 to 1.0 (mix level)
-    pub harm3_waveform: SubOscWaveform, // Sine, Triangle, Square, Saw
-    pub harm3_ramp_time: f32,           // 1ms to 100ms (amplitude ramping)
-
-    // Harmonizer Oscillator 4 - Octave Up (5 params)
-    pub harm4_enable: bool,             // Enable/disable harm4
-    pub harm4_semitones: f32,           // -24 to +24 semitones (default +12 = octave up)
-    pub harm4_level: f32,               // 0.0 to 1.0 (mix level)
-    pub harm4_waveform: SubOscWaveform, // Sine, Triangle, Square, Saw
-    pub harm4_ramp_time: f32,           // 1ms to 100ms (amplitude ramping)
-
-    // Ring Modulator (5 params)
-    pub ring_mod_enable: bool,              // Enable/disable ring modulator
-    pub ring_mod_harmonic: f32,             // 0.5 to 8.0 (harmonic ratio × detected pitch)
-    pub ring_mod_waveform: RingModWaveform, // Sine, Triangle, Square, Saw
-    pub ring_mod_depth: f32,                // 0.0 to 1.0 (modulation depth)
-    pub ring_mod_mix: f32,                  // 0.0 to 1.0 (dry/wet)
 
     // Exciter (6 params)
     pub exciter_amount: f32,         // 0.0 to 1.0 (drive amount)
@@ -272,49 +164,6 @@ impl Default for VoiceParams {
             pitch_correction_root: 0,     // C
             pitch_correction_speed: 0.5,  // Moderate retune speed (noticeable but not robotic)
             pitch_correction_amount: 0.0, // Off by default
-
-            // Pitch-Controlled Filter Sweep - off by default
-            filter_follow_enable: false,
-            filter_follow_min_freq: 150.0, // 150Hz at low pitch (more dramatic sweep)
-            filter_follow_max_freq: 12000.0, // 12kHz at high pitch (wider range)
-            filter_follow_resonance: 2.5,  // Higher resonance for more character
-            filter_follow_amount: 1.0,     // Linear tracking
-            filter_follow_mix: 1.0,        // 100% wet
-
-            // Sub Oscillator - 1 octave down, sine wave
-            sub_enable: true, // On by default for backward compatibility
-            sub_octave: -1.0,
-            sub_level: 0.3,
-            sub_waveform: SubOscWaveform::Sine,
-            sub_ramp_time: 10.0,
-
-            // Harmonizer Oscillator 2 - Major 3rd (+4 semitones)
-            harm2_enable: false, // Off by default
-            harm2_semitones: 4.0,
-            harm2_level: 0.3,
-            harm2_waveform: SubOscWaveform::Sine,
-            harm2_ramp_time: 10.0,
-
-            // Harmonizer Oscillator 3 - Perfect 5th (+7 semitones)
-            harm3_enable: false, // Off by default
-            harm3_semitones: 7.0,
-            harm3_level: 0.3,
-            harm3_waveform: SubOscWaveform::Sine,
-            harm3_ramp_time: 10.0,
-
-            // Harmonizer Oscillator 4 - Octave Up (+12 semitones)
-            harm4_enable: false, // Off by default
-            harm4_semitones: 12.0,
-            harm4_level: 0.3,
-            harm4_waveform: SubOscWaveform::Sine,
-            harm4_ramp_time: 10.0,
-
-            // Ring Modulator - disabled by default
-            ring_mod_enable: false,
-            ring_mod_harmonic: 2.0,
-            ring_mod_waveform: RingModWaveform::Sine,
-            ring_mod_depth: 1.0,
-            ring_mod_mix: 0.5,
 
             // Exciter - subtle enhancement
             exciter_amount: 0.3,
@@ -417,46 +266,6 @@ impl VoiceParams {
             pitch_correction_speed: 0.5,
             pitch_correction_amount: 0.0,
 
-            filter_follow_enable: false,
-            filter_follow_min_freq: 200.0,
-            filter_follow_max_freq: 8000.0,
-            filter_follow_resonance: 1.5,
-            filter_follow_amount: 1.2, // Slightly exaggerated
-            filter_follow_mix: 0.8,    // Mostly filtered
-
-            // Subtle sub
-            sub_enable: true,
-            sub_octave: -1.0,
-            sub_level: 0.2,
-            sub_waveform: SubOscWaveform::Sine,
-            sub_ramp_time: 15.0,
-
-            // Harmonizers off by default
-            harm2_enable: false,
-            harm2_semitones: 4.0,
-            harm2_level: 0.3,
-            harm2_waveform: SubOscWaveform::Sine,
-            harm2_ramp_time: 10.0,
-
-            harm3_enable: false,
-            harm3_semitones: 7.0,
-            harm3_level: 0.3,
-            harm3_waveform: SubOscWaveform::Sine,
-            harm3_ramp_time: 10.0,
-
-            harm4_enable: false,
-            harm4_semitones: 12.0,
-            harm4_level: 0.3,
-            harm4_waveform: SubOscWaveform::Sine,
-            harm4_ramp_time: 10.0,
-
-            // Ring mod off
-            ring_mod_enable: false,
-            ring_mod_harmonic: 2.0,
-            ring_mod_waveform: RingModWaveform::Sine,
-            ring_mod_depth: 1.0,
-            ring_mod_mix: 0.5,
-
             // Light exciter
             exciter_amount: 0.25,
             exciter_frequency: 5000.0,
@@ -551,46 +360,6 @@ impl VoiceParams {
             pitch_correction_root: 0,
             pitch_correction_speed: 0.3, // Faster for radio effect
             pitch_correction_amount: 0.0,
-
-            filter_follow_enable: false,
-            filter_follow_min_freq: 300.0,
-            filter_follow_max_freq: 15000.0,
-            filter_follow_resonance: 3.0,
-            filter_follow_amount: 1.5, // More exaggerated
-            filter_follow_mix: 1.0,    // Full wet
-
-            // Noticeable sub
-            sub_enable: true,
-            sub_octave: -1.0,
-            sub_level: 0.4,
-            sub_waveform: SubOscWaveform::Sine,
-            sub_ramp_time: 8.0,
-
-            // Harmonizers off
-            harm2_enable: false,
-            harm2_semitones: 4.0,
-            harm2_level: 0.3,
-            harm2_waveform: SubOscWaveform::Sine,
-            harm2_ramp_time: 10.0,
-
-            harm3_enable: false,
-            harm3_semitones: 7.0,
-            harm3_level: 0.3,
-            harm3_waveform: SubOscWaveform::Sine,
-            harm3_ramp_time: 10.0,
-
-            harm4_enable: false,
-            harm4_semitones: 12.0,
-            harm4_level: 0.3,
-            harm4_waveform: SubOscWaveform::Sine,
-            harm4_ramp_time: 10.0,
-
-            // Ring mod off
-            ring_mod_enable: false,
-            ring_mod_harmonic: 2.0,
-            ring_mod_waveform: RingModWaveform::Sine,
-            ring_mod_depth: 1.0,
-            ring_mod_mix: 0.5,
 
             // Strong exciter
             exciter_amount: 0.5,
@@ -687,46 +456,6 @@ impl VoiceParams {
             pitch_correction_speed: 0.5,
             pitch_correction_amount: 0.0,
 
-            filter_follow_enable: false,
-            filter_follow_min_freq: 100.0, // Lower range for bass
-            filter_follow_max_freq: 4000.0,
-            filter_follow_resonance: 4.0, // High resonance for growl
-            filter_follow_amount: 1.3,    // Exaggerated for drama
-            filter_follow_mix: 0.9,       // Mostly filtered
-
-            // Strong sub oscillator - 2 octaves down
-            sub_enable: true,
-            sub_octave: -2.0,
-            sub_level: 0.6,
-            sub_waveform: SubOscWaveform::Sine,
-            sub_ramp_time: 20.0, // Slower ramp for bass
-
-            // Harmonizers off
-            harm2_enable: false,
-            harm2_semitones: 4.0,
-            harm2_level: 0.3,
-            harm2_waveform: SubOscWaveform::Sine,
-            harm2_ramp_time: 10.0,
-
-            harm3_enable: false,
-            harm3_semitones: 7.0,
-            harm3_level: 0.3,
-            harm3_waveform: SubOscWaveform::Sine,
-            harm3_ramp_time: 10.0,
-
-            harm4_enable: false,
-            harm4_semitones: 12.0,
-            harm4_level: 0.3,
-            harm4_waveform: SubOscWaveform::Sine,
-            harm4_ramp_time: 10.0,
-
-            // Ring mod off
-            ring_mod_enable: false,
-            ring_mod_harmonic: 2.0,
-            ring_mod_waveform: RingModWaveform::Sine,
-            ring_mod_depth: 1.0,
-            ring_mod_mix: 0.5,
-
             // Minimal exciter
             exciter_amount: 0.15,
             exciter_frequency: 6000.0,
@@ -787,7 +516,6 @@ mod tests {
         assert_eq!(params.input_gain, 0.0);
         assert_eq!(params.output_gain, 0.0);
         assert_eq!(params.gate_threshold, -50.0);
-        assert_eq!(params.sub_octave, -1.0);
         assert_eq!(params.dry_wet, 1.0);
     }
 
@@ -796,7 +524,6 @@ mod tests {
         let params = VoiceParams::preset_clean_vocal();
         assert!(params.gate_threshold < 0.0);
         assert!(params.comp_ratio >= 1.0);
-        assert!(params.sub_level > 0.0);
     }
 
     #[test]
@@ -809,8 +536,7 @@ mod tests {
     #[test]
     fn test_preset_deep_bass() {
         let params = VoiceParams::preset_deep_bass();
-        assert_eq!(params.sub_octave, -2.0); // 2 octaves down
-        assert!(params.sub_level > 0.5); // Strong sub
+        assert!(params.eq_band1_gain > 0.0); // Bass boost
     }
 
     #[test]
@@ -828,19 +554,6 @@ mod tests {
     }
 
     #[test]
-    fn test_sub_waveform_conversion() {
-        assert_eq!(SubOscWaveform::Sine.to_index(), 0);
-        assert_eq!(SubOscWaveform::Triangle.to_index(), 1);
-        assert_eq!(SubOscWaveform::Square.to_index(), 2);
-        assert_eq!(SubOscWaveform::Saw.to_index(), 3);
-
-        assert_eq!(SubOscWaveform::from_index(0), SubOscWaveform::Sine);
-        assert_eq!(SubOscWaveform::from_index(1), SubOscWaveform::Triangle);
-        assert_eq!(SubOscWaveform::from_index(2), SubOscWaveform::Square);
-        assert_eq!(SubOscWaveform::from_index(3), SubOscWaveform::Saw);
-    }
-
-    #[test]
     fn test_parameter_ranges() {
         let params = VoiceParams::default();
 
@@ -849,8 +562,6 @@ mod tests {
         assert!(params.gate_threshold >= -80.0 && params.gate_threshold <= -20.0);
         assert!(params.gate_ratio >= 1.0 && params.gate_ratio <= 10.0);
         assert!(params.comp_ratio >= 1.0 && params.comp_ratio <= 20.0);
-        assert!(params.sub_octave >= -2.0 && params.sub_octave <= 0.0);
-        assert!(params.sub_level >= 0.0 && params.sub_level <= 1.0);
         assert!(params.dry_wet >= 0.0 && params.dry_wet <= 1.0);
     }
 }
