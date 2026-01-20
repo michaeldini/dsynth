@@ -1,16 +1,18 @@
 /// Voice Enhancer Parameters
 ///
-/// Audio processing chain for vocal enhancement with pitch-tracked sub oscillator:
+/// Audio processing chain for vocal enhancement with pitch-tracked effects:
 /// 1. Input Gain
-/// 2. Pitch Detection (mono sum, auto-detected)
+/// 2. Pitch Detection (mono sum, auto-detected with adaptive smoothing)
 /// 3. Noise Gate (remove background noise)
 /// 4. Parametric EQ (4-band vocal shaping)
 /// 5. Compressor (dynamics control)
 /// 6. De-Esser (sibilance reduction)
 /// 7. Sub Oscillator (pitch-tracked bass enhancement with amplitude ramping)
-/// 8. Exciter (harmonic enhancement)
-/// 9. Lookahead Limiter (safety ceiling)
-/// 10. Output Gain & Dry/Wet Mix
+/// 8. Ring Modulator (pitch-tracked harmonically-related robotic effects)
+/// 9. Pitch-Controlled Filter Sweep (talking synthesizer effect)
+/// 10. Exciter (harmonic enhancement)
+/// 11. Lookahead Limiter (safety ceiling)
+/// 12. Output Gain & Dry/Wet Mix
 use serde::{Deserialize, Serialize};
 
 /// Waveform types for sub oscillator
@@ -23,7 +25,38 @@ pub enum SubOscWaveform {
     Saw,
 }
 
+/// Waveform types for ring modulator
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Default)]
+pub enum RingModWaveform {
+    #[default]
+    Sine,
+    Triangle,
+    Square,
+    Saw,
+}
+
 impl SubOscWaveform {
+    pub fn to_index(self) -> usize {
+        match self {
+            Self::Sine => 0,
+            Self::Triangle => 1,
+            Self::Square => 2,
+            Self::Saw => 3,
+        }
+    }
+
+    pub fn from_index(index: usize) -> Self {
+        match index {
+            0 => Self::Sine,
+            1 => Self::Triangle,
+            2 => Self::Square,
+            3 => Self::Saw,
+            _ => Self::Sine,
+        }
+    }
+}
+
+impl RingModWaveform {
     pub fn to_index(self) -> usize {
         match self {
             Self::Sine => 0,
@@ -91,21 +124,93 @@ pub struct VoiceParams {
     pub deess_ratio: f32,     // 1.0 to 10.0
     pub deess_amount: f32,    // 0.0 to 1.0 (dry/wet)
 
-    // Pitch Detector (2 params)
-    pub pitch_smoothing: f32,            // 0.0 to 1.0 (smoothing factor)
+    // Pitch Detector (1 param - smoothing is now adaptive)
     pub pitch_confidence_threshold: f32, // 0.0 to 1.0 (minimum confidence)
 
-    // Sub Oscillator (4 params)
+    // Pitch Correction / Auto-Tune (5 params)
+    pub pitch_correction_enable: bool, // Enable/disable pitch correction
+    pub pitch_correction_scale: u8, // Scale type: 0=Chromatic, 1=Major, 2=Minor, 3=Pentatonic, 4=MinorPentatonic
+    pub pitch_correction_root: u8,  // Root note: 0=C, 1=C#, 2=D, ... 11=B
+    pub pitch_correction_speed: f32, // 0.0 to 1.0 (0=instant/robotic, 1=slow/natural)
+    pub pitch_correction_amount: f32, // 0.0 to 1.0 (0=off, 1=full correction)
+
+    // Pitch-Controlled Filter Sweep (6 params)
+    pub filter_follow_enable: bool,   // Enable/disable filter follow
+    pub filter_follow_min_freq: f32,  // 100Hz to 2kHz (minimum cutoff at low pitch)
+    pub filter_follow_max_freq: f32,  // 2kHz to 20kHz (maximum cutoff at high pitch)
+    pub filter_follow_resonance: f32, // 0.1 to 10.0 (Q factor)
+    pub filter_follow_amount: f32, // 0.0 to 2.0 (tracking sensitivity: 1.0=linear, >1.0=exaggerated)
+    pub filter_follow_mix: f32,    // 0.0 to 1.0 (dry/wet mix)
+
+    // Sub Oscillator (5 params)
+    pub sub_enable: bool,             // Enable/disable sub oscillator
     pub sub_octave: f32,              // -2 to 0 (octaves below detected pitch)
     pub sub_level: f32,               // 0.0 to 1.0 (mix level)
     pub sub_waveform: SubOscWaveform, // Sine, Triangle, Square, Saw
     pub sub_ramp_time: f32,           // 1ms to 100ms (amplitude ramping to avoid clicks)
 
-    // Exciter (4 params)
+    // Harmonizer Oscillator 2 - Major 3rd (5 params)
+    pub harm2_enable: bool,             // Enable/disable harm2
+    pub harm2_semitones: f32,           // -24 to +24 semitones (default +4 = major 3rd)
+    pub harm2_level: f32,               // 0.0 to 1.0 (mix level)
+    pub harm2_waveform: SubOscWaveform, // Sine, Triangle, Square, Saw
+    pub harm2_ramp_time: f32,           // 1ms to 100ms (amplitude ramping)
+
+    // Harmonizer Oscillator 3 - Perfect 5th (5 params)
+    pub harm3_enable: bool,             // Enable/disable harm3
+    pub harm3_semitones: f32,           // -24 to +24 semitones (default +7 = perfect 5th)
+    pub harm3_level: f32,               // 0.0 to 1.0 (mix level)
+    pub harm3_waveform: SubOscWaveform, // Sine, Triangle, Square, Saw
+    pub harm3_ramp_time: f32,           // 1ms to 100ms (amplitude ramping)
+
+    // Harmonizer Oscillator 4 - Octave Up (5 params)
+    pub harm4_enable: bool,             // Enable/disable harm4
+    pub harm4_semitones: f32,           // -24 to +24 semitones (default +12 = octave up)
+    pub harm4_level: f32,               // 0.0 to 1.0 (mix level)
+    pub harm4_waveform: SubOscWaveform, // Sine, Triangle, Square, Saw
+    pub harm4_ramp_time: f32,           // 1ms to 100ms (amplitude ramping)
+
+    // Ring Modulator (5 params)
+    pub ring_mod_enable: bool,              // Enable/disable ring modulator
+    pub ring_mod_harmonic: f32,             // 0.5 to 8.0 (harmonic ratio × detected pitch)
+    pub ring_mod_waveform: RingModWaveform, // Sine, Triangle, Square, Saw
+    pub ring_mod_depth: f32,                // 0.0 to 1.0 (modulation depth)
+    pub ring_mod_mix: f32,                  // 0.0 to 1.0 (dry/wet)
+
+    // Exciter (6 params)
     pub exciter_amount: f32,    // 0.0 to 1.0 (drive amount)
     pub exciter_frequency: f32, // 2kHz to 10kHz (high-pass cutoff)
     pub exciter_harmonics: f32, // 0.0 to 1.0 (harmonic generation)
     pub exciter_mix: f32,       // 0.0 to 1.0 (dry/wet)
+    pub exciter_follow_enable: bool,  // Enable pitch tracking
+    pub exciter_follow_amount: f32,   // 1.0 to 4.0× (multiply factor above pitch)
+
+    // Vocal Doubler (5 params)
+    pub doubler_enable: bool,      // Enable/disable doubler
+    pub doubler_delay: f32,        // 5.0 to 15.0ms (delay time)
+    pub doubler_detune: f32,       // 0.0 to 10.0 cents (pitch variation)
+    pub doubler_stereo_width: f32, // 0.0 to 1.0 (stereo spread)
+    pub doubler_mix: f32,          // 0.0 to 1.0 (dry/wet)
+
+    // Vocal Choir (5 params)
+    pub choir_enable: bool,       // Enable/disable choir
+    pub choir_num_voices: usize,  // 2 to 8 voices
+    pub choir_detune: f32,        // 0.0 to 30.0 cents (total spread)
+    pub choir_delay_spread: f32,  // 10.0 to 40.0ms (delay range)
+    pub choir_stereo_spread: f32, // 0.0 to 1.0 (panning width)
+    pub choir_mix: f32,           // 0.0 to 1.0 (dry/wet)
+
+    // Multiband Distortion (9 params)
+    pub mb_dist_enable: bool,      // Enable/disable multiband distortion
+    pub mb_dist_low_mid_freq: f32, // 50.0 to 500.0 Hz (bass/mid crossover)
+    pub mb_dist_mid_high_freq: f32, // 1000.0 to 8000.0 Hz (mid/high crossover)
+    pub mb_dist_drive_low: f32,    // 0.0 to 1.0 (bass drive)
+    pub mb_dist_drive_mid: f32,    // 0.0 to 1.0 (mid drive)
+    pub mb_dist_drive_high: f32,   // 0.0 to 1.0 (high drive)
+    pub mb_dist_gain_low: f32,     // 0.0 to 2.0 (bass output gain)
+    pub mb_dist_gain_mid: f32,     // 0.0 to 2.0 (mid output gain)
+    pub mb_dist_gain_high: f32,    // 0.0 to 2.0 (high output gain)
+    pub mb_dist_mix: f32,          // 0.0 to 1.0 (dry/wet)
 
     // Master (1 param)
     pub dry_wet: f32, // 0.0 to 1.0 (processed vs original)
@@ -158,15 +263,58 @@ impl Default for VoiceParams {
             deess_ratio: 4.0,
             deess_amount: 0.5,
 
-            // Pitch Detector - balanced settings
-            pitch_smoothing: 0.7,
+            // Pitch Detector - balanced settings (smoothing is now adaptive)
             pitch_confidence_threshold: 0.6,
 
+            // Pitch Correction / Auto-Tune - off by default
+            pitch_correction_enable: false,
+            pitch_correction_scale: 0,    // Chromatic (no scale correction)
+            pitch_correction_root: 0,     // C
+            pitch_correction_speed: 0.5,  // Moderate retune speed (noticeable but not robotic)
+            pitch_correction_amount: 0.0, // Off by default
+
+            // Pitch-Controlled Filter Sweep - off by default
+            filter_follow_enable: false,
+            filter_follow_min_freq: 150.0, // 150Hz at low pitch (more dramatic sweep)
+            filter_follow_max_freq: 12000.0, // 12kHz at high pitch (wider range)
+            filter_follow_resonance: 2.5,  // Higher resonance for more character
+            filter_follow_amount: 1.0,     // Linear tracking
+            filter_follow_mix: 1.0,        // 100% wet
+
             // Sub Oscillator - 1 octave down, sine wave
+            sub_enable: true, // On by default for backward compatibility
             sub_octave: -1.0,
             sub_level: 0.3,
             sub_waveform: SubOscWaveform::Sine,
             sub_ramp_time: 10.0,
+
+            // Harmonizer Oscillator 2 - Major 3rd (+4 semitones)
+            harm2_enable: false, // Off by default
+            harm2_semitones: 4.0,
+            harm2_level: 0.3,
+            harm2_waveform: SubOscWaveform::Sine,
+            harm2_ramp_time: 10.0,
+
+            // Harmonizer Oscillator 3 - Perfect 5th (+7 semitones)
+            harm3_enable: false, // Off by default
+            harm3_semitones: 7.0,
+            harm3_level: 0.3,
+            harm3_waveform: SubOscWaveform::Sine,
+            harm3_ramp_time: 10.0,
+
+            // Harmonizer Oscillator 4 - Octave Up (+12 semitones)
+            harm4_enable: false, // Off by default
+            harm4_semitones: 12.0,
+            harm4_level: 0.3,
+            harm4_waveform: SubOscWaveform::Sine,
+            harm4_ramp_time: 10.0,
+
+            // Ring Modulator - disabled by default
+            ring_mod_enable: false,
+            ring_mod_harmonic: 2.0,
+            ring_mod_waveform: RingModWaveform::Sine,
+            ring_mod_depth: 1.0,
+            ring_mod_mix: 0.5,
 
             // Exciter - subtle enhancement
             exciter_amount: 0.3,
@@ -174,6 +322,34 @@ impl Default for VoiceParams {
             exciter_harmonics: 0.5,
             exciter_mix: 0.3,
 
+            // Vocal Doubler - off by default
+            doubler_enable: false,
+            doubler_delay: 10.0,       // 10ms delay
+            doubler_detune: 5.0,       // 5 cents detune
+            doubler_stereo_width: 0.7, // 70% stereo width
+            doubler_mix: 0.5,          // 50% mix
+
+            // Vocal Choir - off by default
+            choir_enable: false,
+            choir_num_voices: 4,      // 4 voices
+            choir_detune: 15.0,       // 15 cents spread
+            choir_delay_spread: 25.0, // 25ms delay spread
+            choir_stereo_spread: 0.8, // 80% stereo spread
+            choir_mix: 0.5,           // 50% mix
+            // Multiband Distortion - off by default
+            mb_dist_enable: false,
+            mb_dist_low_mid_freq: 200.0,   // 200Hz bass/mid split
+            mb_dist_mid_high_freq: 2000.0, // 2kHz mid/high split
+            mb_dist_drive_low: 0.3,        // Moderate bass drive
+            mb_dist_drive_mid: 0.2,        // Light mid drive
+            mb_dist_drive_high: 0.1,       // Subtle high drive
+            mb_dist_gain_low: 1.0,         // Unity gain
+            mb_dist_gain_mid: 1.0,         // Unity gain
+            mb_dist_gain_high: 1.0,        // Unity gain
+            mb_dist_mix: 0.5,              // 50% mix
+            // Exciter follow
+            exciter_follow_enable: false,  // Pitch tracking off by default
+            exciter_follow_amount: 1.5,    // 1.5× = major 3rd above pitch
             // Master - 100% wet (fully processed)
             dry_wet: 1.0,
         }
@@ -232,20 +408,90 @@ impl VoiceParams {
             deess_ratio: 4.0,
             deess_amount: 0.6,
 
-            pitch_smoothing: 0.8,
             pitch_confidence_threshold: 0.7,
 
+            // Pitch correction off for clean vocal
+            pitch_correction_enable: false,
+            pitch_correction_scale: 0, // Chromatic
+            pitch_correction_root: 0,  // C
+            pitch_correction_speed: 0.5,
+            pitch_correction_amount: 0.0,
+
+            filter_follow_enable: false,
+            filter_follow_min_freq: 200.0,
+            filter_follow_max_freq: 8000.0,
+            filter_follow_resonance: 1.5,
+            filter_follow_amount: 1.2, // Slightly exaggerated
+            filter_follow_mix: 0.8,    // Mostly filtered
+
             // Subtle sub
+            sub_enable: true,
             sub_octave: -1.0,
             sub_level: 0.2,
             sub_waveform: SubOscWaveform::Sine,
             sub_ramp_time: 15.0,
+
+            // Harmonizers off by default
+            harm2_enable: false,
+            harm2_semitones: 4.0,
+            harm2_level: 0.3,
+            harm2_waveform: SubOscWaveform::Sine,
+            harm2_ramp_time: 10.0,
+
+            harm3_enable: false,
+            harm3_semitones: 7.0,
+            harm3_level: 0.3,
+            harm3_waveform: SubOscWaveform::Sine,
+            harm3_ramp_time: 10.0,
+
+            harm4_enable: false,
+            harm4_semitones: 12.0,
+            harm4_level: 0.3,
+            harm4_waveform: SubOscWaveform::Sine,
+            harm4_ramp_time: 10.0,
+
+            // Ring mod off
+            ring_mod_enable: false,
+            ring_mod_harmonic: 2.0,
+            ring_mod_waveform: RingModWaveform::Sine,
+            ring_mod_depth: 1.0,
+            ring_mod_mix: 0.5,
 
             // Light exciter
             exciter_amount: 0.25,
             exciter_frequency: 5000.0,
             exciter_harmonics: 0.3,
             exciter_mix: 0.25,
+            // Doubler - subtle for clean vocal
+            doubler_enable: false,
+            doubler_delay: 10.0,
+            doubler_detune: 3.0, // Subtle 3 cents
+            doubler_stereo_width: 0.6,
+            doubler_mix: 0.3,
+
+            // Choir - off for clean vocal
+            choir_enable: false,
+            choir_num_voices: 4,
+            choir_detune: 12.0,
+            choir_delay_spread: 20.0,
+            choir_stereo_spread: 0.7,
+            choir_mix: 0.4,
+
+            // Multiband Distortion - off for clean vocal
+            mb_dist_enable: false,
+            mb_dist_low_mid_freq: 200.0,
+            mb_dist_mid_high_freq: 2000.0,
+            mb_dist_drive_low: 0.2,
+            mb_dist_drive_mid: 0.1,
+            mb_dist_drive_high: 0.05,
+            mb_dist_gain_low: 1.0,
+            mb_dist_gain_mid: 1.0,
+            mb_dist_gain_high: 1.0,
+            mb_dist_mix: 0.3,
+
+            // Exciter follow - off by default
+            exciter_follow_enable: false,
+            exciter_follow_amount: 1.5,
 
             dry_wet: 1.0,
         }
@@ -297,20 +543,90 @@ impl VoiceParams {
             deess_ratio: 6.0,
             deess_amount: 0.8,
 
-            pitch_smoothing: 0.6,
             pitch_confidence_threshold: 0.65,
 
+            // Pitch correction off for radio voice
+            pitch_correction_enable: false,
+            pitch_correction_scale: 0,
+            pitch_correction_root: 0,
+            pitch_correction_speed: 0.3, // Faster for radio effect
+            pitch_correction_amount: 0.0,
+
+            filter_follow_enable: false,
+            filter_follow_min_freq: 300.0,
+            filter_follow_max_freq: 15000.0,
+            filter_follow_resonance: 3.0,
+            filter_follow_amount: 1.5, // More exaggerated
+            filter_follow_mix: 1.0,    // Full wet
+
             // Noticeable sub
+            sub_enable: true,
             sub_octave: -1.0,
             sub_level: 0.4,
             sub_waveform: SubOscWaveform::Sine,
             sub_ramp_time: 8.0,
+
+            // Harmonizers off
+            harm2_enable: false,
+            harm2_semitones: 4.0,
+            harm2_level: 0.3,
+            harm2_waveform: SubOscWaveform::Sine,
+            harm2_ramp_time: 10.0,
+
+            harm3_enable: false,
+            harm3_semitones: 7.0,
+            harm3_level: 0.3,
+            harm3_waveform: SubOscWaveform::Sine,
+            harm3_ramp_time: 10.0,
+
+            harm4_enable: false,
+            harm4_semitones: 12.0,
+            harm4_level: 0.3,
+            harm4_waveform: SubOscWaveform::Sine,
+            harm4_ramp_time: 10.0,
+
+            // Ring mod off
+            ring_mod_enable: false,
+            ring_mod_harmonic: 2.0,
+            ring_mod_waveform: RingModWaveform::Sine,
+            ring_mod_depth: 1.0,
+            ring_mod_mix: 0.5,
 
             // Strong exciter
             exciter_amount: 0.5,
             exciter_frequency: 3500.0,
             exciter_harmonics: 0.6,
             exciter_mix: 0.5,
+            // Doubler - off for radio (already compressed/processed)
+            doubler_enable: false,
+            doubler_delay: 10.0,
+            doubler_detune: 5.0,
+            doubler_stereo_width: 0.7,
+            doubler_mix: 0.5,
+
+            // Choir - off for radio
+            choir_enable: false,
+            choir_num_voices: 4,
+            choir_detune: 15.0,
+            choir_delay_spread: 25.0,
+            choir_stereo_spread: 0.8,
+            choir_mix: 0.5,
+
+            // Multiband Distortion - moderate for radio
+            mb_dist_enable: false,
+            mb_dist_low_mid_freq: 250.0,
+            mb_dist_mid_high_freq: 2500.0,
+            mb_dist_drive_low: 0.4,
+            mb_dist_drive_mid: 0.3,
+            mb_dist_drive_high: 0.2,
+            mb_dist_gain_low: 1.0,
+            mb_dist_gain_mid: 1.0,
+            mb_dist_gain_high: 1.0,
+            mb_dist_mix: 0.5,
+
+            // Exciter follow - off by default
+            exciter_follow_enable: false,
+            exciter_follow_amount: 1.5,
 
             dry_wet: 1.0,
         }
@@ -362,20 +678,89 @@ impl VoiceParams {
             deess_ratio: 3.0,
             deess_amount: 0.4,
 
-            pitch_smoothing: 0.85, // Smooth pitch tracking
             pitch_confidence_threshold: 0.7,
 
+            // Pitch correction off for deep bass
+            pitch_correction_enable: false,
+            pitch_correction_scale: 0,
+            pitch_correction_root: 0,
+            pitch_correction_speed: 0.5,
+            pitch_correction_amount: 0.0,
+
+            filter_follow_enable: false,
+            filter_follow_min_freq: 100.0, // Lower range for bass
+            filter_follow_max_freq: 4000.0,
+            filter_follow_resonance: 4.0, // High resonance for growl
+            filter_follow_amount: 1.3,    // Exaggerated for drama
+            filter_follow_mix: 0.9,       // Mostly filtered
+
             // Strong sub oscillator - 2 octaves down
+            sub_enable: true,
             sub_octave: -2.0,
             sub_level: 0.6,
             sub_waveform: SubOscWaveform::Sine,
             sub_ramp_time: 20.0, // Slower ramp for bass
+
+            // Harmonizers off
+            harm2_enable: false,
+            harm2_semitones: 4.0,
+            harm2_level: 0.3,
+            harm2_waveform: SubOscWaveform::Sine,
+            harm2_ramp_time: 10.0,
+
+            harm3_enable: false,
+            harm3_semitones: 7.0,
+            harm3_level: 0.3,
+            harm3_waveform: SubOscWaveform::Sine,
+            harm3_ramp_time: 10.0,
+
+            harm4_enable: false,
+            harm4_semitones: 12.0,
+            harm4_level: 0.3,
+            harm4_waveform: SubOscWaveform::Sine,
+            harm4_ramp_time: 10.0,
+
+            // Ring mod off
+            ring_mod_enable: false,
+            ring_mod_harmonic: 2.0,
+            ring_mod_waveform: RingModWaveform::Sine,
+            ring_mod_depth: 1.0,
+            ring_mod_mix: 0.5,
 
             // Minimal exciter
             exciter_amount: 0.15,
             exciter_frequency: 6000.0,
             exciter_harmonics: 0.2,
             exciter_mix: 0.15,
+            // Doubler - wider for deep bass texture
+            doubler_enable: false,
+            doubler_delay: 12.0,
+            doubler_detune: 7.0, // More detune for bass
+            doubler_stereo_width: 0.8,
+            doubler_mix: 0.4,
+
+            // Choir - larger ensemble for deep bass
+            choir_enable: false,
+            choir_num_voices: 6,
+            choir_detune: 20.0, // Wider spread for bass
+            choir_delay_spread: 30.0,
+            choir_stereo_spread: 0.9,
+            choir_mix: 0.5,
+            // Multiband Distortion - heavy bass for deep_bass
+            mb_dist_enable: false,
+            mb_dist_low_mid_freq: 150.0,   // Lower split for more bass
+            mb_dist_mid_high_freq: 1500.0,
+            mb_dist_drive_low: 0.6,        // Heavy bass saturation
+            mb_dist_drive_mid: 0.3,
+            mb_dist_drive_high: 0.1,
+            mb_dist_gain_low: 1.2,         // Boost bass
+            mb_dist_gain_mid: 1.0,
+            mb_dist_gain_high: 0.9,
+            mb_dist_mix: 0.6,
+
+            // Exciter follow - higher multiplier for bass enhancement
+            exciter_follow_enable: false,
+            exciter_follow_amount: 2.0, // 2× = octave above for bass presence
 
             dry_wet: 1.0,
         }

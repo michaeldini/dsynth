@@ -22,6 +22,8 @@ pub mod parametric_eq;
 pub mod phaser;
 pub mod ring_modulator;
 pub mod tremolo;
+pub mod vocal_choir;
+pub mod vocal_doubler;
 pub mod waveshaper;
 
 // Existing effect exports
@@ -48,4 +50,6 @@ pub use parametric_eq::ParametricEQ;
 pub use phaser::Phaser;
 pub use ring_modulator::RingModulator;
 pub use tremolo::Tremolo;
+pub use vocal_choir::VocalChoir;
+pub use vocal_doubler::VocalDoubler;
 pub use waveshaper::Waveshaper;
