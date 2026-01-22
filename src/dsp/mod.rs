@@ -1,12 +1,34 @@
-pub mod downsampler;
+// === Core DSP Modules ===
+
+// Synthesis Components - Oscillators, waveforms, wavetables
+pub mod synthesis;
+
+// Modulation Components - Envelopes, LFOs, envelope followers
+pub mod modulation;
+
+// Filter Components - Biquad filters and utilities
+pub mod filters;
+
+// Analysis Components - Pitch detection, formant analysis, signal classification
+pub mod analysis;
+
+// Effects - Audio processing effects organized by category
 pub mod effects;
-pub mod envelope;
-pub mod filter;
-pub mod lfo;
-pub mod lookahead_limiter;
-pub mod oscillator;
-pub mod pitch_detector;
-pub mod pitch_quantizer;
-pub mod waveform;
-pub mod wavetable;
-pub mod wavetable_library;
+
+// === Re-exports for backwards compatibility ===
+
+// Synthesis
+pub use synthesis::{Downsampler, Oscillator, Wavetable, WavetableLibrary};
+
+// Modulation
+pub use modulation::{Envelope, EnvelopeFollower, EnvelopeMode, LFO};
+
+// Filters
+pub use filters::BiquadFilter;
+
+// Analysis
+pub use analysis::{
+    FormantDetector, PitchDetectionResult, PitchDetector, PitchQuantizer, RootNote, ScaleType,
+    SibilanceDetector, SignalType, SpectralCentroid, TransientDetector, VowelEstimate,
+    ZcrDetector, PITCH_BUFFER_SIZE,
+};

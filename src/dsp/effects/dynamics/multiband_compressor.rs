@@ -32,7 +32,7 @@
 ///
 /// Single-band compression would dull the transient when compressing the sub.
 use super::compressor::Compressor;
-use super::crossover::LR2Crossover;
+use crate::dsp::effects::spectral::crossover::LR2Crossover;
 
 /// Multi-band compressor with 3 frequency bands
 pub struct MultibandCompressor {

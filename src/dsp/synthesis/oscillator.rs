@@ -1,5 +1,5 @@
-use crate::dsp::downsampler::Downsampler;
-use crate::dsp::waveform;
+use crate::dsp::synthesis::downsampler::Downsampler;
+use crate::dsp::synthesis::waveform;
 use crate::params::Waveform;
 
 #[cfg(feature = "simd")]
@@ -256,7 +256,7 @@ impl Oscillator {
     pub fn set_wavetable(
         &mut self,
         index: usize,
-        wavetable_library: &crate::dsp::wavetable_library::WavetableLibrary,
+        wavetable_library: &crate::dsp::synthesis::wavetable_library::WavetableLibrary,
     ) {
         self.wavetable_index = index;
         self.wavetable_position = 0.0;

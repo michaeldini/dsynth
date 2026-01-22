@@ -9,8 +9,8 @@
 /// 2. Analyze high-frequency energy to detect sibilance
 /// 3. Apply compression only when sibilance exceeds threshold
 /// 4. Compress only the high-frequency band to preserve overall tone
-use crate::dsp::effects::compressor::Compressor;
-use crate::dsp::filter::BiquadFilter;
+use crate::dsp::effects::dynamics::compressor::Compressor;
+use crate::dsp::filters::filter::BiquadFilter;
 use crate::params::FilterType;
 
 /// De-esser with frequency-selective compression

@@ -44,8 +44,11 @@
 //! This design ensures predictable performance in the audio callback—no allocations, no heap
 //! fragmentation, just constant-time processing.
 
-use crate::dsp::effects::compressor::Compressor;
-use crate::dsp::{envelope::Envelope, filter::BiquadFilter, lfo::LFO, oscillator::Oscillator};
+use crate::dsp::effects::dynamics::compressor::Compressor;
+use crate::dsp::{
+    filters::filter::BiquadFilter, modulation::envelope::Envelope, modulation::lfo::LFO,
+    synthesis::oscillator::Oscillator,
+};
 use crate::params::{
     EnvelopeParams, FilterParams, LFOParams, OscillatorParams, TransientShaperParams,
     VelocityParams, VoiceCompressorParams,
@@ -640,7 +643,7 @@ impl Voice {
         filter_params: &[FilterParams; 3],
         lfo_params: &[LFOParams; 3],
         envelope_params: &EnvelopeParams,
-        wavetable_library: &crate::dsp::wavetable_library::WavetableLibrary,
+        wavetable_library: &crate::dsp::synthesis::wavetable_library::WavetableLibrary,
     ) {
         let osc_params_changed = *osc_params != self.last_applied_osc_params;
         let filter_params_changed = *filter_params != self.last_applied_filter_params;
@@ -1395,7 +1398,7 @@ impl Voice {
         // Emphasizes attack transients and reduces sustain for punchier sounds
         // Works by multiplying gain during specific envelope stages
         if transient_params.enabled {
-            use crate::dsp::envelope::EnvelopeStage;
+            use crate::dsp::modulation::envelope::EnvelopeStage;
 
             let gain_mult = match self.envelope.stage() {
                 EnvelopeStage::Attack => {

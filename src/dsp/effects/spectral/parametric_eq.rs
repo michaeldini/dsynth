@@ -8,7 +8,7 @@
 /// - **Band 2**: Peaking bell (typically 400Hz) - shape lower mids
 /// - **Band 3**: Peaking bell (typically 3kHz) - control presence/clarity
 /// - **Band 4**: High shelf (typically 8kHz) - adjust air/brightness
-use crate::dsp::filter::BiquadFilter;
+use crate::dsp::filters::filter::BiquadFilter;
 use crate::params::FilterType;
 
 /// Number of EQ bands

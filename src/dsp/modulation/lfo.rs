@@ -1,4 +1,4 @@
-use crate::dsp::waveform;
+use crate::dsp::synthesis::waveform;
 use crate::params::LFOWaveform;
 
 /// Low Frequency Oscillator for modulation

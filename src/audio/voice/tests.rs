@@ -24,8 +24,8 @@ fn default_osc_params() -> [OscillatorParams; 3] {
 /// Helper function to create default wavetable library for testing.
 ///
 /// Returns an empty WavetableLibrary. Used by tests to avoid repetitive parameter setup.
-fn default_wavetable_library() -> crate::dsp::wavetable_library::WavetableLibrary {
-    crate::dsp::wavetable_library::WavetableLibrary::new()
+fn default_wavetable_library() -> crate::dsp::synthesis::wavetable_library::WavetableLibrary {
+    crate::dsp::synthesis::wavetable_library::WavetableLibrary::new()
 }
 
 /// Helper function to create default filter parameters for testing.

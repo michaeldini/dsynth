@@ -19,7 +19,8 @@ pub struct VoiceParams {
     pub input_gain: f32,  // -12dB to +12dB
     pub output_gain: f32, // -12dB to +12dB
 
-    // Noise Gate (5 params)
+    // Noise Gate (6 params)
+    pub gate_enable: bool,   // Enable/disable noise gate
     pub gate_threshold: f32, // -80dB to -20dB
     pub gate_ratio: f32,     // 1.0 to 10.0 (expansion ratio)
     pub gate_attack: f32,    // 0.1ms to 50ms
@@ -44,16 +45,20 @@ pub struct VoiceParams {
     pub eq_band4_q: f32,    // 0.1 to 10.0
 
     pub eq_master_gain: f32, // -12dB to +12dB (output trim)
+    pub eq_enable: bool,     // Enable/disable EQ
 
-    // Compressor (6 params)
-    pub comp_threshold: f32,   // -40dB to 0dB
-    pub comp_ratio: f32,       // 1.0 to 20.0
-    pub comp_attack: f32,      // 0.1ms to 100ms
-    pub comp_release: f32,     // 10ms to 1000ms
-    pub comp_knee: f32,        // 0dB to 12dB (soft knee width)
-    pub comp_makeup_gain: f32, // 0dB to +24dB
+    // Compressor (8 params)
+    pub comp_enable: bool,        // Enable/disable compressor
+    pub comp_threshold: f32,      // -40dB to 0dB
+    pub comp_ratio: f32,          // 1.0 to 20.0
+    pub comp_attack: f32,         // 0.1ms to 100ms
+    pub comp_release: f32,        // 10ms to 1000ms
+    pub comp_knee: f32,           // 0dB to 12dB (soft knee width)
+    pub comp_makeup_gain: f32,    // 0dB to +24dB
+    pub comp_pitch_response: f32, // 0.0 to 1.0 (pitch-responsive modulation amount)
 
-    // De-Esser (4 params)
+    // De-Esser (5 params)
+    pub deess_enable: bool,   // Enable/disable de-esser
     pub deess_threshold: f32, // -40dB to 0dB
     pub deess_frequency: f32, // 4kHz to 10kHz (center frequency)
     pub deess_ratio: f32,     // 1.0 to 10.0
@@ -62,14 +67,8 @@ pub struct VoiceParams {
     // Pitch Detector (1 param - smoothing is now adaptive)
     pub pitch_confidence_threshold: f32, // 0.0 to 1.0 (minimum confidence)
 
-    // Pitch Correction / Auto-Tune (5 params)
-    pub pitch_correction_enable: bool, // Enable/disable pitch correction
-    pub pitch_correction_scale: u8, // Scale type: 0=Chromatic, 1=Major, 2=Minor, 3=Pentatonic, 4=MinorPentatonic
-    pub pitch_correction_root: u8,  // Root note: 0=C, 1=C#, 2=D, ... 11=B
-    pub pitch_correction_speed: f32, // 0.0 to 1.0 (0=instant/robotic, 1=slow/natural)
-    pub pitch_correction_amount: f32, // 0.0 to 1.0 (0=off, 1=full correction)
-
-    // Exciter (6 params)
+    // Exciter (7 params)
+    pub exciter_enable: bool,        // Enable/disable exciter
     pub exciter_amount: f32,         // 0.0 to 1.0 (drive amount)
     pub exciter_frequency: f32,      // 2kHz to 10kHz (high-pass cutoff)
     pub exciter_harmonics: f32,      // 0.0 to 1.0 (harmonic generation)
@@ -116,6 +115,7 @@ impl Default for VoiceParams {
             output_gain: 0.0,
 
             // Noise Gate - moderate settings
+            gate_enable: true,
             gate_threshold: -50.0,
             gate_ratio: 5.0,
             gate_attack: 5.0,
@@ -140,16 +140,20 @@ impl Default for VoiceParams {
             eq_band4_q: 1.0,
 
             eq_master_gain: 0.0,
+            eq_enable: true,
 
-            // Compressor - gentle compression
-            comp_threshold: -20.0,
-            comp_ratio: 3.0,
-            comp_attack: 10.0,
-            comp_release: 100.0,
-            comp_knee: 6.0,
-            comp_makeup_gain: 0.0,
+            // Compressor - optimized for male vocal (80-250Hz fundamental)
+            comp_enable: true,
+            comp_threshold: -18.0,    // Catch peaks without over-compressing
+            comp_ratio: 3.5,          // Moderate compression
+            comp_attack: 8.0,         // Fast enough for transients, preserves punch
+            comp_release: 150.0,      // Musical release following phrasing
+            comp_knee: 4.0,           // Smooth transition
+            comp_makeup_gain: 4.0,    // Compensate for gain reduction
+            comp_pitch_response: 0.0, // Pitch response disabled by default
 
             // De-Esser - moderate reduction
+            deess_enable: true,
             deess_threshold: -25.0,
             deess_frequency: 6000.0,
             deess_ratio: 4.0,
@@ -158,14 +162,8 @@ impl Default for VoiceParams {
             // Pitch Detector - balanced settings (smoothing is now adaptive)
             pitch_confidence_threshold: 0.6,
 
-            // Pitch Correction / Auto-Tune - off by default
-            pitch_correction_enable: false,
-            pitch_correction_scale: 0,    // Chromatic (no scale correction)
-            pitch_correction_root: 0,     // C
-            pitch_correction_speed: 0.5,  // Moderate retune speed (noticeable but not robotic)
-            pitch_correction_amount: 0.0, // Off by default
-
             // Exciter - subtle enhancement
+            exciter_enable: true,
             exciter_amount: 0.3,
             exciter_frequency: 4000.0,
             exciter_harmonics: 0.5,
@@ -218,6 +216,7 @@ impl VoiceParams {
             output_gain: 0.0,
 
             // Gentle gate
+            gate_enable: true,
             gate_threshold: -55.0,
             gate_ratio: 3.0,
             gate_attack: 3.0,
@@ -242,16 +241,20 @@ impl VoiceParams {
             eq_band4_q: 0.7,
 
             eq_master_gain: 0.0,
+            eq_enable: true,
 
             // Light compression
+            comp_enable: true,
             comp_threshold: -18.0,
             comp_ratio: 2.5,
             comp_attack: 8.0,
             comp_release: 120.0,
             comp_knee: 8.0,
             comp_makeup_gain: 3.0,
+            comp_pitch_response: 0.0, // Static compression for transparency
 
             // Moderate de-essing
+            deess_enable: true,
             deess_threshold: -22.0,
             deess_frequency: 6500.0,
             deess_ratio: 4.0,
@@ -259,14 +262,8 @@ impl VoiceParams {
 
             pitch_confidence_threshold: 0.7,
 
-            // Pitch correction off for clean vocal
-            pitch_correction_enable: false,
-            pitch_correction_scale: 0, // Chromatic
-            pitch_correction_root: 0,  // C
-            pitch_correction_speed: 0.5,
-            pitch_correction_amount: 0.0,
-
             // Light exciter
+            exciter_enable: true,
             exciter_amount: 0.25,
             exciter_frequency: 5000.0,
             exciter_harmonics: 0.3,
@@ -313,6 +310,7 @@ impl VoiceParams {
             output_gain: 0.0,
 
             // Aggressive gate
+            gate_enable: true,
             gate_threshold: -45.0,
             gate_ratio: 8.0,
             gate_attack: 2.0,
@@ -337,16 +335,20 @@ impl VoiceParams {
             eq_band4_q: 0.8,
 
             eq_master_gain: 2.0,
+            eq_enable: true,
 
             // Heavy compression
+            comp_enable: true,
             comp_threshold: -25.0,
             comp_ratio: 6.0,
             comp_attack: 5.0,
             comp_release: 80.0,
             comp_knee: 4.0,
             comp_makeup_gain: 8.0,
+            comp_pitch_response: 0.5, // Moderate pitch response for dynamic control
 
             // Strong de-essing
+            deess_enable: true,
             deess_threshold: -20.0,
             deess_frequency: 7000.0,
             deess_ratio: 6.0,
@@ -354,14 +356,8 @@ impl VoiceParams {
 
             pitch_confidence_threshold: 0.65,
 
-            // Pitch correction off for radio voice
-            pitch_correction_enable: false,
-            pitch_correction_scale: 0,
-            pitch_correction_root: 0,
-            pitch_correction_speed: 0.3, // Faster for radio effect
-            pitch_correction_amount: 0.0,
-
             // Strong exciter
+            exciter_enable: true,
             exciter_amount: 0.5,
             exciter_frequency: 3500.0,
             exciter_harmonics: 0.6,
@@ -408,6 +404,7 @@ impl VoiceParams {
             output_gain: 0.0,
 
             // Tight gate
+            gate_enable: true,
             gate_threshold: -50.0,
             gate_ratio: 6.0,
             gate_attack: 4.0,
@@ -432,16 +429,20 @@ impl VoiceParams {
             eq_band4_q: 0.7,
 
             eq_master_gain: 0.0,
+            eq_enable: true,
 
             // Moderate compression
+            comp_enable: true,
             comp_threshold: -22.0,
             comp_ratio: 3.5,
             comp_attack: 12.0,
             comp_release: 150.0,
             comp_knee: 7.0,
             comp_makeup_gain: 4.0,
+            comp_pitch_response: 0.8, // Strong pitch response for bass emphasis
 
             // Light de-essing
+            deess_enable: true,
             deess_threshold: -28.0,
             deess_frequency: 6000.0,
             deess_ratio: 3.0,
@@ -449,14 +450,8 @@ impl VoiceParams {
 
             pitch_confidence_threshold: 0.7,
 
-            // Pitch correction off for deep bass
-            pitch_correction_enable: false,
-            pitch_correction_scale: 0,
-            pitch_correction_root: 0,
-            pitch_correction_speed: 0.5,
-            pitch_correction_amount: 0.0,
-
             // Minimal exciter
+            exciter_enable: true,
             exciter_amount: 0.15,
             exciter_frequency: 6000.0,
             exciter_harmonics: 0.2,

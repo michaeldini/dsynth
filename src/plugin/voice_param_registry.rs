@@ -27,6 +27,7 @@ pub const PARAM_VOICE_GATE_RATIO: ParamId = 0x0300_0011;
 pub const PARAM_VOICE_GATE_ATTACK: ParamId = 0x0300_0012;
 pub const PARAM_VOICE_GATE_RELEASE: ParamId = 0x0300_0013;
 pub const PARAM_VOICE_GATE_HOLD: ParamId = 0x0300_0014;
+pub const PARAM_VOICE_GATE_ENABLE: ParamId = 0x0300_0077;
 
 // Parametric EQ - Band 1 (0x0300_0020 - 0x0300_002F)
 pub const PARAM_VOICE_EQ_BAND1_FREQ: ParamId = 0x0300_0020;
@@ -50,6 +51,7 @@ pub const PARAM_VOICE_EQ_BAND4_Q: ParamId = 0x0300_0052;
 
 // Parametric EQ - Master (0x0300_0060 - 0x0300_006F)
 pub const PARAM_VOICE_EQ_MASTER_GAIN: ParamId = 0x0300_0060;
+pub const PARAM_VOICE_EQ_ENABLE: ParamId = 0x0300_0078;
 
 // Compressor (0x0300_0070 - 0x0300_007F)
 pub const PARAM_VOICE_COMP_THRESHOLD: ParamId = 0x0300_0070;
@@ -58,22 +60,18 @@ pub const PARAM_VOICE_COMP_ATTACK: ParamId = 0x0300_0072;
 pub const PARAM_VOICE_COMP_RELEASE: ParamId = 0x0300_0073;
 pub const PARAM_VOICE_COMP_KNEE: ParamId = 0x0300_0074;
 pub const PARAM_VOICE_COMP_MAKEUP_GAIN: ParamId = 0x0300_0075;
+pub const PARAM_VOICE_COMP_PITCH_RESPONSE: ParamId = 0x0300_0076;
+pub const PARAM_VOICE_COMP_ENABLE: ParamId = 0x0300_0079;
 
 // De-Esser (0x0300_0080 - 0x0300_008F)
 pub const PARAM_VOICE_DEESS_THRESHOLD: ParamId = 0x0300_0080;
 pub const PARAM_VOICE_DEESS_FREQUENCY: ParamId = 0x0300_0081;
 pub const PARAM_VOICE_DEESS_RATIO: ParamId = 0x0300_0082;
 pub const PARAM_VOICE_DEESS_AMOUNT: ParamId = 0x0300_0083;
+pub const PARAM_VOICE_DEESS_ENABLE: ParamId = 0x0300_007A;
 
 // Pitch Detector (0x0300_0090 - 0x0300_009F)
 pub const PARAM_VOICE_PITCH_CONFIDENCE_THRESHOLD: ParamId = 0x0300_0090;
-
-// Pitch Correction / Auto-Tune (0x0300_0120 - 0x0300_012F)
-pub const PARAM_VOICE_PITCH_CORRECTION_ENABLE: ParamId = 0x0300_0120;
-pub const PARAM_VOICE_PITCH_CORRECTION_SCALE: ParamId = 0x0300_0121;
-pub const PARAM_VOICE_PITCH_CORRECTION_ROOT: ParamId = 0x0300_0122;
-pub const PARAM_VOICE_PITCH_CORRECTION_SPEED: ParamId = 0x0300_0123;
-pub const PARAM_VOICE_PITCH_CORRECTION_AMOUNT: ParamId = 0x0300_0124;
 
 // Exciter (0x0300_00F0 - 0x0300_00FF)
 pub const PARAM_VOICE_EXCITER_AMOUNT: ParamId = 0x0300_00F0;
@@ -82,6 +80,7 @@ pub const PARAM_VOICE_EXCITER_HARMONICS: ParamId = 0x0300_00F2;
 pub const PARAM_VOICE_EXCITER_MIX: ParamId = 0x0300_00F3;
 pub const PARAM_VOICE_EXCITER_FOLLOW_ENABLE: ParamId = 0x0300_00F4;
 pub const PARAM_VOICE_EXCITER_FOLLOW_AMOUNT: ParamId = 0x0300_00F5;
+pub const PARAM_VOICE_EXCITER_ENABLE: ParamId = 0x0300_007B;
 
 // Master (0x0300_0100 - 0x0300_010F)
 pub const PARAM_VOICE_DRY_WET: ParamId = 0x0300_0100;
@@ -267,6 +266,11 @@ impl VoiceParamRegistry {
             )
         );
 
+        add_param!(
+            PARAM_VOICE_GATE_ENABLE,
+            ParamDescriptor::bool(PARAM_VOICE_GATE_ENABLE, "Gate Enable", "Noise Gate", true)
+        );
+
         // Parametric EQ - Band 1
         add_param!(
             PARAM_VOICE_EQ_BAND1_FREQ,
@@ -441,6 +445,11 @@ impl VoiceParamRegistry {
             )
         );
 
+        add_param!(
+            PARAM_VOICE_EQ_ENABLE,
+            ParamDescriptor::bool(PARAM_VOICE_EQ_ENABLE, "EQ Enable", "EQ", true)
+        );
+
         // Compressor
         add_param!(
             PARAM_VOICE_COMP_THRESHOLD,
@@ -515,12 +524,29 @@ impl VoiceParamRegistry {
                 "Compressor",
                 0.0,
                 24.0,
-                0.0,
+                4.0,
                 Some("dB")
             )
         );
 
-        // De-Esser
+        add_param!(
+            PARAM_VOICE_COMP_PITCH_RESPONSE,
+            ParamDescriptor::float(
+                PARAM_VOICE_COMP_PITCH_RESPONSE,
+                "Pitch Response",
+                "Compressor",
+                0.0,
+                1.0,
+                0.0,
+                Some("%")
+            )
+        );
+
+        add_param!(
+            PARAM_VOICE_COMP_ENABLE,
+            ParamDescriptor::bool(PARAM_VOICE_COMP_ENABLE, "Comp Enable", "Compressor", true)
+        );
+
         add_param!(
             PARAM_VOICE_DEESS_THRESHOLD,
             ParamDescriptor::float(
@@ -571,6 +597,11 @@ impl VoiceParamRegistry {
                 0.5,
                 Some("%")
             )
+        );
+
+        add_param!(
+            PARAM_VOICE_DEESS_ENABLE,
+            ParamDescriptor::bool(PARAM_VOICE_DEESS_ENABLE, "De-Ess Enable", "De-Esser", true)
         );
 
         // Pitch Detector (smoothing is now adaptive)
@@ -640,6 +671,16 @@ impl VoiceParamRegistry {
             )
         );
 
+        add_param!(
+            PARAM_VOICE_EXCITER_ENABLE,
+            ParamDescriptor::bool(
+                PARAM_VOICE_EXCITER_ENABLE,
+                "Exciter Enable",
+                "Exciter",
+                true
+            )
+        );
+
         // Master
         add_param!(
             PARAM_VOICE_DRY_WET,
@@ -650,69 +691,6 @@ impl VoiceParamRegistry {
                 0.0,
                 1.0,
                 1.0,
-                Some("%")
-            )
-        );
-
-        // Pitch Correction / Auto-Tune
-        add_param!(
-            PARAM_VOICE_PITCH_CORRECTION_ENABLE,
-            ParamDescriptor::bool(
-                PARAM_VOICE_PITCH_CORRECTION_ENABLE,
-                "Pitch Correct Enable",
-                "Pitch Correction",
-                false
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_PITCH_CORRECTION_SCALE,
-            ParamDescriptor::float(
-                PARAM_VOICE_PITCH_CORRECTION_SCALE,
-                "Scale",
-                "Pitch Correction",
-                0.0,
-                4.0,
-                0.0,
-                None // 0=Chromatic, 1=Major, 2=Minor, 3=Pentatonic, 4=MinorPent
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_PITCH_CORRECTION_ROOT,
-            ParamDescriptor::float(
-                PARAM_VOICE_PITCH_CORRECTION_ROOT,
-                "Root Note",
-                "Pitch Correction",
-                0.0,
-                11.0,
-                0.0,
-                None // 0=C, 1=C#, 2=D, ... 11=B
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_PITCH_CORRECTION_SPEED,
-            ParamDescriptor::float(
-                PARAM_VOICE_PITCH_CORRECTION_SPEED,
-                "Retune Speed",
-                "Pitch Correction",
-                0.0,
-                1.0,
-                0.5,
-                Some("%")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_PITCH_CORRECTION_AMOUNT,
-            ParamDescriptor::float(
-                PARAM_VOICE_PITCH_CORRECTION_AMOUNT,
-                "Correction Amount",
-                "Pitch Correction",
-                0.0,
-                1.0,
-                0.0,
                 Some("%")
             )
         );
@@ -1026,6 +1004,14 @@ pub fn apply_param(params: &mut VoiceParams, param_id: ParamId, denorm_value: f3
         PARAM_VOICE_COMP_RELEASE => params.comp_release = denorm_value,
         PARAM_VOICE_COMP_KNEE => params.comp_knee = denorm_value,
         PARAM_VOICE_COMP_MAKEUP_GAIN => params.comp_makeup_gain = denorm_value,
+        PARAM_VOICE_COMP_PITCH_RESPONSE => params.comp_pitch_response = denorm_value,
+
+        // Enable parameters
+        PARAM_VOICE_GATE_ENABLE => params.gate_enable = denorm_value > 0.5,
+        PARAM_VOICE_EQ_ENABLE => params.eq_enable = denorm_value > 0.5,
+        PARAM_VOICE_COMP_ENABLE => params.comp_enable = denorm_value > 0.5,
+        PARAM_VOICE_DEESS_ENABLE => params.deess_enable = denorm_value > 0.5,
+        PARAM_VOICE_EXCITER_ENABLE => params.exciter_enable = denorm_value > 0.5,
 
         // De-Esser
         PARAM_VOICE_DEESS_THRESHOLD => params.deess_threshold = denorm_value,
@@ -1043,17 +1029,6 @@ pub fn apply_param(params: &mut VoiceParams, param_id: ParamId, denorm_value: f3
 
         // Pitch Detector
         PARAM_VOICE_PITCH_CONFIDENCE_THRESHOLD => params.pitch_confidence_threshold = denorm_value,
-
-        // Pitch Correction / Auto-Tune
-        PARAM_VOICE_PITCH_CORRECTION_ENABLE => params.pitch_correction_enable = denorm_value > 0.5,
-        PARAM_VOICE_PITCH_CORRECTION_SCALE => {
-            params.pitch_correction_scale = denorm_value.round() as u8
-        }
-        PARAM_VOICE_PITCH_CORRECTION_ROOT => {
-            params.pitch_correction_root = denorm_value.round() as u8
-        }
-        PARAM_VOICE_PITCH_CORRECTION_SPEED => params.pitch_correction_speed = denorm_value,
-        PARAM_VOICE_PITCH_CORRECTION_AMOUNT => params.pitch_correction_amount = denorm_value,
 
         // Vocal Doubler
         PARAM_VOICE_DOUBLER_ENABLE => params.doubler_enable = denorm_value > 0.5,
@@ -1129,6 +1104,14 @@ pub fn get_param(params: &VoiceParams, param_id: ParamId) -> Option<f32> {
         PARAM_VOICE_COMP_RELEASE => Some(params.comp_release),
         PARAM_VOICE_COMP_KNEE => Some(params.comp_knee),
         PARAM_VOICE_COMP_MAKEUP_GAIN => Some(params.comp_makeup_gain),
+        PARAM_VOICE_COMP_PITCH_RESPONSE => Some(params.comp_pitch_response),
+
+        // Enable parameters
+        PARAM_VOICE_GATE_ENABLE => Some(if params.gate_enable { 1.0 } else { 0.0 }),
+        PARAM_VOICE_EQ_ENABLE => Some(if params.eq_enable { 1.0 } else { 0.0 }),
+        PARAM_VOICE_COMP_ENABLE => Some(if params.comp_enable { 1.0 } else { 0.0 }),
+        PARAM_VOICE_DEESS_ENABLE => Some(if params.deess_enable { 1.0 } else { 0.0 }),
+        PARAM_VOICE_EXCITER_ENABLE => Some(if params.exciter_enable { 1.0 } else { 0.0 }),
 
         // De-Esser
         PARAM_VOICE_DEESS_THRESHOLD => Some(params.deess_threshold),
@@ -1138,17 +1121,6 @@ pub fn get_param(params: &VoiceParams, param_id: ParamId) -> Option<f32> {
 
         // Pitch Detector
         PARAM_VOICE_PITCH_CONFIDENCE_THRESHOLD => Some(params.pitch_confidence_threshold),
-
-        // Pitch Correction / Auto-Tune
-        PARAM_VOICE_PITCH_CORRECTION_ENABLE => Some(if params.pitch_correction_enable {
-            1.0
-        } else {
-            0.0
-        }),
-        PARAM_VOICE_PITCH_CORRECTION_SCALE => Some(params.pitch_correction_scale as f32),
-        PARAM_VOICE_PITCH_CORRECTION_ROOT => Some(params.pitch_correction_root as f32),
-        PARAM_VOICE_PITCH_CORRECTION_SPEED => Some(params.pitch_correction_speed),
-        PARAM_VOICE_PITCH_CORRECTION_AMOUNT => Some(params.pitch_correction_amount),
 
         // Vocal Doubler
         PARAM_VOICE_DOUBLER_ENABLE => Some(if params.doubler_enable { 1.0 } else { 0.0 }),

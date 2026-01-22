@@ -2,7 +2,7 @@
 ///
 /// The library loads .wav files from disk at startup and provides access to wavetables
 /// by index or name. All wavetables are pre-loaded to avoid I/O in the audio thread.
-use crate::dsp::wavetable::Wavetable;
+use crate::dsp::synthesis::wavetable::Wavetable;
 use std::collections::HashMap;
 use std::path::Path;
 

@@ -12,8 +12,8 @@ use crate::dsp::effects::{
     MultibandDistortion, Phaser, Reverb, RingModulator, StereoDelay, StereoWidener, Tremolo,
     Waveshaper,
 };
-use crate::dsp::lookahead_limiter::LookAheadLimiter;
-use crate::dsp::wavetable_library::WavetableLibrary;
+use crate::dsp::effects::dynamics::lookahead_limiter::LookAheadLimiter;
+use crate::dsp::synthesis::wavetable_library::WavetableLibrary;
 use crate::params::SynthParams;
 use triple_buffer::{Input, Output, TripleBuffer};
 
@@ -228,7 +228,7 @@ impl SynthEngine {
             // Initialize new dynamics/distortion effects
             compressor: Compressor::new(sample_rate, -20.0, 4.0, 10.0, 100.0),
             bitcrusher: Bitcrusher::new(sample_rate, sample_rate, 16),
-            waveshaper: Waveshaper::new(crate::dsp::effects::waveshaper::Algorithm::SoftClip, 1.0),
+            waveshaper: Waveshaper::new(crate::dsp::effects::distortion::waveshaper::Algorithm::SoftClip, 1.0),
             exciter: Exciter::new(sample_rate),
 
             wavetable_library,

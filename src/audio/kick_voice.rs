@@ -1,9 +1,9 @@
 /// Kick Drum Voice
 /// Single voice optimized for kick drum synthesis with pitch and amplitude envelopes
 use crate::dsp::effects::{Clipper, Exciter, MultibandCompressor};
-use crate::dsp::envelope::{Envelope, EnvelopeStage};
-use crate::dsp::filter::BiquadFilter;
-use crate::dsp::oscillator::Oscillator;
+use crate::dsp::modulation::envelope::{Envelope, EnvelopeStage};
+use crate::dsp::filters::filter::BiquadFilter;
+use crate::dsp::synthesis::oscillator::Oscillator;
 use crate::params::FilterType;
 use crate::params_kick::{DistortionType, KickParams};
 
