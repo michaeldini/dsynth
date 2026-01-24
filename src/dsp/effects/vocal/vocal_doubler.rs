@@ -21,8 +21,8 @@ pub struct VocalDoubler {
     sample_rate: f32,
 
     // User parameters
-    amount: f32,        // 0.0-1.0 overall intensity
-    stereo_width: f32,  // 0.0-1.0 stereo spread
+    amount: f32,       // 0.0-1.0 overall intensity
+    stereo_width: f32, // 0.0-1.0 stereo spread
 
     // Adaptive state (smoothed)
     current_delay_ms: f32,
@@ -94,7 +94,8 @@ impl VocalDoubler {
         };
 
         // Smooth the target values to prevent clicks
-        self.delay_smoother += (target_delay_ms - self.delay_smoother) * (1.0 - self.smoothing_coeff);
+        self.delay_smoother +=
+            (target_delay_ms - self.delay_smoother) * (1.0 - self.smoothing_coeff);
         self.mix_smoother += (target_mix - self.mix_smoother) * (1.0 - self.smoothing_coeff);
 
         // Scale by user amount parameter
@@ -123,8 +124,10 @@ impl VocalDoubler {
         self.write_pos = (self.write_pos + 1) % self.delay_buffer_left.len();
 
         // Apply stereo width: swap delayed samples for stereo effect
-        let left_delayed = delayed_left * (1.0 - self.stereo_width) + delayed_right * self.stereo_width;
-        let right_delayed = delayed_right * (1.0 - self.stereo_width) + delayed_left * self.stereo_width;
+        let left_delayed =
+            delayed_left * (1.0 - self.stereo_width) + delayed_right * self.stereo_width;
+        let right_delayed =
+            delayed_right * (1.0 - self.stereo_width) + delayed_left * self.stereo_width;
 
         // Mix dry and wet
         let left_out = left_in * (1.0 - final_mix) + left_delayed * final_mix;
@@ -204,8 +207,14 @@ mod tests {
         // Pitched content should have strong doubling (target mix ~0.9)
         // With varying buffer history, output should differ from current input
         // The delay buffer contains old values, so mixing with current input creates effect
-        assert!((left - input).abs() > 0.01, "Pitched content should show doubling effect");
-        assert!((right - input).abs() > 0.01, "Pitched content should show doubling effect");
+        assert!(
+            (left - input).abs() > 0.01,
+            "Pitched content should show doubling effect"
+        );
+        assert!(
+            (right - input).abs() > 0.01,
+            "Pitched content should show doubling effect"
+        );
     }
 
     #[test]
@@ -252,6 +261,9 @@ mod tests {
 
         // With width=1.0, delayed samples are fully swapped
         // Left and right outputs should differ due to stereo spreading
-        assert!((left - right).abs() > 0.01, "Stereo width should create L/R difference");
+        assert!(
+            (left - right).abs() > 0.01,
+            "Stereo width should create L/R difference"
+        );
     }
 }
