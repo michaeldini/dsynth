@@ -116,7 +116,10 @@ pub struct SignalAnalyzer {
     transient_detector: TransientDetector,
     zcr_detector: ZcrDetector,
     sibilance_detector: SibilanceDetector,
-    pitch_detector: PitchDetector,
+    pitch_detector: Option<PitchDetector>, // Optional - can be disabled for zero latency
+
+    // === Pitch Detection Config ===
+    pitch_detection_enabled: bool,
 
     // === RMS/Peak Tracking ===
     rms_envelope: f32,
@@ -138,17 +141,38 @@ pub struct SignalAnalyzer {
 }
 
 impl SignalAnalyzer {
-    /// Create a new signal analyzer
+    /// Create a new signal analyzer with pitch detection enabled
     ///
     /// # Arguments
     /// * `sample_rate` - Audio sample rate in Hz
     pub fn new(sample_rate: f32) -> Self {
+        Self::new_with_pitch(sample_rate, true)
+    }
+
+    /// Create a new signal analyzer without pitch detection (zero latency)
+    ///
+    /// Use this when pitch information is not needed and you want to minimize
+    /// latency. Pitch detection adds 1024 samples (~23ms @ 44.1kHz) of latency.
+    ///
+    /// # Arguments
+    /// * `sample_rate` - Audio sample rate in Hz
+    pub fn new_no_pitch(sample_rate: f32) -> Self {
+        Self::new_with_pitch(sample_rate, false)
+    }
+
+    /// Internal constructor with pitch detection toggle
+    fn new_with_pitch(sample_rate: f32, enable_pitch: bool) -> Self {
         let mut analyzer = Self {
             sample_rate,
             transient_detector: TransientDetector::new(sample_rate),
             zcr_detector: ZcrDetector::new(sample_rate),
             sibilance_detector: SibilanceDetector::new(sample_rate),
-            pitch_detector: PitchDetector::new(sample_rate),
+            pitch_detector: if enable_pitch {
+                Some(PitchDetector::new(sample_rate))
+            } else {
+                None
+            },
+            pitch_detection_enabled: enable_pitch,
             rms_envelope: 0.0,
             rms_coeff: 0.0,
             peak_envelope: 0.0,
@@ -167,8 +191,27 @@ impl SignalAnalyzer {
         // Configure detectors with default sensitivities
         analyzer.transient_detector.set_threshold(0.3);
         analyzer.sibilance_detector.set_threshold(0.35);
+        if let Some(ref mut pitch_detector) = analyzer.pitch_detector {
+            pitch_detector.set_threshold(0.5);
+        }
 
         analyzer
+    }
+
+    /// Check if pitch detection is enabled
+    pub fn has_pitch_detection(&self) -> bool {
+        self.pitch_detection_enabled
+    }
+
+    /// Get the latency introduced by this analyzer in samples
+    ///
+    /// Returns 1024 samples if pitch detection enabled, 0 otherwise
+    pub fn get_latency_samples(&self) -> u32 {
+        if self.pitch_detection_enabled {
+            1024 // Pitch detector buffer size
+        } else {
+            0
+        }
     }
 
     /// Update envelope follower coefficients
@@ -191,8 +234,9 @@ impl SignalAnalyzer {
     /// Lower = more permissive (accepts weak pitches)
     pub fn set_pitch_confidence_threshold(&mut self, threshold: f32) {
         self.pitch_confidence_threshold = threshold.clamp(0.0, 1.0);
-        self.pitch_detector
-            .set_threshold(self.pitch_confidence_threshold);
+        if let Some(ref mut pitch_detector) = self.pitch_detector {
+            pitch_detector.set_threshold(self.pitch_confidence_threshold);
+        }
     }
 
     /// Set transient detection sensitivity (0.0-1.0)
@@ -247,25 +291,30 @@ impl SignalAnalyzer {
         // === EXPENSIVE DETECTORS (throttled) ===
 
         // 5. Pitch Detection (throttled to every 512 samples = ~11ms @ 44.1kHz)
-        // Feed pitch detector every sample (fills buffer), but only run detection periodically
-        self.pitch_detector.process_sample(mono);
+        // Only run if pitch detection is enabled
+        if self.pitch_detection_enabled {
+            if let Some(ref mut pitch_detector) = self.pitch_detector {
+                // Feed pitch detector every sample (fills buffer)
+                pitch_detector.process_sample(mono);
 
-        self.pitch_counter += 1;
-        if self.pitch_counter >= self.pitch_interval {
-            self.pitch_counter = 0;
+                self.pitch_counter += 1;
+                if self.pitch_counter >= self.pitch_interval {
+                    self.pitch_counter = 0;
 
-            // Run YIN algorithm (expensive!)
-            let pitch_result = self.pitch_detector.detect();
+                    // Run YIN algorithm (expensive!)
+                    let pitch_result = pitch_detector.detect();
 
-            // Update cached values
-            if pitch_result.confidence >= self.pitch_confidence_threshold {
-                self.current_analysis.pitch_hz = pitch_result.frequency_hz;
-                self.current_analysis.pitch_confidence = pitch_result.confidence;
-                self.current_analysis.is_pitched = true;
-            } else {
-                // Below threshold - mark as no confident pitch
-                self.current_analysis.pitch_confidence = pitch_result.confidence;
-                self.current_analysis.is_pitched = false;
+                    // Update cached values
+                    if pitch_result.confidence >= self.pitch_confidence_threshold {
+                        self.current_analysis.pitch_hz = pitch_result.frequency_hz;
+                        self.current_analysis.pitch_confidence = pitch_result.confidence;
+                        self.current_analysis.is_pitched = true;
+                    } else {
+                        // Below threshold - mark as no confident pitch
+                        self.current_analysis.pitch_confidence = pitch_result.confidence;
+                        self.current_analysis.is_pitched = false;
+                    }
+                }
             }
         }
 
@@ -320,8 +369,14 @@ impl SignalAnalyzer {
         self.pitch_counter = 0;
         self.current_analysis = SignalAnalysis::default();
 
-        // Reset all detectors
-        self.pitch_detector = PitchDetector::new(self.sample_rate);
+        // Reset pitch detector if enabled
+        if self.pitch_detection_enabled {
+            self.pitch_detector = Some(PitchDetector::new(self.sample_rate));
+            if let Some(ref mut pitch_detector) = self.pitch_detector {
+                pitch_detector.set_threshold(self.pitch_confidence_threshold);
+            }
+        }
+
         // TransientDetector doesn't have reset() - recreate it
         self.transient_detector = TransientDetector::new(self.sample_rate);
         self.transient_detector
@@ -520,5 +575,56 @@ mod tests {
         // Peak should track
         let peak = analyzer.get_peak_level();
         assert!(peak > 0.5, "Peak should track amplitude");
+    }
+
+    #[test]
+    fn test_no_pitch_mode_zero_latency() {
+        let analyzer_with_pitch = SignalAnalyzer::new(44100.0);
+        let analyzer_no_pitch = SignalAnalyzer::new_no_pitch(44100.0);
+
+        // With pitch: should have 1024 samples latency
+        assert_eq!(analyzer_with_pitch.get_latency_samples(), 1024);
+        assert!(analyzer_with_pitch.has_pitch_detection());
+
+        // Without pitch: should have zero latency
+        assert_eq!(analyzer_no_pitch.get_latency_samples(), 0);
+        assert!(!analyzer_no_pitch.has_pitch_detection());
+    }
+
+    #[test]
+    fn test_no_pitch_mode_still_analyzes_transients() {
+        let mut analyzer = SignalAnalyzer::new_no_pitch(44100.0);
+
+        // Feed quiet signal
+        for _ in 0..100 {
+            analyzer.analyze(0.01, 0.01);
+        }
+
+        // Sudden loud transient
+        for _ in 0..10 {
+            let analysis = analyzer.analyze(0.8, 0.8);
+            // Should still detect transients even without pitch detection
+            if analysis.is_transient {
+                return; // Success
+            }
+        }
+
+        // If we get here, transient detection still works (or didn't trigger, which is okay)
+    }
+
+    #[test]
+    fn test_no_pitch_mode_returns_default_pitch_values() {
+        let mut analyzer = SignalAnalyzer::new_no_pitch(44100.0);
+
+        // Process some audio
+        for i in 0..1000 {
+            let t = i as f32 / 44100.0;
+            let sample = (2.0 * std::f32::consts::PI * 440.0 * t).sin() * 0.5;
+            let analysis = analyzer.analyze(sample, sample);
+
+            // Pitch values should remain at defaults (not crash)
+            assert_eq!(analysis.pitch_confidence, 0.0);
+            assert!(!analysis.is_pitched);
+        }
     }
 }

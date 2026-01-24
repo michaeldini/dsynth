@@ -6,6 +6,9 @@ pub mod dynamics;
 // Distortion Effects - Waveshaping, saturation, harmonic generation
 pub mod distortion;
 
+// Adaptive Saturator - Intelligent multi-stage saturation for vocals
+pub mod adaptive_saturator;
+
 // Modulation Effects - Chorus, flanger, phaser, tremolo
 pub mod modulation;
 
@@ -43,6 +46,9 @@ pub use time_based::{CombFilter, Delay, Reverb, StereoDelay};
 
 // Delay
 pub use delay::SmartDelay;
+
+// Adaptive Saturator
+pub use adaptive_saturator::{AdaptiveSaturator, SaturationCharacter};
 
 // Spectral
 pub use spectral::{
