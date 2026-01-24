@@ -1,13 +1,19 @@
-/// Voice Enhancer Parameter Registry
+/// Voice Enhancer Parameter Registry - INTELLIGENT ARCHITECTURE v2.0
 ///
-/// Central registry for all voice enhancement parameters with CLAP plugin integration.
+/// **Simplified parameter registry for intelligent voice enhancement**
+///
 /// Parameter namespace: 0x0300_xxxx (voice enhancer)
 ///
-/// This registry provides:
-/// - Unique parameter IDs
-/// - Parameter descriptors (type, range, unit, default)
-/// - Normalization/denormalization for CLAP (0.0-1.0 range)
-/// - Parameter lookup and application
+/// Total Parameters: **20** (optimized for music vocals)
+/// Organized sequentially for optimal DAW display:
+/// 1. Input: 1 param (Input Gain)
+/// 2. Analysis: 1 param (Pitch Confidence)
+/// 3. Gate: 2 params (Enable + Threshold)
+/// 4. Compressor: 5 params (Enable + Threshold/Ratio/Attack/Release)
+/// 5. Exciter: 3 params (Enable + Amount/Mix)
+/// 6. De-Esser: 2 params (Enable + Amount)
+/// 7. Smart Delay: 4 params (Enable + Time/Feedback/Mix)
+/// 8. Master: 2 params (Dry/Wet + Output Gain)
 use crate::params_voice::VoiceParams;
 use crate::plugin::param_descriptor::{ParamDescriptor, ParamId};
 use std::collections::HashMap;
@@ -16,442 +22,123 @@ use std::sync::OnceLock;
 // ============================================================================
 // PARAMETER IDs (Namespace: 0x0300_xxxx)
 // ============================================================================
+// DAWs display parameters in sequential order, so we organize them logically:
+// Input → Analysis → Gate → Compressor → Exciter → Master
 
-// Input/Output (0x0300_0000 - 0x0300_000F)
+// 1. Input Section (0x0300_0001)
 pub const PARAM_VOICE_INPUT_GAIN: ParamId = 0x0300_0001;
-pub const PARAM_VOICE_OUTPUT_GAIN: ParamId = 0x0300_0002;
 
-// Noise Gate (0x0300_0010 - 0x0300_001F)
-pub const PARAM_VOICE_GATE_THRESHOLD: ParamId = 0x0300_0010;
-pub const PARAM_VOICE_GATE_RATIO: ParamId = 0x0300_0011;
-pub const PARAM_VOICE_GATE_ATTACK: ParamId = 0x0300_0012;
-pub const PARAM_VOICE_GATE_RELEASE: ParamId = 0x0300_0013;
-pub const PARAM_VOICE_GATE_HOLD: ParamId = 0x0300_0014;
-pub const PARAM_VOICE_GATE_ENABLE: ParamId = 0x0300_0077;
+// 2. Analysis Section (0x0300_0002)
+pub const PARAM_VOICE_PITCH_CONFIDENCE_THRESHOLD: ParamId = 0x0300_0002;
 
-// Parametric EQ - Band 1 (0x0300_0020 - 0x0300_002F)
-pub const PARAM_VOICE_EQ_BAND1_FREQ: ParamId = 0x0300_0020;
-pub const PARAM_VOICE_EQ_BAND1_GAIN: ParamId = 0x0300_0021;
-pub const PARAM_VOICE_EQ_BAND1_Q: ParamId = 0x0300_0022;
+// 3. Smart Gate Section (0x0300_0003 - 0x0300_0004)
+pub const PARAM_VOICE_GATE_ENABLE: ParamId = 0x0300_0003;
+pub const PARAM_VOICE_GATE_THRESHOLD: ParamId = 0x0300_0004;
 
-// Parametric EQ - Band 2 (0x0300_0030 - 0x0300_003F)
-pub const PARAM_VOICE_EQ_BAND2_FREQ: ParamId = 0x0300_0030;
-pub const PARAM_VOICE_EQ_BAND2_GAIN: ParamId = 0x0300_0031;
-pub const PARAM_VOICE_EQ_BAND2_Q: ParamId = 0x0300_0032;
+// 4. Adaptive Compressor Section (0x0300_0005 - 0x0300_0009)
+pub const PARAM_VOICE_COMP_ENABLE: ParamId = 0x0300_0005;
+pub const PARAM_VOICE_COMP_THRESHOLD: ParamId = 0x0300_0006;
+pub const PARAM_VOICE_COMP_RATIO: ParamId = 0x0300_0007;
+pub const PARAM_VOICE_COMP_ATTACK: ParamId = 0x0300_0008;
+pub const PARAM_VOICE_COMP_RELEASE: ParamId = 0x0300_0009;
 
-// Parametric EQ - Band 3 (0x0300_0040 - 0x0300_004F)
-pub const PARAM_VOICE_EQ_BAND3_FREQ: ParamId = 0x0300_0040;
-pub const PARAM_VOICE_EQ_BAND3_GAIN: ParamId = 0x0300_0041;
-pub const PARAM_VOICE_EQ_BAND3_Q: ParamId = 0x0300_0042;
+// 5. Intelligent Exciter Section (0x0300_000A - 0x0300_000C)
+pub const PARAM_VOICE_EXCITER_ENABLE: ParamId = 0x0300_000A;
+pub const PARAM_VOICE_EXCITER_AMOUNT: ParamId = 0x0300_000B;
+pub const PARAM_VOICE_EXCITER_MIX: ParamId = 0x0300_000C;
 
-// Parametric EQ - Band 4 (0x0300_0050 - 0x0300_005F)
-pub const PARAM_VOICE_EQ_BAND4_FREQ: ParamId = 0x0300_0050;
-pub const PARAM_VOICE_EQ_BAND4_GAIN: ParamId = 0x0300_0051;
-pub const PARAM_VOICE_EQ_BAND4_Q: ParamId = 0x0300_0052;
+// 6. De-Esser Section (0x0300_000D - 0x0300_000E)
+pub const PARAM_VOICE_DEESS_ENABLE: ParamId = 0x0300_000D;
+pub const PARAM_VOICE_DEESS_AMOUNT: ParamId = 0x0300_000E;
 
-// Parametric EQ - Master (0x0300_0060 - 0x0300_006F)
-pub const PARAM_VOICE_EQ_MASTER_GAIN: ParamId = 0x0300_0060;
-pub const PARAM_VOICE_EQ_ENABLE: ParamId = 0x0300_0078;
+// 7. Smart Delay Section (0x0300_000F - 0x0300_0012)
+pub const PARAM_VOICE_DELAY_ENABLE: ParamId = 0x0300_000F;
+pub const PARAM_VOICE_DELAY_TIME: ParamId = 0x0300_0010;
+pub const PARAM_VOICE_DELAY_FEEDBACK: ParamId = 0x0300_0011;
+pub const PARAM_VOICE_DELAY_MIX: ParamId = 0x0300_0012;
+pub const PARAM_VOICE_DELAY_SENSITIVITY: ParamId = 0x0300_0013;
 
-// Compressor (0x0300_0070 - 0x0300_007F)
-pub const PARAM_VOICE_COMP_THRESHOLD: ParamId = 0x0300_0070;
-pub const PARAM_VOICE_COMP_RATIO: ParamId = 0x0300_0071;
-pub const PARAM_VOICE_COMP_ATTACK: ParamId = 0x0300_0072;
-pub const PARAM_VOICE_COMP_RELEASE: ParamId = 0x0300_0073;
-pub const PARAM_VOICE_COMP_KNEE: ParamId = 0x0300_0074;
-pub const PARAM_VOICE_COMP_MAKEUP_GAIN: ParamId = 0x0300_0075;
-pub const PARAM_VOICE_COMP_PITCH_RESPONSE: ParamId = 0x0300_0076;
-pub const PARAM_VOICE_COMP_ENABLE: ParamId = 0x0300_0079;
-
-// De-Esser (0x0300_0080 - 0x0300_008F)
-pub const PARAM_VOICE_DEESS_THRESHOLD: ParamId = 0x0300_0080;
-pub const PARAM_VOICE_DEESS_FREQUENCY: ParamId = 0x0300_0081;
-pub const PARAM_VOICE_DEESS_RATIO: ParamId = 0x0300_0082;
-pub const PARAM_VOICE_DEESS_AMOUNT: ParamId = 0x0300_0083;
-pub const PARAM_VOICE_DEESS_ENABLE: ParamId = 0x0300_007A;
-
-// Pitch Detector (0x0300_0090 - 0x0300_009F)
-pub const PARAM_VOICE_PITCH_CONFIDENCE_THRESHOLD: ParamId = 0x0300_0090;
-
-// Exciter (0x0300_00F0 - 0x0300_00FF)
-pub const PARAM_VOICE_EXCITER_AMOUNT: ParamId = 0x0300_00F0;
-pub const PARAM_VOICE_EXCITER_FREQUENCY: ParamId = 0x0300_00F1;
-pub const PARAM_VOICE_EXCITER_HARMONICS: ParamId = 0x0300_00F2;
-pub const PARAM_VOICE_EXCITER_MIX: ParamId = 0x0300_00F3;
-pub const PARAM_VOICE_EXCITER_FOLLOW_ENABLE: ParamId = 0x0300_00F4;
-pub const PARAM_VOICE_EXCITER_FOLLOW_AMOUNT: ParamId = 0x0300_00F5;
-pub const PARAM_VOICE_EXCITER_ENABLE: ParamId = 0x0300_007B;
-
-// Master (0x0300_0100 - 0x0300_010F)
-pub const PARAM_VOICE_DRY_WET: ParamId = 0x0300_0100;
-
-// Vocal Doubler (0x0300_0130 - 0x0300_013F)
-pub const PARAM_VOICE_DOUBLER_ENABLE: ParamId = 0x0300_0130;
-pub const PARAM_VOICE_DOUBLER_DELAY: ParamId = 0x0300_0131;
-pub const PARAM_VOICE_DOUBLER_DETUNE: ParamId = 0x0300_0132;
-pub const PARAM_VOICE_DOUBLER_STEREO_WIDTH: ParamId = 0x0300_0133;
-pub const PARAM_VOICE_DOUBLER_MIX: ParamId = 0x0300_0134;
-
-// Vocal Choir (0x0300_0140 - 0x0300_014F)
-pub const PARAM_VOICE_CHOIR_ENABLE: ParamId = 0x0300_0140;
-pub const PARAM_VOICE_CHOIR_NUM_VOICES: ParamId = 0x0300_0141;
-pub const PARAM_VOICE_CHOIR_DETUNE: ParamId = 0x0300_0142;
-pub const PARAM_VOICE_CHOIR_DELAY_SPREAD: ParamId = 0x0300_0143;
-pub const PARAM_VOICE_CHOIR_STEREO_SPREAD: ParamId = 0x0300_0144;
-pub const PARAM_VOICE_CHOIR_MIX: ParamId = 0x0300_0145;
-
-// Multiband Distortion (0x0300_0150 - 0x0300_015F)
-pub const PARAM_VOICE_MB_DIST_ENABLE: ParamId = 0x0300_0150;
-pub const PARAM_VOICE_MB_DIST_LOW_MID_FREQ: ParamId = 0x0300_0151;
-pub const PARAM_VOICE_MB_DIST_MID_HIGH_FREQ: ParamId = 0x0300_0152;
-pub const PARAM_VOICE_MB_DIST_DRIVE_LOW: ParamId = 0x0300_0153;
-pub const PARAM_VOICE_MB_DIST_DRIVE_MID: ParamId = 0x0300_0154;
-pub const PARAM_VOICE_MB_DIST_DRIVE_HIGH: ParamId = 0x0300_0155;
-pub const PARAM_VOICE_MB_DIST_GAIN_LOW: ParamId = 0x0300_0156;
-pub const PARAM_VOICE_MB_DIST_GAIN_MID: ParamId = 0x0300_0157;
-pub const PARAM_VOICE_MB_DIST_GAIN_HIGH: ParamId = 0x0300_0158;
-pub const PARAM_VOICE_MB_DIST_MIX: ParamId = 0x0300_0159;
+// 8. Master Section (0x0300_0014 - 0x0300_0015)
+pub const PARAM_VOICE_DRY_WET: ParamId = 0x0300_0014;
+pub const PARAM_VOICE_OUTPUT_GAIN: ParamId = 0x0300_0015;
 
 // ============================================================================
 // PARAMETER REGISTRY
 // ============================================================================
 
-static VOICE_REGISTRY: OnceLock<VoiceParamRegistry> = OnceLock::new();
+static VOICE_PARAM_REGISTRY: OnceLock<HashMap<ParamId, ParamDescriptor>> = OnceLock::new();
 
-pub fn get_voice_registry() -> &'static VoiceParamRegistry {
-    VOICE_REGISTRY.get_or_init(VoiceParamRegistry::new)
-}
+pub fn get_voice_param_registry() -> &'static HashMap<ParamId, ParamDescriptor> {
+    VOICE_PARAM_REGISTRY.get_or_init(|| {
+        let mut registry = HashMap::new();
 
-pub struct VoiceParamRegistry {
-    descriptors: HashMap<ParamId, ParamDescriptor>,
-    param_ids: Vec<ParamId>,
-}
-
-impl Default for VoiceParamRegistry {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl VoiceParamRegistry {
-    pub fn new() -> Self {
-        let mut descriptors = HashMap::new();
-        let mut param_ids = Vec::new();
-
-        Self::register_params(&mut descriptors, &mut param_ids);
-
-        Self {
-            descriptors,
-            param_ids,
-        }
-    }
-
-    pub fn len(&self) -> usize {
-        self.descriptors.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.descriptors.is_empty()
-    }
-
-    pub fn get(&self, param_id: &ParamId) -> Option<&ParamDescriptor> {
-        self.descriptors.get(param_id)
-    }
-
-    pub fn keys(&self) -> impl Iterator<Item = &ParamId> {
-        self.param_ids.iter()
-    }
-
-    fn register_params(
-        descriptors: &mut HashMap<ParamId, ParamDescriptor>,
-        param_ids: &mut Vec<ParamId>,
-    ) {
-        macro_rules! add_param {
-            ($id:expr, $desc:expr) => {
-                descriptors.insert($id, $desc);
-                param_ids.push($id);
-            };
-        }
-
-        // Input/Output
-        add_param!(
+        // === Input/Output ===
+        registry.insert(
             PARAM_VOICE_INPUT_GAIN,
             ParamDescriptor::float(
                 PARAM_VOICE_INPUT_GAIN,
                 "Input Gain",
-                "Input/Output",
+                "Input",
                 -12.0,
                 12.0,
                 0.0,
-                Some("dB")
-            )
+                Some("dB"),
+            ),
         );
 
-        add_param!(
+        registry.insert(
             PARAM_VOICE_OUTPUT_GAIN,
             ParamDescriptor::float(
                 PARAM_VOICE_OUTPUT_GAIN,
                 "Output Gain",
-                "Input/Output",
+                "Output",
                 -12.0,
                 12.0,
                 0.0,
-                Some("dB")
-            )
+                Some("dB"),
+            ),
         );
 
-        // Noise Gate
-        add_param!(
+        // === Signal Analysis ===
+        registry.insert(
+            PARAM_VOICE_PITCH_CONFIDENCE_THRESHOLD,
+            ParamDescriptor::float(
+                PARAM_VOICE_PITCH_CONFIDENCE_THRESHOLD,
+                "Pitch Confidence",
+                "Analysis",
+                0.0,
+                1.0,
+                0.6,
+                Some("%"),
+            ),
+        );
+
+        // === Smart Gate ===
+        registry.insert(
+            PARAM_VOICE_GATE_ENABLE,
+            ParamDescriptor::bool(PARAM_VOICE_GATE_ENABLE, "Gate Enable", "Gate", true),
+        );
+
+        registry.insert(
             PARAM_VOICE_GATE_THRESHOLD,
             ParamDescriptor::float(
                 PARAM_VOICE_GATE_THRESHOLD,
                 "Gate Threshold",
-                "Noise Gate",
+                "Gate",
                 -80.0,
                 -20.0,
                 -50.0,
-                Some("dB")
-            )
+                Some("dB"),
+            ),
         );
 
-        add_param!(
-            PARAM_VOICE_GATE_RATIO,
-            ParamDescriptor::float(
-                PARAM_VOICE_GATE_RATIO,
-                "Gate Ratio",
-                "Noise Gate",
-                1.0,
-                10.0,
-                5.0,
-                Some(":1")
-            )
+        // === Adaptive Compressor ===
+        registry.insert(
+            PARAM_VOICE_COMP_ENABLE,
+            ParamDescriptor::bool(PARAM_VOICE_COMP_ENABLE, "Comp Enable", "Compressor", true),
         );
 
-        add_param!(
-            PARAM_VOICE_GATE_ATTACK,
-            ParamDescriptor::float(
-                PARAM_VOICE_GATE_ATTACK,
-                "Gate Attack",
-                "Noise Gate",
-                0.1,
-                50.0,
-                5.0,
-                Some("ms")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_GATE_RELEASE,
-            ParamDescriptor::float(
-                PARAM_VOICE_GATE_RELEASE,
-                "Gate Release",
-                "Noise Gate",
-                10.0,
-                500.0,
-                100.0,
-                Some("ms")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_GATE_HOLD,
-            ParamDescriptor::float(
-                PARAM_VOICE_GATE_HOLD,
-                "Gate Hold",
-                "Noise Gate",
-                0.0,
-                200.0,
-                50.0,
-                Some("ms")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_GATE_ENABLE,
-            ParamDescriptor::bool(PARAM_VOICE_GATE_ENABLE, "Gate Enable", "Noise Gate", true)
-        );
-
-        // Parametric EQ - Band 1
-        add_param!(
-            PARAM_VOICE_EQ_BAND1_FREQ,
-            ParamDescriptor::float(
-                PARAM_VOICE_EQ_BAND1_FREQ,
-                "EQ Band 1 Freq",
-                "Parametric EQ",
-                20.0,
-                500.0,
-                80.0,
-                Some("Hz")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_EQ_BAND1_GAIN,
-            ParamDescriptor::float(
-                PARAM_VOICE_EQ_BAND1_GAIN,
-                "EQ Band 1 Gain",
-                "Parametric EQ",
-                -12.0,
-                12.0,
-                0.0,
-                Some("dB")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_EQ_BAND1_Q,
-            ParamDescriptor::float(
-                PARAM_VOICE_EQ_BAND1_Q,
-                "EQ Band 1 Q",
-                "Parametric EQ",
-                0.1,
-                10.0,
-                1.0,
-                None
-            )
-        );
-
-        // Parametric EQ - Band 2
-        add_param!(
-            PARAM_VOICE_EQ_BAND2_FREQ,
-            ParamDescriptor::float(
-                PARAM_VOICE_EQ_BAND2_FREQ,
-                "EQ Band 2 Freq",
-                "Parametric EQ",
-                100.0,
-                2000.0,
-                400.0,
-                Some("Hz")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_EQ_BAND2_GAIN,
-            ParamDescriptor::float(
-                PARAM_VOICE_EQ_BAND2_GAIN,
-                "EQ Band 2 Gain",
-                "Parametric EQ",
-                -12.0,
-                12.0,
-                0.0,
-                Some("dB")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_EQ_BAND2_Q,
-            ParamDescriptor::float(
-                PARAM_VOICE_EQ_BAND2_Q,
-                "EQ Band 2 Q",
-                "Parametric EQ",
-                0.1,
-                10.0,
-                1.0,
-                None
-            )
-        );
-
-        // Parametric EQ - Band 3
-        add_param!(
-            PARAM_VOICE_EQ_BAND3_FREQ,
-            ParamDescriptor::float(
-                PARAM_VOICE_EQ_BAND3_FREQ,
-                "EQ Band 3 Freq",
-                "Parametric EQ",
-                1000.0,
-                8000.0,
-                3000.0,
-                Some("Hz")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_EQ_BAND3_GAIN,
-            ParamDescriptor::float(
-                PARAM_VOICE_EQ_BAND3_GAIN,
-                "EQ Band 3 Gain",
-                "Parametric EQ",
-                -12.0,
-                12.0,
-                0.0,
-                Some("dB")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_EQ_BAND3_Q,
-            ParamDescriptor::float(
-                PARAM_VOICE_EQ_BAND3_Q,
-                "EQ Band 3 Q",
-                "Parametric EQ",
-                0.1,
-                10.0,
-                1.0,
-                None
-            )
-        );
-
-        // Parametric EQ - Band 4
-        add_param!(
-            PARAM_VOICE_EQ_BAND4_FREQ,
-            ParamDescriptor::float(
-                PARAM_VOICE_EQ_BAND4_FREQ,
-                "EQ Band 4 Freq",
-                "Parametric EQ",
-                2000.0,
-                20000.0,
-                8000.0,
-                Some("Hz")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_EQ_BAND4_GAIN,
-            ParamDescriptor::float(
-                PARAM_VOICE_EQ_BAND4_GAIN,
-                "EQ Band 4 Gain",
-                "Parametric EQ",
-                -12.0,
-                12.0,
-                0.0,
-                Some("dB")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_EQ_BAND4_Q,
-            ParamDescriptor::float(
-                PARAM_VOICE_EQ_BAND4_Q,
-                "EQ Band 4 Q",
-                "Parametric EQ",
-                0.1,
-                10.0,
-                1.0,
-                None
-            )
-        );
-
-        // Parametric EQ - Master
-        add_param!(
-            PARAM_VOICE_EQ_MASTER_GAIN,
-            ParamDescriptor::float(
-                PARAM_VOICE_EQ_MASTER_GAIN,
-                "EQ Master Gain",
-                "Parametric EQ",
-                -12.0,
-                12.0,
-                0.0,
-                Some("dB")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_EQ_ENABLE,
-            ParamDescriptor::bool(PARAM_VOICE_EQ_ENABLE, "EQ Enable", "EQ", true)
-        );
-
-        // Compressor
-        add_param!(
+        registry.insert(
             PARAM_VOICE_COMP_THRESHOLD,
             ParamDescriptor::float(
                 PARAM_VOICE_COMP_THRESHOLD,
@@ -459,12 +146,12 @@ impl VoiceParamRegistry {
                 "Compressor",
                 -40.0,
                 0.0,
-                -20.0,
-                Some("dB")
-            )
+                -18.0,
+                Some("dB"),
+            ),
         );
 
-        add_param!(
+        registry.insert(
             PARAM_VOICE_COMP_RATIO,
             ParamDescriptor::float(
                 PARAM_VOICE_COMP_RATIO,
@@ -472,12 +159,12 @@ impl VoiceParamRegistry {
                 "Compressor",
                 1.0,
                 20.0,
-                3.0,
-                Some(":1")
-            )
+                3.5,
+                Some(":1"),
+            ),
         );
 
-        add_param!(
+        registry.insert(
             PARAM_VOICE_COMP_ATTACK,
             ParamDescriptor::float(
                 PARAM_VOICE_COMP_ATTACK,
@@ -485,12 +172,12 @@ impl VoiceParamRegistry {
                 "Compressor",
                 0.1,
                 100.0,
-                10.0,
-                Some("ms")
-            )
+                8.0,
+                Some("ms"),
+            ),
         );
 
-        add_param!(
+        registry.insert(
             PARAM_VOICE_COMP_RELEASE,
             ParamDescriptor::float(
                 PARAM_VOICE_COMP_RELEASE,
@@ -498,128 +185,23 @@ impl VoiceParamRegistry {
                 "Compressor",
                 10.0,
                 1000.0,
-                100.0,
-                Some("ms")
-            )
+                150.0,
+                Some("ms"),
+            ),
         );
 
-        add_param!(
-            PARAM_VOICE_COMP_KNEE,
-            ParamDescriptor::float(
-                PARAM_VOICE_COMP_KNEE,
-                "Comp Knee",
-                "Compressor",
-                0.0,
-                12.0,
-                6.0,
-                Some("dB")
-            )
+        // === Intelligent Exciter ===
+        registry.insert(
+            PARAM_VOICE_EXCITER_ENABLE,
+            ParamDescriptor::bool(
+                PARAM_VOICE_EXCITER_ENABLE,
+                "Exciter Enable",
+                "Exciter",
+                true,
+            ),
         );
 
-        add_param!(
-            PARAM_VOICE_COMP_MAKEUP_GAIN,
-            ParamDescriptor::float(
-                PARAM_VOICE_COMP_MAKEUP_GAIN,
-                "Comp Makeup",
-                "Compressor",
-                0.0,
-                24.0,
-                4.0,
-                Some("dB")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_COMP_PITCH_RESPONSE,
-            ParamDescriptor::float(
-                PARAM_VOICE_COMP_PITCH_RESPONSE,
-                "Pitch Response",
-                "Compressor",
-                0.0,
-                1.0,
-                0.0,
-                Some("%")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_COMP_ENABLE,
-            ParamDescriptor::bool(PARAM_VOICE_COMP_ENABLE, "Comp Enable", "Compressor", true)
-        );
-
-        add_param!(
-            PARAM_VOICE_DEESS_THRESHOLD,
-            ParamDescriptor::float(
-                PARAM_VOICE_DEESS_THRESHOLD,
-                "De-Ess Threshold",
-                "De-Esser",
-                -40.0,
-                0.0,
-                -25.0,
-                Some("dB")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_DEESS_FREQUENCY,
-            ParamDescriptor::float(
-                PARAM_VOICE_DEESS_FREQUENCY,
-                "De-Ess Frequency",
-                "De-Esser",
-                4000.0,
-                10000.0,
-                6000.0,
-                Some("Hz")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_DEESS_RATIO,
-            ParamDescriptor::float(
-                PARAM_VOICE_DEESS_RATIO,
-                "De-Ess Ratio",
-                "De-Esser",
-                1.0,
-                10.0,
-                4.0,
-                Some(":1")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_DEESS_AMOUNT,
-            ParamDescriptor::float(
-                PARAM_VOICE_DEESS_AMOUNT,
-                "De-Ess Amount",
-                "De-Esser",
-                0.0,
-                1.0,
-                0.5,
-                Some("%")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_DEESS_ENABLE,
-            ParamDescriptor::bool(PARAM_VOICE_DEESS_ENABLE, "De-Ess Enable", "De-Esser", true)
-        );
-
-        // Pitch Detector (smoothing is now adaptive)
-        add_param!(
-            PARAM_VOICE_PITCH_CONFIDENCE_THRESHOLD,
-            ParamDescriptor::float(
-                PARAM_VOICE_PITCH_CONFIDENCE_THRESHOLD,
-                "Pitch Confidence",
-                "Pitch Detection",
-                0.0,
-                1.0,
-                0.6,
-                Some("%")
-            )
-        );
-
-        // Exciter
-        add_param!(
+        registry.insert(
             PARAM_VOICE_EXCITER_AMOUNT,
             ParamDescriptor::float(
                 PARAM_VOICE_EXCITER_AMOUNT,
@@ -628,37 +210,11 @@ impl VoiceParamRegistry {
                 0.0,
                 1.0,
                 0.3,
-                Some("%")
-            )
+                Some("%"),
+            ),
         );
 
-        add_param!(
-            PARAM_VOICE_EXCITER_FREQUENCY,
-            ParamDescriptor::float(
-                PARAM_VOICE_EXCITER_FREQUENCY,
-                "Exciter Frequency",
-                "Exciter",
-                2000.0,
-                10000.0,
-                4000.0,
-                Some("Hz")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_EXCITER_HARMONICS,
-            ParamDescriptor::float(
-                PARAM_VOICE_EXCITER_HARMONICS,
-                "Exciter Harmonics",
-                "Exciter",
-                0.0,
-                1.0,
-                0.5,
-                Some("%")
-            )
-        );
-
-        add_param!(
+        registry.insert(
             PARAM_VOICE_EXCITER_MIX,
             ParamDescriptor::float(
                 PARAM_VOICE_EXCITER_MIX,
@@ -667,22 +223,87 @@ impl VoiceParamRegistry {
                 0.0,
                 1.0,
                 0.3,
-                Some("%")
-            )
+                Some("%"),
+            ),
         );
 
-        add_param!(
-            PARAM_VOICE_EXCITER_ENABLE,
-            ParamDescriptor::bool(
-                PARAM_VOICE_EXCITER_ENABLE,
-                "Exciter Enable",
-                "Exciter",
-                true
-            )
+        // === De-Esser ===
+        registry.insert(
+            PARAM_VOICE_DEESS_ENABLE,
+            ParamDescriptor::bool(PARAM_VOICE_DEESS_ENABLE, "De-Ess Enable", "De-Esser", true),
         );
 
-        // Master
-        add_param!(
+        registry.insert(
+            PARAM_VOICE_DEESS_AMOUNT,
+            ParamDescriptor::float(
+                PARAM_VOICE_DEESS_AMOUNT,
+                "De-Ess Amount",
+                "De-Esser",
+                0.0,
+                12.0,
+                6.0,
+                Some("dB"),
+            ),
+        );
+
+        // === Smart Delay ===
+        registry.insert(
+            PARAM_VOICE_DELAY_ENABLE,
+            ParamDescriptor::bool(PARAM_VOICE_DELAY_ENABLE, "Delay Enable", "Delay", false),
+        );
+
+        registry.insert(
+            PARAM_VOICE_DELAY_TIME,
+            ParamDescriptor::float(
+                PARAM_VOICE_DELAY_TIME,
+                "Delay Time",
+                "Delay",
+                50.0,
+                500.0,
+                120.0,
+                Some("ms"),
+            ),
+        );
+
+        registry.insert(
+            PARAM_VOICE_DELAY_FEEDBACK,
+            ParamDescriptor::float(
+                PARAM_VOICE_DELAY_FEEDBACK,
+                "Delay Feedback",
+                "Delay",
+                0.0,
+                0.8,
+                0.3,
+                Some("%"),
+            ),
+        );
+
+        registry.insert(
+            PARAM_VOICE_DELAY_MIX,
+            ParamDescriptor::float(
+                PARAM_VOICE_DELAY_MIX,
+                "Delay Mix",
+                "Delay",
+                0.0,
+                1.0,
+                0.4,
+                Some("%"),
+            ),
+        );
+        registry.insert(
+            PARAM_VOICE_DELAY_SENSITIVITY,
+            ParamDescriptor::float(
+                PARAM_VOICE_DELAY_SENSITIVITY,
+                "Delay Sensitivity",
+                "Smart Delay",
+                0.0,
+                1.0,
+                0.5,
+                Some("%"),
+            ),
+        );
+        // === Master ===
+        registry.insert(
             PARAM_VOICE_DRY_WET,
             ParamDescriptor::float(
                 PARAM_VOICE_DRY_WET,
@@ -691,480 +312,119 @@ impl VoiceParamRegistry {
                 0.0,
                 1.0,
                 1.0,
-                Some("%")
-            )
+                Some("%"),
+            ),
         );
 
-        // Vocal Doubler
-        add_param!(
-            PARAM_VOICE_DOUBLER_ENABLE,
-            ParamDescriptor::bool(
-                PARAM_VOICE_DOUBLER_ENABLE,
-                "Doubler Enable",
-                "Doubler",
-                false
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_DOUBLER_DELAY,
+        registry.insert(
+            PARAM_VOICE_OUTPUT_GAIN,
             ParamDescriptor::float(
-                PARAM_VOICE_DOUBLER_DELAY,
-                "Delay Time",
-                "Doubler",
-                5.0,
-                15.0,
-                10.0,
-                Some("ms")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_DOUBLER_DETUNE,
-            ParamDescriptor::float(
-                PARAM_VOICE_DOUBLER_DETUNE,
-                "Detune",
-                "Doubler",
+                PARAM_VOICE_OUTPUT_GAIN,
+                "Output Gain",
+                "Output",
+                -12.0,
+                12.0,
                 0.0,
-                10.0,
-                5.0,
-                Some("¢") // cents symbol
-            )
+                Some("dB"),
+            ),
         );
 
-        add_param!(
-            PARAM_VOICE_DOUBLER_STEREO_WIDTH,
-            ParamDescriptor::float(
-                PARAM_VOICE_DOUBLER_STEREO_WIDTH,
-                "Stereo Width",
-                "Doubler",
-                0.0,
-                1.0,
-                0.7,
-                Some("%")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_DOUBLER_MIX,
-            ParamDescriptor::float(
-                PARAM_VOICE_DOUBLER_MIX,
-                "Mix",
-                "Doubler",
-                0.0,
-                1.0,
-                0.5,
-                Some("%")
-            )
-        );
-
-        // Vocal Choir
-        add_param!(
-            PARAM_VOICE_CHOIR_ENABLE,
-            ParamDescriptor::bool(PARAM_VOICE_CHOIR_ENABLE, "Choir Enable", "Choir", false)
-        );
-
-        add_param!(
-            PARAM_VOICE_CHOIR_NUM_VOICES,
-            ParamDescriptor::float(
-                PARAM_VOICE_CHOIR_NUM_VOICES,
-                "Num Voices",
-                "Choir",
-                2.0,
-                8.0,
-                4.0,
-                None
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_CHOIR_DETUNE,
-            ParamDescriptor::float(
-                PARAM_VOICE_CHOIR_DETUNE,
-                "Detune",
-                "Choir",
-                0.0,
-                30.0,
-                15.0,
-                Some("¢") // cents symbol
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_CHOIR_DELAY_SPREAD,
-            ParamDescriptor::float(
-                PARAM_VOICE_CHOIR_DELAY_SPREAD,
-                "Delay Spread",
-                "Choir",
-                10.0,
-                40.0,
-                25.0,
-                Some("ms")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_CHOIR_STEREO_SPREAD,
-            ParamDescriptor::float(
-                PARAM_VOICE_CHOIR_STEREO_SPREAD,
-                "Stereo Spread",
-                "Choir",
-                0.0,
-                1.0,
-                0.8,
-                Some("%")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_CHOIR_MIX,
-            ParamDescriptor::float(
-                PARAM_VOICE_CHOIR_MIX,
-                "Mix",
-                "Choir",
-                0.0,
-                1.0,
-                0.5,
-                Some("%")
-            )
-        );
-
-        // Multiband Distortion
-        add_param!(
-            PARAM_VOICE_MB_DIST_ENABLE,
-            ParamDescriptor::bool(
-                PARAM_VOICE_MB_DIST_ENABLE,
-                "MB Dist Enable",
-                "MB Distortion",
-                false
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_MB_DIST_LOW_MID_FREQ,
-            ParamDescriptor::float(
-                PARAM_VOICE_MB_DIST_LOW_MID_FREQ,
-                "Low-Mid Freq",
-                "MB Distortion",
-                50.0,
-                500.0,
-                200.0,
-                Some("Hz")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_MB_DIST_MID_HIGH_FREQ,
-            ParamDescriptor::float(
-                PARAM_VOICE_MB_DIST_MID_HIGH_FREQ,
-                "Mid-High Freq",
-                "MB Distortion",
-                1000.0,
-                8000.0,
-                2000.0,
-                Some("Hz")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_MB_DIST_DRIVE_LOW,
-            ParamDescriptor::float(
-                PARAM_VOICE_MB_DIST_DRIVE_LOW,
-                "Low Drive",
-                "MB Distortion",
-                0.0,
-                1.0,
-                0.3,
-                Some("%")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_MB_DIST_DRIVE_MID,
-            ParamDescriptor::float(
-                PARAM_VOICE_MB_DIST_DRIVE_MID,
-                "Mid Drive",
-                "MB Distortion",
-                0.0,
-                1.0,
-                0.2,
-                Some("%")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_MB_DIST_DRIVE_HIGH,
-            ParamDescriptor::float(
-                PARAM_VOICE_MB_DIST_DRIVE_HIGH,
-                "High Drive",
-                "MB Distortion",
-                0.0,
-                1.0,
-                0.1,
-                Some("%")
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_MB_DIST_GAIN_LOW,
-            ParamDescriptor::float(
-                PARAM_VOICE_MB_DIST_GAIN_LOW,
-                "Low Gain",
-                "MB Distortion",
-                0.0,
-                2.0,
-                1.0,
-                None
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_MB_DIST_GAIN_MID,
-            ParamDescriptor::float(
-                PARAM_VOICE_MB_DIST_GAIN_MID,
-                "Mid Gain",
-                "MB Distortion",
-                0.0,
-                2.0,
-                1.0,
-                None
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_MB_DIST_GAIN_HIGH,
-            ParamDescriptor::float(
-                PARAM_VOICE_MB_DIST_GAIN_HIGH,
-                "High Gain",
-                "MB Distortion",
-                0.0,
-                2.0,
-                1.0,
-                None
-            )
-        );
-
-        add_param!(
-            PARAM_VOICE_MB_DIST_MIX,
-            ParamDescriptor::float(
-                PARAM_VOICE_MB_DIST_MIX,
-                "Mix",
-                "MB Distortion",
-                0.0,
-                1.0,
-                0.5,
-                Some("%")
-            )
-        );
-    }
+        registry
+    })
 }
 
 /// Get parameter descriptor by ID
 pub fn get_param_descriptor(param_id: ParamId) -> Option<&'static ParamDescriptor> {
-    get_voice_registry().get(&param_id)
+    get_voice_param_registry().get(&param_id)
 }
 
-/// Apply parameter value to VoiceParams struct
-pub fn apply_param(params: &mut VoiceParams, param_id: ParamId, denorm_value: f32) {
+/// Apply parameter value to VoiceParams
+pub fn apply_param(params: &mut VoiceParams, param_id: ParamId, value: f32) {
     match param_id {
         // Input/Output
-        PARAM_VOICE_INPUT_GAIN => params.input_gain = denorm_value,
-        PARAM_VOICE_OUTPUT_GAIN => params.output_gain = denorm_value,
+        PARAM_VOICE_INPUT_GAIN => params.input_gain = value,
+        PARAM_VOICE_OUTPUT_GAIN => params.output_gain = value,
 
-        // Noise Gate
-        PARAM_VOICE_GATE_THRESHOLD => params.gate_threshold = denorm_value,
-        PARAM_VOICE_GATE_RATIO => params.gate_ratio = denorm_value,
-        PARAM_VOICE_GATE_ATTACK => params.gate_attack = denorm_value,
-        PARAM_VOICE_GATE_RELEASE => params.gate_release = denorm_value,
-        PARAM_VOICE_GATE_HOLD => params.gate_hold = denorm_value,
+        // Signal Analysis
+        PARAM_VOICE_PITCH_CONFIDENCE_THRESHOLD => params.pitch_confidence_threshold = value,
 
-        // Parametric EQ
-        PARAM_VOICE_EQ_BAND1_FREQ => params.eq_band1_freq = denorm_value,
-        PARAM_VOICE_EQ_BAND1_GAIN => params.eq_band1_gain = denorm_value,
-        PARAM_VOICE_EQ_BAND1_Q => params.eq_band1_q = denorm_value,
+        // Smart Gate
+        PARAM_VOICE_GATE_ENABLE => params.gate_enable = value > 0.5,
+        PARAM_VOICE_GATE_THRESHOLD => params.gate_threshold = value,
 
-        PARAM_VOICE_EQ_BAND2_FREQ => params.eq_band2_freq = denorm_value,
-        PARAM_VOICE_EQ_BAND2_GAIN => params.eq_band2_gain = denorm_value,
-        PARAM_VOICE_EQ_BAND2_Q => params.eq_band2_q = denorm_value,
+        // Adaptive Compressor
+        PARAM_VOICE_COMP_ENABLE => params.comp_enable = value > 0.5,
+        PARAM_VOICE_COMP_THRESHOLD => params.comp_threshold = value,
+        PARAM_VOICE_COMP_RATIO => params.comp_ratio = value,
+        PARAM_VOICE_COMP_ATTACK => params.comp_attack = value,
+        PARAM_VOICE_COMP_RELEASE => params.comp_release = value,
 
-        PARAM_VOICE_EQ_BAND3_FREQ => params.eq_band3_freq = denorm_value,
-        PARAM_VOICE_EQ_BAND3_GAIN => params.eq_band3_gain = denorm_value,
-        PARAM_VOICE_EQ_BAND3_Q => params.eq_band3_q = denorm_value,
-
-        PARAM_VOICE_EQ_BAND4_FREQ => params.eq_band4_freq = denorm_value,
-        PARAM_VOICE_EQ_BAND4_GAIN => params.eq_band4_gain = denorm_value,
-        PARAM_VOICE_EQ_BAND4_Q => params.eq_band4_q = denorm_value,
-
-        PARAM_VOICE_EQ_MASTER_GAIN => params.eq_master_gain = denorm_value,
-
-        // Compressor
-        PARAM_VOICE_COMP_THRESHOLD => params.comp_threshold = denorm_value,
-        PARAM_VOICE_COMP_RATIO => params.comp_ratio = denorm_value,
-        PARAM_VOICE_COMP_ATTACK => params.comp_attack = denorm_value,
-        PARAM_VOICE_COMP_RELEASE => params.comp_release = denorm_value,
-        PARAM_VOICE_COMP_KNEE => params.comp_knee = denorm_value,
-        PARAM_VOICE_COMP_MAKEUP_GAIN => params.comp_makeup_gain = denorm_value,
-        PARAM_VOICE_COMP_PITCH_RESPONSE => params.comp_pitch_response = denorm_value,
-
-        // Enable parameters
-        PARAM_VOICE_GATE_ENABLE => params.gate_enable = denorm_value > 0.5,
-        PARAM_VOICE_EQ_ENABLE => params.eq_enable = denorm_value > 0.5,
-        PARAM_VOICE_COMP_ENABLE => params.comp_enable = denorm_value > 0.5,
-        PARAM_VOICE_DEESS_ENABLE => params.deess_enable = denorm_value > 0.5,
-        PARAM_VOICE_EXCITER_ENABLE => params.exciter_enable = denorm_value > 0.5,
+        // Intelligent Exciter
+        PARAM_VOICE_EXCITER_ENABLE => params.exciter_enable = value > 0.5,
+        PARAM_VOICE_EXCITER_AMOUNT => params.exciter_amount = value,
+        PARAM_VOICE_EXCITER_MIX => params.exciter_mix = value,
 
         // De-Esser
-        PARAM_VOICE_DEESS_THRESHOLD => params.deess_threshold = denorm_value,
-        PARAM_VOICE_DEESS_FREQUENCY => params.deess_frequency = denorm_value,
-        PARAM_VOICE_DEESS_RATIO => params.deess_ratio = denorm_value,
-        PARAM_VOICE_DEESS_AMOUNT => params.deess_amount = denorm_value,
+        PARAM_VOICE_DEESS_ENABLE => params.deess_enable = value > 0.5,
+        PARAM_VOICE_DEESS_AMOUNT => params.deess_amount = value,
 
-        // Exciter
-        PARAM_VOICE_EXCITER_AMOUNT => params.exciter_amount = denorm_value,
-        PARAM_VOICE_EXCITER_FREQUENCY => params.exciter_frequency = denorm_value,
-        PARAM_VOICE_EXCITER_HARMONICS => params.exciter_harmonics = denorm_value,
-        PARAM_VOICE_EXCITER_MIX => params.exciter_mix = denorm_value,
-        PARAM_VOICE_EXCITER_FOLLOW_ENABLE => params.exciter_follow_enable = denorm_value > 0.5,
-        PARAM_VOICE_EXCITER_FOLLOW_AMOUNT => params.exciter_follow_amount = denorm_value,
-
-        // Pitch Detector
-        PARAM_VOICE_PITCH_CONFIDENCE_THRESHOLD => params.pitch_confidence_threshold = denorm_value,
-
-        // Vocal Doubler
-        PARAM_VOICE_DOUBLER_ENABLE => params.doubler_enable = denorm_value > 0.5,
-        PARAM_VOICE_DOUBLER_DELAY => params.doubler_delay = denorm_value,
-        PARAM_VOICE_DOUBLER_DETUNE => params.doubler_detune = denorm_value,
-        PARAM_VOICE_DOUBLER_STEREO_WIDTH => params.doubler_stereo_width = denorm_value,
-        PARAM_VOICE_DOUBLER_MIX => params.doubler_mix = denorm_value,
-
-        // Vocal Choir
-        PARAM_VOICE_CHOIR_ENABLE => params.choir_enable = denorm_value > 0.5,
-        PARAM_VOICE_CHOIR_NUM_VOICES => params.choir_num_voices = denorm_value.round() as usize,
-        PARAM_VOICE_CHOIR_DETUNE => params.choir_detune = denorm_value,
-        PARAM_VOICE_CHOIR_DELAY_SPREAD => params.choir_delay_spread = denorm_value,
-        PARAM_VOICE_CHOIR_STEREO_SPREAD => params.choir_stereo_spread = denorm_value,
-        PARAM_VOICE_CHOIR_MIX => params.choir_mix = denorm_value,
-
-        // Multiband Distortion
-        PARAM_VOICE_MB_DIST_ENABLE => params.mb_dist_enable = denorm_value > 0.5,
-        PARAM_VOICE_MB_DIST_LOW_MID_FREQ => params.mb_dist_low_mid_freq = denorm_value,
-        PARAM_VOICE_MB_DIST_MID_HIGH_FREQ => params.mb_dist_mid_high_freq = denorm_value,
-        PARAM_VOICE_MB_DIST_DRIVE_LOW => params.mb_dist_drive_low = denorm_value,
-        PARAM_VOICE_MB_DIST_DRIVE_MID => params.mb_dist_drive_mid = denorm_value,
-        PARAM_VOICE_MB_DIST_DRIVE_HIGH => params.mb_dist_drive_high = denorm_value,
-        PARAM_VOICE_MB_DIST_GAIN_LOW => params.mb_dist_gain_low = denorm_value,
-        PARAM_VOICE_MB_DIST_GAIN_MID => params.mb_dist_gain_mid = denorm_value,
-        PARAM_VOICE_MB_DIST_GAIN_HIGH => params.mb_dist_gain_high = denorm_value,
-        PARAM_VOICE_MB_DIST_MIX => params.mb_dist_mix = denorm_value,
+        // Smart Delay
+        PARAM_VOICE_DELAY_ENABLE => params.delay_enable = value > 0.5,
+        PARAM_VOICE_DELAY_TIME => params.delay_time = value,
+        PARAM_VOICE_DELAY_FEEDBACK => params.delay_feedback = value,
+        PARAM_VOICE_DELAY_MIX => params.delay_mix = value,
+        PARAM_VOICE_DELAY_SENSITIVITY => params.delay_sensitivity = value,
 
         // Master
-        PARAM_VOICE_DRY_WET => params.dry_wet = denorm_value,
+        PARAM_VOICE_DRY_WET => params.dry_wet = value,
 
-        _ => {} // Unknown parameter
+        _ => {
+            // Unknown parameter - ignore silently
+        }
     }
 }
 
-/// Get parameter value from VoiceParams struct
+/// Get parameter value from VoiceParams
 pub fn get_param(params: &VoiceParams, param_id: ParamId) -> Option<f32> {
     match param_id {
         // Input/Output
         PARAM_VOICE_INPUT_GAIN => Some(params.input_gain),
         PARAM_VOICE_OUTPUT_GAIN => Some(params.output_gain),
 
-        // Noise Gate
+        // Signal Analysis
+        PARAM_VOICE_PITCH_CONFIDENCE_THRESHOLD => Some(params.pitch_confidence_threshold),
+
+        // Smart Gate
+        PARAM_VOICE_GATE_ENABLE => Some(if params.gate_enable { 1.0 } else { 0.0 }),
         PARAM_VOICE_GATE_THRESHOLD => Some(params.gate_threshold),
-        PARAM_VOICE_GATE_RATIO => Some(params.gate_ratio),
-        PARAM_VOICE_GATE_ATTACK => Some(params.gate_attack),
-        PARAM_VOICE_GATE_RELEASE => Some(params.gate_release),
-        PARAM_VOICE_GATE_HOLD => Some(params.gate_hold),
 
-        // Parametric EQ
-        PARAM_VOICE_EQ_BAND1_FREQ => Some(params.eq_band1_freq),
-        PARAM_VOICE_EQ_BAND1_GAIN => Some(params.eq_band1_gain),
-        PARAM_VOICE_EQ_BAND1_Q => Some(params.eq_band1_q),
-
-        PARAM_VOICE_EQ_BAND2_FREQ => Some(params.eq_band2_freq),
-        PARAM_VOICE_EQ_BAND2_GAIN => Some(params.eq_band2_gain),
-        PARAM_VOICE_EQ_BAND2_Q => Some(params.eq_band2_q),
-
-        PARAM_VOICE_EQ_BAND3_FREQ => Some(params.eq_band3_freq),
-        PARAM_VOICE_EQ_BAND3_GAIN => Some(params.eq_band3_gain),
-        PARAM_VOICE_EQ_BAND3_Q => Some(params.eq_band3_q),
-
-        PARAM_VOICE_EQ_BAND4_FREQ => Some(params.eq_band4_freq),
-        PARAM_VOICE_EQ_BAND4_GAIN => Some(params.eq_band4_gain),
-        PARAM_VOICE_EQ_BAND4_Q => Some(params.eq_band4_q),
-
-        PARAM_VOICE_EQ_MASTER_GAIN => Some(params.eq_master_gain),
-
-        // Compressor
+        // Adaptive Compressor
+        PARAM_VOICE_COMP_ENABLE => Some(if params.comp_enable { 1.0 } else { 0.0 }),
         PARAM_VOICE_COMP_THRESHOLD => Some(params.comp_threshold),
         PARAM_VOICE_COMP_RATIO => Some(params.comp_ratio),
         PARAM_VOICE_COMP_ATTACK => Some(params.comp_attack),
         PARAM_VOICE_COMP_RELEASE => Some(params.comp_release),
-        PARAM_VOICE_COMP_KNEE => Some(params.comp_knee),
-        PARAM_VOICE_COMP_MAKEUP_GAIN => Some(params.comp_makeup_gain),
-        PARAM_VOICE_COMP_PITCH_RESPONSE => Some(params.comp_pitch_response),
 
-        // Enable parameters
-        PARAM_VOICE_GATE_ENABLE => Some(if params.gate_enable { 1.0 } else { 0.0 }),
-        PARAM_VOICE_EQ_ENABLE => Some(if params.eq_enable { 1.0 } else { 0.0 }),
-        PARAM_VOICE_COMP_ENABLE => Some(if params.comp_enable { 1.0 } else { 0.0 }),
-        PARAM_VOICE_DEESS_ENABLE => Some(if params.deess_enable { 1.0 } else { 0.0 }),
+        // Intelligent Exciter
         PARAM_VOICE_EXCITER_ENABLE => Some(if params.exciter_enable { 1.0 } else { 0.0 }),
+        PARAM_VOICE_EXCITER_AMOUNT => Some(params.exciter_amount),
+        PARAM_VOICE_EXCITER_MIX => Some(params.exciter_mix),
 
         // De-Esser
-        PARAM_VOICE_DEESS_THRESHOLD => Some(params.deess_threshold),
-        PARAM_VOICE_DEESS_FREQUENCY => Some(params.deess_frequency),
-        PARAM_VOICE_DEESS_RATIO => Some(params.deess_ratio),
+        PARAM_VOICE_DEESS_ENABLE => Some(if params.deess_enable { 1.0 } else { 0.0 }),
         PARAM_VOICE_DEESS_AMOUNT => Some(params.deess_amount),
 
-        // Pitch Detector
-        PARAM_VOICE_PITCH_CONFIDENCE_THRESHOLD => Some(params.pitch_confidence_threshold),
-
-        // Vocal Doubler
-        PARAM_VOICE_DOUBLER_ENABLE => Some(if params.doubler_enable { 1.0 } else { 0.0 }),
-        PARAM_VOICE_DOUBLER_DELAY => Some(params.doubler_delay),
-        PARAM_VOICE_DOUBLER_DETUNE => Some(params.doubler_detune),
-        PARAM_VOICE_DOUBLER_STEREO_WIDTH => Some(params.doubler_stereo_width),
-        PARAM_VOICE_DOUBLER_MIX => Some(params.doubler_mix),
-
-        // Vocal Choir
-        PARAM_VOICE_CHOIR_ENABLE => Some(if params.choir_enable { 1.0 } else { 0.0 }),
-        PARAM_VOICE_CHOIR_NUM_VOICES => Some(params.choir_num_voices as f32),
-        PARAM_VOICE_CHOIR_DETUNE => Some(params.choir_detune),
-        PARAM_VOICE_CHOIR_DELAY_SPREAD => Some(params.choir_delay_spread),
-        PARAM_VOICE_CHOIR_STEREO_SPREAD => Some(params.choir_stereo_spread),
-        PARAM_VOICE_CHOIR_MIX => Some(params.choir_mix),
-
-        // Exciter
-        PARAM_VOICE_EXCITER_AMOUNT => Some(params.exciter_amount),
-        PARAM_VOICE_EXCITER_FREQUENCY => Some(params.exciter_frequency),
-        PARAM_VOICE_EXCITER_HARMONICS => Some(params.exciter_harmonics),
-        PARAM_VOICE_EXCITER_MIX => Some(params.exciter_mix),
-        PARAM_VOICE_EXCITER_FOLLOW_ENABLE => Some(if params.exciter_follow_enable {
-            1.0
-        } else {
-            0.0
-        }),
-        PARAM_VOICE_EXCITER_FOLLOW_AMOUNT => Some(params.exciter_follow_amount),
-
-        // Multiband Distortion
-        PARAM_VOICE_MB_DIST_ENABLE => Some(if params.mb_dist_enable { 1.0 } else { 0.0 }),
-        PARAM_VOICE_MB_DIST_LOW_MID_FREQ => Some(params.mb_dist_low_mid_freq),
-        PARAM_VOICE_MB_DIST_MID_HIGH_FREQ => Some(params.mb_dist_mid_high_freq),
-        PARAM_VOICE_MB_DIST_DRIVE_LOW => Some(params.mb_dist_drive_low),
-        PARAM_VOICE_MB_DIST_DRIVE_MID => Some(params.mb_dist_drive_mid),
-        PARAM_VOICE_MB_DIST_DRIVE_HIGH => Some(params.mb_dist_drive_high),
-        PARAM_VOICE_MB_DIST_GAIN_LOW => Some(params.mb_dist_gain_low),
-        PARAM_VOICE_MB_DIST_GAIN_MID => Some(params.mb_dist_gain_mid),
-        PARAM_VOICE_MB_DIST_GAIN_HIGH => Some(params.mb_dist_gain_high),
-        PARAM_VOICE_MB_DIST_MIX => Some(params.mb_dist_mix),
+        // Smart Delay
+        PARAM_VOICE_DELAY_ENABLE => Some(if params.delay_enable { 1.0 } else { 0.0 }),
+        PARAM_VOICE_DELAY_TIME => Some(params.delay_time),
+        PARAM_VOICE_DELAY_FEEDBACK => Some(params.delay_feedback),
+        PARAM_VOICE_DELAY_MIX => Some(params.delay_mix),
+        PARAM_VOICE_DELAY_SENSITIVITY => Some(params.delay_sensitivity),
 
         // Master
         PARAM_VOICE_DRY_WET => Some(params.dry_wet),
 
-        _ => None, // Unknown parameter
+        _ => None,
     }
 }
 
@@ -1173,23 +433,86 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_clap_descriptor_is_float() {
-        // Test that the CLAP wrapper handles parameter descriptors correctly
-        use crate::voice_clap::DsynthVoiceParams;
-        use dsynth_clap::param::{ParamType, PluginParams};
+    fn test_registry_initialized() {
+        let registry = get_voice_param_registry();
+        assert_eq!(registry.len(), 21); // 21 total parameters
+    }
 
-        // Test with a known parameter (input gain)
-        let descriptor = DsynthVoiceParams::param_descriptor_by_id(PARAM_VOICE_INPUT_GAIN)
-            .expect("Input gain parameter should exist");
+    #[test]
+    fn test_all_params_have_descriptors() {
+        let registry = get_voice_param_registry();
 
-        match &descriptor.param_type {
-            ParamType::Float { .. } => {
-                // Expected type for most parameters
-            }
-            ParamType::Bool { .. } => {
-                // Also valid for some parameters
-            }
-            _ => panic!("Unexpected parameter type"),
-        }
+        // Input/Output
+        assert!(registry.contains_key(&PARAM_VOICE_INPUT_GAIN));
+        assert!(registry.contains_key(&PARAM_VOICE_OUTPUT_GAIN));
+
+        // Signal Analysis
+        assert!(registry.contains_key(&PARAM_VOICE_PITCH_CONFIDENCE_THRESHOLD));
+
+        // Smart Gate
+        assert!(registry.contains_key(&PARAM_VOICE_GATE_ENABLE));
+        assert!(registry.contains_key(&PARAM_VOICE_GATE_THRESHOLD));
+
+        // Adaptive Compressor
+        assert!(registry.contains_key(&PARAM_VOICE_COMP_ENABLE));
+        assert!(registry.contains_key(&PARAM_VOICE_COMP_THRESHOLD));
+        assert!(registry.contains_key(&PARAM_VOICE_COMP_RATIO));
+        assert!(registry.contains_key(&PARAM_VOICE_COMP_ATTACK));
+        assert!(registry.contains_key(&PARAM_VOICE_COMP_RELEASE));
+
+        // Intelligent Exciter
+        assert!(registry.contains_key(&PARAM_VOICE_EXCITER_ENABLE));
+        assert!(registry.contains_key(&PARAM_VOICE_EXCITER_AMOUNT));
+        assert!(registry.contains_key(&PARAM_VOICE_EXCITER_MIX));
+
+        // De-Esser
+        assert!(registry.contains_key(&PARAM_VOICE_DEESS_ENABLE));
+        assert!(registry.contains_key(&PARAM_VOICE_DEESS_AMOUNT));
+
+        // Smart Delay
+        assert!(registry.contains_key(&PARAM_VOICE_DELAY_ENABLE));
+        assert!(registry.contains_key(&PARAM_VOICE_DELAY_TIME));
+        assert!(registry.contains_key(&PARAM_VOICE_DELAY_FEEDBACK));
+        assert!(registry.contains_key(&PARAM_VOICE_DELAY_MIX));
+        assert!(registry.contains_key(&PARAM_VOICE_DELAY_SENSITIVITY));
+
+        // Master
+        assert!(registry.contains_key(&PARAM_VOICE_DRY_WET));
+        assert!(registry.contains_key(&PARAM_VOICE_OUTPUT_GAIN));
+    }
+
+    #[test]
+    fn test_apply_and_get_param() {
+        let mut params = VoiceParams::default();
+
+        // Test applying parameters
+        apply_param(&mut params, PARAM_VOICE_GATE_THRESHOLD, -40.0);
+        assert_eq!(params.gate_threshold, -40.0);
+
+        apply_param(&mut params, PARAM_VOICE_COMP_RATIO, 5.0);
+        assert_eq!(params.comp_ratio, 5.0);
+
+        // Test getting parameters
+        assert_eq!(get_param(&params, PARAM_VOICE_GATE_THRESHOLD), Some(-40.0));
+        assert_eq!(get_param(&params, PARAM_VOICE_COMP_RATIO), Some(5.0));
+    }
+
+    #[test]
+    fn test_bool_params() {
+        let mut params = VoiceParams::default();
+
+        // Test enable/disable
+        apply_param(&mut params, PARAM_VOICE_GATE_ENABLE, 1.0);
+        assert_eq!(params.gate_enable, true);
+
+        apply_param(&mut params, PARAM_VOICE_GATE_ENABLE, 0.0);
+        assert_eq!(params.gate_enable, false);
+
+        // Test get bool
+        params.comp_enable = true;
+        assert_eq!(get_param(&params, PARAM_VOICE_COMP_ENABLE), Some(1.0));
+
+        params.comp_enable = false;
+        assert_eq!(get_param(&params, PARAM_VOICE_COMP_ENABLE), Some(0.0));
     }
 }

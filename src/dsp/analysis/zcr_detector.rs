@@ -181,7 +181,7 @@ impl ZcrDetector {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum SignalType {
     Tonal,     // Low ZCR: vowels, pitched instruments
     Mixed,     // Medium ZCR: mixed voiced/unvoiced

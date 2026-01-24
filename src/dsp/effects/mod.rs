@@ -12,6 +12,9 @@ pub mod modulation;
 // Time-Based Effects - Delay, reverb, acoustic space simulation
 pub mod time_based;
 
+// Delay Effects - Smart delay with signal-aware processing
+pub mod delay;
+
 // Spectral Effects - Frequency-domain processing and EQ
 pub mod spectral;
 
@@ -37,6 +40,9 @@ pub use modulation::{AutoPan, Chorus, Flanger, Phaser, RingModulator, Tremolo};
 
 // Time-Based
 pub use time_based::{CombFilter, Delay, Reverb, StereoDelay};
+
+// Delay
+pub use delay::SmartDelay;
 
 // Spectral
 pub use spectral::{

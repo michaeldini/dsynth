@@ -12,6 +12,9 @@ pub mod filters;
 // Analysis Components - Pitch detection, formant analysis, signal classification
 pub mod analysis;
 
+// Signal Analyzer - Unified signal analysis for intelligent audio processing
+pub mod signal_analyzer;
+
 // Effects - Audio processing effects organized by category
 pub mod effects;
 
@@ -29,6 +32,9 @@ pub use filters::BiquadFilter;
 // Analysis
 pub use analysis::{
     FormantDetector, PitchDetectionResult, PitchDetector, PitchQuantizer, RootNote, ScaleType,
-    SibilanceDetector, SignalType, SpectralCentroid, TransientDetector, VowelEstimate,
-    ZcrDetector, PITCH_BUFFER_SIZE,
+    SibilanceDetector, SignalType, SpectralCentroid, TransientDetector, VowelEstimate, ZcrDetector,
+    PITCH_BUFFER_SIZE,
 };
+
+// Signal Analyzer
+pub use signal_analyzer::{SignalAnalysis, SignalAnalyzer};
