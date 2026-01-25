@@ -74,12 +74,13 @@ impl VoiceEngine {
         // 2. Signal Analysis (transient, ZCR, sibilance - NO PITCH)
         let analysis = self.signal_analyzer.analyze(left, right);
 
-        // 3. Adaptive Saturator (3-stage with character selection)
+        // 3. Adaptive Saturator (3-stage with character selection + parallel processing)
         let character = SaturationCharacter::from_u8(self.params.saturation_character);
         let (left_sat, right_sat) = self.adaptive_saturator.process(
             left,
             right,
             self.params.saturation_drive,
+            self.params.saturation_mix,
             character,
             &analysis,
         );

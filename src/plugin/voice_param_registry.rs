@@ -1,14 +1,15 @@
-/// Voice Saturation Parameter Registry - TWO-KNOB ANALOG EMULATION
+/// Voice Saturation Parameter Registry - MINIMAL ANALOG EMULATION
 ///
-/// **Simplified parameter registry for analog vocal saturation**
+/// **Simplified parameter registry for analog vocal saturation with parallel processing**
 ///
 /// Parameter namespace: 0x0300_xxxx (voice plugin)
 ///
-/// Total Parameters: **4** (minimal analog design)
+/// Total Parameters: **5** (minimal analog design + mix)
 /// 1. Input Gain: -12 to +12 dB
-/// 2. Saturation Character: Warm/Smooth/Punchy (enum as Float with is_stepped)
-/// 3. Saturation Drive: 0.0-1.0 (calibrated so 0.5 = moderate saturation)
-/// 4. Output Gain: -12 to +12 dB
+/// 2. Saturation Character: Warm/Smooth/Punchy (Int 0-2)
+/// 3. Saturation Drive: 0.0-1.0 (calibrated for transparent enhancement)
+/// 4. Saturation Mix: 0.0-1.0 (dry/wet blend, 0.3-0.5 optimal for vocals)
+/// 5. Output Gain: -12 to +12 dB
 use crate::params_voice::VoiceParams;
 use crate::plugin::param_descriptor::{ParamDescriptor, ParamId};
 use std::collections::HashMap;
@@ -21,7 +22,8 @@ use std::sync::OnceLock;
 pub const PARAM_VOICE_INPUT_GAIN: ParamId = 0x0300_0001;
 pub const PARAM_VOICE_SATURATION_CHARACTER: ParamId = 0x0300_0002;
 pub const PARAM_VOICE_SATURATION_DRIVE: ParamId = 0x0300_0003;
-pub const PARAM_VOICE_OUTPUT_GAIN: ParamId = 0x0300_0004;
+pub const PARAM_VOICE_SATURATION_MIX: ParamId = 0x0300_0004;
+pub const PARAM_VOICE_OUTPUT_GAIN: ParamId = 0x0300_0005;
 
 // ============================================================================
 // PARAMETER REGISTRY
@@ -72,6 +74,18 @@ pub fn get_voice_param_registry() -> &'static HashMap<ParamId, ParamDescriptor> 
         );
         registry.insert(PARAM_VOICE_SATURATION_DRIVE, drive_descriptor);
 
+        // Saturation Mix (0.0-1.0 dry/wet blend)
+        let mix_descriptor = ParamDescriptor::float(
+            PARAM_VOICE_SATURATION_MIX,
+            "Mix",
+            "Saturation",
+            0.0,
+            1.0,
+            0.4, // Default 40% wet = transparent parallel saturation
+            Some("%"),
+        );
+        registry.insert(PARAM_VOICE_SATURATION_MIX, mix_descriptor);
+
         // Output Gain (-12 to +12 dB)
         registry.insert(
             PARAM_VOICE_OUTPUT_GAIN,
@@ -104,6 +118,7 @@ pub fn apply_param(params: &mut VoiceParams, param_id: ParamId, value: f32) {
             params.saturation_character = params.saturation_character.clamp(0, 2);
         }
         PARAM_VOICE_SATURATION_DRIVE => params.saturation_drive = value.clamp(0.0, 1.0),
+        PARAM_VOICE_SATURATION_MIX => params.saturation_mix = value.clamp(0.0, 1.0),
         PARAM_VOICE_OUTPUT_GAIN => params.output_gain = value.clamp(-12.0, 12.0),
         _ => {
             // Unknown parameter - ignore silently
@@ -117,6 +132,7 @@ pub fn get_param(params: &VoiceParams, param_id: ParamId) -> Option<f32> {
         PARAM_VOICE_INPUT_GAIN => Some(params.input_gain),
         PARAM_VOICE_SATURATION_CHARACTER => Some(params.saturation_character as f32),
         PARAM_VOICE_SATURATION_DRIVE => Some(params.saturation_drive),
+        PARAM_VOICE_SATURATION_MIX => Some(params.saturation_mix),
         PARAM_VOICE_OUTPUT_GAIN => Some(params.output_gain),
         _ => None,
     }
@@ -129,7 +145,7 @@ mod tests {
     #[test]
     fn test_registry_initialized() {
         let registry = get_voice_param_registry();
-        assert_eq!(registry.len(), 4); // 4 total parameters
+        assert_eq!(registry.len(), 5); // 5 total parameters (added mix)
     }
 
     #[test]

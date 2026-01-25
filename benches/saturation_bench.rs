@@ -52,6 +52,7 @@ fn bench_saturator_per_character(c: &mut Criterion) {
                         black_box(0.5),
                         black_box(0.5),
                         black_box(0.7),
+                        black_box(1.0),
                         character,
                         &analysis,
                     ))
@@ -77,6 +78,7 @@ fn bench_three_stage_cascade(c: &mut Criterion) {
                 black_box(0.5),
                 black_box(0.5),
                 black_box(0.7),
+                        black_box(1.0),
                 SaturationCharacter::Warm,
                 &analysis,
             ))

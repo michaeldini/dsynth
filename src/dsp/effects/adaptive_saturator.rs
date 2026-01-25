@@ -100,7 +100,8 @@ impl AdaptiveSaturator {
     /// # Arguments
     /// * `left` - Left channel input
     /// * `right` - Right channel input
-    /// * `drive` - Drive amount (0.0-1.0, calibrated so 0.5 = moderate saturation)
+    /// * `drive` - Drive amount (0.0-1.0, calibrated for transparent enhancement at moderate levels)
+    /// * `mix` - Dry/wet mix (0.0 = dry, 1.0 = wet, 0.3-0.5 = optimal for transparent vocal enhancement)
     /// * `character` - Saturation character (Warm/Smooth/Punchy)
     /// * `analysis` - Signal analysis from SignalAnalyzer
     ///
@@ -111,23 +112,56 @@ impl AdaptiveSaturator {
         left: f32,
         right: f32,
         drive: f32,
+        mix: f32,
         character: SaturationCharacter,
         analysis: &SignalAnalysis,
     ) -> (f32, f32) {
-        // Clamp drive to valid range
+        // Clamp parameters to valid range
         let drive = drive.clamp(0.0, 1.0);
+        let mix = mix.clamp(0.0, 1.0);
 
-        // Apply drive^2.5 for smooth vocal control (subtle at low, aggressive at high)
-        let drive_internal = drive.powf(2.5);
+        // Store dry signal for parallel processing
+        let dry_left = left;
+        let dry_right = right;
+
+        // Apply drive^3.5 for transparent vocal enhancement (very gentle at moderate levels)
+        // This prevents audible distortion at 50% drive while still allowing creative saturation at higher levels
+        let drive_internal = drive.powf(3.5);
 
         // Transient-adaptive drive boost (up to 30% more drive on transients)
         let transient_mult = 1.0 + (analysis.transient_strength * 0.3);
-        let adaptive_drive = (drive_internal * transient_mult).min(1.0);
 
-        // Calculate stage drive distribution (60%/25%/15% for natural buildup)
-        let stage1_drive = adaptive_drive * 0.60;
-        let stage2_drive = adaptive_drive * 0.25;
-        let stage3_drive = adaptive_drive * 0.15;
+        // Sibilance-aware saturation: Reduce drive during sibilant sounds (S, SH, CH, T, etc.)
+        // High sibilance_strength (0.7-1.0) indicates harsh high-frequency content that doesn't benefit from saturation
+        // Reduction up to 70% on strong sibilance to preserve vocal clarity
+        let sibilance_reduction = 1.0 - (analysis.sibilance_strength * 0.7);
+
+        // Voiced/unvoiced adaptation: Reduce drive on consonants (unvoiced segments)
+        // Voiced segments (vowels, sustained tones) benefit from saturation
+        // Unvoiced segments (consonants, breaths) should stay cleaner to maintain intelligibility
+        let voice_factor = if analysis.is_voiced { 1.0 } else { 0.6 };
+
+        // ZCR-based frequency adaptation: Adapt drive based on frequency content
+        // Low ZCR (<200Hz) = bass-heavy content → full drive for warmth
+        // Mid ZCR (200-800Hz) = vocal fundamentals → balanced drive
+        // High ZCR (>800Hz) = bright/harsh content → reduced drive
+        let freq_factor = if analysis.zcr_hz < 200.0 {
+            1.0 // Full drive on bass content
+        } else if analysis.zcr_hz < 800.0 {
+            1.0 - ((analysis.zcr_hz - 200.0) / 600.0) * 0.2 // Gentle reduction 1.0→0.8
+        } else {
+            0.8 - ((analysis.zcr_hz - 800.0) / 1200.0).min(1.0) * 0.3 // Further reduction 0.8→0.5
+        };
+
+        // Combine all adaptive factors (transient boost × sibilance reduction × voice factor × frequency factor)
+        let combined_mult = transient_mult * sibilance_reduction * voice_factor * freq_factor;
+        let adaptive_drive = (drive_internal * combined_mult).min(1.0);
+
+        // Calculate stage drive distribution (40%/20%/10% for gentler natural buildup)
+        // Reduced from 60/25/15 to prevent cumulative distortion while maintaining multi-stage character
+        let stage1_drive = adaptive_drive * 0.40;
+        let stage2_drive = adaptive_drive * 0.20;
+        let stage3_drive = adaptive_drive * 0.10;
 
         // Track input RMS for auto-gain compensation
         let mono_input = (left + right) * 0.5;
@@ -154,7 +188,13 @@ impl AdaptiveSaturator {
         left_out *= compensation;
         right_out *= compensation;
 
-        (left_out, right_out)
+        // Parallel processing: blend dry and wet signals
+        // This preserves transient clarity while adding harmonic richness
+        // Optimal vocal settings: mix = 0.3-0.5 (70-50% dry + 30-50% wet)
+        let final_left = dry_left * (1.0 - mix) + left_out * mix;
+        let final_right = dry_right * (1.0 - mix) + right_out * mix;
+
+        (final_left, final_right)
     }
 
     /// Process a single saturation stage
@@ -165,8 +205,9 @@ impl AdaptiveSaturator {
         character: SaturationCharacter,
         stage_idx: usize,
     ) -> f32 {
-        // Map drive (0.0-1.0) to gain (1.0-20.0) - moderate range for vocals
-        let gain = 1.0 + drive * 19.0;
+        // Map drive (0.0-1.0) to gain (1.0-8.0) - gentle range for transparent vocal enhancement
+        // Reduced from 1-20× to prevent harsh clipping at moderate drive settings
+        let gain = 1.0 + drive * 7.0;
         let x = input * gain;
 
         // Apply character-specific waveshaping
@@ -183,40 +224,57 @@ impl AdaptiveSaturator {
     /// Warm character: Tube-style asymmetric saturation (even harmonics)
     #[inline]
     fn warm_saturation(&self, x: f32) -> f32 {
-        // Asymmetric clipping - compresses positive peaks more than negative
-        // This mimics vacuum tube behavior and adds even harmonics
-        if x > 0.0 {
-            // Positive halfwave: stronger compression
-            x / (1.0 + 0.8 * x)
-        } else {
-            // Negative halfwave: gentler compression
-            x / (1.0 + 0.3 * x.abs())
+        // Tube-style soft saturation with asymmetric clipping
+        // Linear below threshold, gentle compression above
+        // Asymmetry adds even harmonics for warmth
+        let abs_x = x.abs();
+
+        // Wide linear region (transparent at low levels)
+        if abs_x <= 0.6 {
+            return x;
         }
+
+        // Soft clip above threshold with asymmetric behavior
+        let sign = x.signum();
+        let excess = abs_x - 0.6;
+
+        // Asymmetric compression (positive peaks compress more = even harmonics)
+        let compression_factor = if x > 0.0 {
+            2.0 // Positive: more compression
+        } else {
+            1.5 // Negative: less compression (asymmetry)
+        };
+
+        let compressed = 0.6 + excess / (1.0 + excess * compression_factor);
+        sign * compressed.min(0.95)
     }
 
     /// Smooth character: Tape-style soft-knee saturation (balanced harmonics)
     #[inline]
     fn smooth_saturation(&self, x: f32) -> f32 {
-        // Tanh-based saturation with gentle knee
-        // Models magnetic tape saturation - smooth and musical
-        let scaled = x * 1.2; // Slightly hotter than pure tanh for more character
-        scaled.tanh() * 0.9 // Scale down slightly to prevent over-saturation
+        // Gentler tanh-based saturation with soft knee
+        // Models magnetic tape saturation - smooth, musical, transparent
+        // Reduced scaling from 1.2 to 0.7 to preserve vocal clarity
+        let scaled = x * 0.7; // Gentle drive into tanh
+        scaled.tanh() * 0.95 // Minimal output attenuation
     }
 
     /// Punchy character: Console-style saturation (aggressive mids)
     #[inline]
     fn punchy_saturation(&self, x: f32) -> f32 {
-        // Soft clip with harder knee than tape
-        // Models console preamp saturation - more aggressive
+        // Soft clip with gentle knee transition
+        // Models console preamp saturation - transient bite without harshness
         let abs_x = x.abs();
-        if abs_x <= 0.5 {
-            x // Linear below threshold
-        } else if abs_x <= 1.5 {
-            let sign = x.signum();
-            let scaled = (abs_x - 0.5) / 1.0; // 0.0 to 1.0 range
-            sign * (0.5 + (1.0 - scaled * scaled) * 0.5)
+
+        if abs_x <= 0.7 {
+            // Expanded linear region from 0.5 to 0.7
+            x // Preserve transient clarity
         } else {
-            x.signum() * 0.9 // Hard limit at ±0.9
+            // Hyperbolic compression for smooth transition (no hard knee)
+            let sign = x.signum();
+            let excess = abs_x - 0.7;
+            let compressed = 0.7 + excess / (1.0 + excess * 1.5); // Gentle rolloff
+            sign * compressed.min(0.95) // Soft limit
         }
     }
 
@@ -314,7 +372,7 @@ mod tests {
         // Test at various drive levels
         for drive in [0.0, 0.3, 0.5, 0.7, 1.0] {
             let (out_l, out_r) =
-                saturator.process(0.5, 0.5, drive, SaturationCharacter::Warm, &analysis);
+                saturator.process(0.5, 0.5, drive, 1.0, SaturationCharacter::Warm, &analysis);
             assert!(out_l.is_finite(), "Warm drive={} produced NaN/Inf", drive);
             assert!(out_r.is_finite(), "Warm drive={} produced NaN/Inf", drive);
         }
@@ -328,7 +386,7 @@ mod tests {
         // Test at various drive levels
         for drive in [0.0, 0.3, 0.5, 0.7, 1.0] {
             let (out_l, out_r) =
-                saturator.process(0.5, 0.5, drive, SaturationCharacter::Smooth, &analysis);
+                saturator.process(0.5, 0.5, drive, 1.0, SaturationCharacter::Smooth, &analysis);
             assert!(out_l.is_finite(), "Smooth drive={} produced NaN/Inf", drive);
             assert!(out_r.is_finite(), "Smooth drive={} produced NaN/Inf", drive);
         }
@@ -342,7 +400,7 @@ mod tests {
         // Test at various drive levels
         for drive in [0.0, 0.3, 0.5, 0.7, 1.0] {
             let (out_l, out_r) =
-                saturator.process(0.5, 0.5, drive, SaturationCharacter::Punchy, &analysis);
+                saturator.process(0.5, 0.5, drive, 1.0, SaturationCharacter::Punchy, &analysis);
             assert!(out_l.is_finite(), "Punchy drive={} produced NaN/Inf", drive);
             assert!(out_r.is_finite(), "Punchy drive={} produced NaN/Inf", drive);
         }
@@ -355,13 +413,16 @@ mod tests {
 
         // Process some samples to stabilize RMS tracking
         for _ in 0..1000 {
-            saturator.process(0.8, 0.8, 0.5, SaturationCharacter::Warm, &analysis);
+            saturator.process(0.8, 0.8, 0.5, 1.0, SaturationCharacter::Warm, &analysis);
         }
 
         // Test that saturation produces finite output at various drive levels
-        let (out_0, _) = saturator.process(0.8, 0.8, 0.0, SaturationCharacter::Warm, &analysis);
-        let (out_50, _) = saturator.process(0.8, 0.8, 0.5, SaturationCharacter::Warm, &analysis);
-        let (out_100, _) = saturator.process(0.8, 0.8, 1.0, SaturationCharacter::Warm, &analysis);
+        let (out_0, _) =
+            saturator.process(0.8, 0.8, 0.0, 1.0, SaturationCharacter::Warm, &analysis);
+        let (out_50, _) =
+            saturator.process(0.8, 0.8, 0.5, 1.0, SaturationCharacter::Warm, &analysis);
+        let (out_100, _) =
+            saturator.process(0.8, 0.8, 1.0, 1.0, SaturationCharacter::Warm, &analysis);
 
         // All outputs should be finite (auto-gain compensation keeps levels reasonable)
         assert!(out_0.is_finite());
@@ -370,8 +431,16 @@ mod tests {
 
         // Outputs should be in reasonable range (auto-gain may push slightly above 1.0)
         assert!(out_0.abs() < 2.0, "Output 0% drive out of range: {}", out_0);
-        assert!(out_50.abs() < 2.0, "Output 50% drive out of range: {}", out_50);
-        assert!(out_100.abs() < 2.0, "Output 100% drive out of range: {}", out_100);
+        assert!(
+            out_50.abs() < 2.0,
+            "Output 50% drive out of range: {}",
+            out_50
+        );
+        assert!(
+            out_100.abs() < 2.0,
+            "Output 100% drive out of range: {}",
+            out_100
+        );
     }
 
     #[test]
@@ -382,12 +451,12 @@ mod tests {
         // Process with no transient
         analysis.transient_strength = 0.0;
         let (out_no_transient, _) =
-            saturator.process(0.5, 0.5, 0.5, SaturationCharacter::Warm, &analysis);
+            saturator.process(0.5, 0.5, 0.5, 1.0, SaturationCharacter::Warm, &analysis);
 
         // Process with strong transient (should have more saturation)
         analysis.transient_strength = 1.0;
         let (out_with_transient, _) =
-            saturator.process(0.5, 0.5, 0.5, SaturationCharacter::Warm, &analysis);
+            saturator.process(0.5, 0.5, 0.5, 1.0, SaturationCharacter::Warm, &analysis);
 
         // Both should be finite
         assert!(out_no_transient.is_finite());
@@ -404,7 +473,8 @@ mod tests {
 
         // Zero drive should be nearly passthrough (minimal saturation)
         let input = 0.3;
-        let (out_l, out_r) = saturator.process(input, input, 0.0, SaturationCharacter::Warm, &analysis);
+        let (out_l, out_r) =
+            saturator.process(input, input, 0.0, 1.0, SaturationCharacter::Warm, &analysis);
 
         // Output should be close to input (some deviation due to DC blocking)
         assert_relative_eq!(out_l, input, epsilon = 0.2);
@@ -418,12 +488,13 @@ mod tests {
 
         // 50% drive should produce moderate, audible saturation
         let input = 0.5;
-        let (out_l, _) = saturator.process(input, input, 0.5, SaturationCharacter::Warm, &analysis);
+        let (out_l, _) =
+            saturator.process(input, input, 0.5, 1.0, SaturationCharacter::Warm, &analysis);
 
         // Output should be different from input (saturation applied)
         assert!(out_l.is_finite());
         assert!(out_l.abs() <= 1.0); // No clipping
-        // Don't check exact equality - saturation changes waveform
+                                     // Don't check exact equality - saturation changes waveform
     }
 
     #[test]
@@ -435,9 +506,30 @@ mod tests {
         let drive = 0.7;
 
         // Process with each character
-        let (warm_out, _) = saturator.process(input, input, drive, SaturationCharacter::Warm, &analysis);
-        let (smooth_out, _) = saturator.process(input, input, drive, SaturationCharacter::Smooth, &analysis);
-        let (punchy_out, _) = saturator.process(input, input, drive, SaturationCharacter::Punchy, &analysis);
+        let (warm_out, _) = saturator.process(
+            input,
+            input,
+            drive,
+            1.0,
+            SaturationCharacter::Warm,
+            &analysis,
+        );
+        let (smooth_out, _) = saturator.process(
+            input,
+            input,
+            drive,
+            1.0,
+            SaturationCharacter::Smooth,
+            &analysis,
+        );
+        let (punchy_out, _) = saturator.process(
+            input,
+            input,
+            drive,
+            1.0,
+            SaturationCharacter::Punchy,
+            &analysis,
+        );
 
         // All should be valid
         assert!(warm_out.is_finite());
@@ -456,7 +548,7 @@ mod tests {
 
         // Process some audio to build up state
         for _ in 0..1000 {
-            saturator.process(0.5, 0.5, 0.5, SaturationCharacter::Warm, &analysis);
+            saturator.process(0.5, 0.5, 0.5, 1.0, SaturationCharacter::Warm, &analysis);
         }
 
         // Reset
@@ -477,9 +569,409 @@ mod tests {
         // Even at max drive, output should not clip (stay within ±1.0)
         for _ in 0..100 {
             let (out_l, out_r) =
-                saturator.process(0.8, 0.8, 1.0, SaturationCharacter::Warm, &analysis);
+                saturator.process(0.8, 0.8, 1.0, 1.0, SaturationCharacter::Warm, &analysis);
             assert!(out_l.abs() <= 1.0, "Output clipped: {}", out_l);
             assert!(out_r.abs() <= 1.0, "Output clipped: {}", out_r);
         }
+    }
+
+    #[test]
+    fn test_warm_saturation_function_directly() {
+        let saturator = AdaptiveSaturator::new(44100.0);
+
+        // Test the warm_saturation function directly (no DC blocking, no stages)
+        let test_cases = [
+            (0.1, "low positive"),
+            (0.3, "mid positive"),
+            (-0.1, "low negative"),
+            (-0.3, "mid negative"),
+        ];
+
+        for (input, label) in &test_cases {
+            let output = saturator.warm_saturation(*input);
+
+            // Output should have same sign as input
+            assert!(
+                output.signum() == input.signum(),
+                "{}: Output sign mismatch. Input: {}, Output: {}",
+                label,
+                input,
+                output
+            );
+
+            // Output should be finite
+            assert!(output.is_finite(), "{}: Output not finite", label);
+
+            // Output magnitude should be reasonable (not amplified excessively)
+            assert!(
+                output.abs() <= input.abs() * 2.0,
+                "{}: Excessive amplification. Input: {}, Output: {}",
+                label,
+                input,
+                output
+            );
+        }
+    }
+
+    #[test]
+    fn test_warm_low_drive_transparency() {
+        let mut saturator = AdaptiveSaturator::new(44100.0);
+        let analysis = create_test_analysis();
+
+        // Test with a varying signal (sine-like pattern) to avoid DC blocking artifacts
+        // Generate 1000 samples of varying amplitude to warm up RMS properly
+        for i in 0..1000 {
+            let phase = (i as f32) * 0.01; // Slow variation
+            let varying_input = 0.3 * phase.sin();
+            saturator.process(
+                varying_input,
+                varying_input,
+                0.2,
+                1.0,
+                SaturationCharacter::Warm,
+                &analysis,
+            );
+        }
+
+        // Now test with actual inputs
+        let test_inputs = [0.1, 0.3, 0.5];
+
+        for &input in &test_inputs {
+            let (out_l, out_r) =
+                saturator.process(input, input, 0.2, 1.0, SaturationCharacter::Warm, &analysis);
+
+            // At low drive, output should be finite and bounded
+            assert!(
+                out_l.is_finite(),
+                "Output should be finite for input {}",
+                input
+            );
+            assert!(
+                out_r.is_finite(),
+                "Output should be finite for input {}",
+                input
+            );
+            assert!(
+                out_l.abs() <= 1.0,
+                "Output should not clip. Input: {}, Output: {}",
+                input,
+                out_l
+            );
+
+            // At low drive (20%), saturation should be very subtle
+            // Output should still have reasonable relationship to input
+            assert!(
+                out_l.abs() < 2.0,
+                "Low drive should not excessively amplify. Input: {}, Output: {}",
+                input,
+                out_l
+            );
+        }
+    }
+
+    #[test]
+    fn test_mix_parameter() {
+        let mut saturator = AdaptiveSaturator::new(44100.0);
+        let analysis = create_test_analysis();
+        let input = 0.5;
+
+        // Warm up RMS tracking
+        for _ in 0..1000 {
+            saturator.process(input, input, 0.5, 1.0, SaturationCharacter::Warm, &analysis);
+        }
+
+        // 0% mix = 100% dry (should be identical to input)
+        let (out_0, _) =
+            saturator.process(input, input, 0.5, 0.0, SaturationCharacter::Warm, &analysis);
+        assert!((out_0 - input).abs() < 0.001, "0% mix should be dry signal");
+
+        // 50% mix = balanced blend
+        let (out_50, _) =
+            saturator.process(input, input, 0.5, 0.5, SaturationCharacter::Warm, &analysis);
+        assert!(out_50.is_finite(), "50% mix should produce finite output");
+
+        // 100% mix = 100% wet (full saturation)
+        let (out_100, _) =
+            saturator.process(input, input, 0.5, 1.0, SaturationCharacter::Warm, &analysis);
+        assert!(out_100.is_finite(), "100% mix should produce finite output");
+
+        // Mix acts as expected: more wet = more saturation effect
+        // (Don't assert specific ordering due to auto-gain compensation)
+    }
+
+    #[test]
+    fn test_parallel_processing_preserves_clarity() {
+        let mut saturator = AdaptiveSaturator::new(44100.0);
+        let analysis = create_test_analysis();
+        let input = 0.8;
+
+        // Warm up RMS tracking
+        for _ in 0..1000 {
+            saturator.process(input, input, 0.8, 1.0, SaturationCharacter::Warm, &analysis);
+        }
+
+        // At 30% mix with high drive, parallel processing preserves more of original
+        let (parallel_out, _) =
+            saturator.process(input, input, 0.8, 0.3, SaturationCharacter::Warm, &analysis);
+        let (full_wet, _) =
+            saturator.process(input, input, 0.8, 1.0, SaturationCharacter::Warm, &analysis);
+
+        // Both should be finite
+        assert!(parallel_out.is_finite());
+        assert!(full_wet.is_finite());
+
+        // Parallel processing preserves more of original signal
+        let parallel_diff = (parallel_out - input).abs();
+        let wet_diff = (full_wet - input).abs();
+        assert!(
+            parallel_diff < wet_diff,
+            "Parallel (30% mix) should be closer to input than full wet"
+        );
+    }
+
+    #[test]
+    fn test_sibilance_aware_saturation() {
+        let mut saturator = AdaptiveSaturator::new(44100.0);
+        let input = 0.5;
+
+        // Create analysis with low sibilance
+        let mut analysis_low_sib = create_test_analysis();
+        analysis_low_sib.sibilance_strength = 0.1;
+
+        // Create analysis with high sibilance (harsh S sound)
+        let mut analysis_high_sib = create_test_analysis();
+        analysis_high_sib.sibilance_strength = 0.9;
+
+        // Warm up RMS
+        for _ in 0..1000 {
+            saturator.process(
+                input,
+                input,
+                0.8,
+                1.0,
+                SaturationCharacter::Warm,
+                &analysis_low_sib,
+            );
+        }
+
+        // Process with low sibilance (should get more saturation)
+        let (out_low_sib, _) = saturator.process(
+            input,
+            input,
+            0.8,
+            1.0,
+            SaturationCharacter::Warm,
+            &analysis_low_sib,
+        );
+
+        // Reset saturator for fair comparison
+        saturator = AdaptiveSaturator::new(44100.0);
+        for _ in 0..1000 {
+            saturator.process(
+                input,
+                input,
+                0.8,
+                1.0,
+                SaturationCharacter::Warm,
+                &analysis_high_sib,
+            );
+        }
+
+        // Process with high sibilance (should get less saturation due to 70% reduction)
+        let (out_high_sib, _) = saturator.process(
+            input,
+            input,
+            0.8,
+            1.0,
+            SaturationCharacter::Warm,
+            &analysis_high_sib,
+        );
+
+        assert!(out_low_sib.is_finite());
+        assert!(out_high_sib.is_finite());
+
+        // High sibilance should be closer to input (less saturation)
+        let low_sib_diff = (out_low_sib - input).abs();
+        let high_sib_diff = (out_high_sib - input).abs();
+        assert!(
+            high_sib_diff < low_sib_diff,
+            "High sibilance should produce less saturation effect. Low sib diff: {}, High sib diff: {}",
+            low_sib_diff, high_sib_diff
+        );
+    }
+
+    #[test]
+    fn test_voiced_unvoiced_adaptation() {
+        let mut saturator = AdaptiveSaturator::new(44100.0);
+        let input = 0.5;
+
+        // Voiced segment (vowel - should get full saturation)
+        let mut analysis_voiced = create_test_analysis();
+        analysis_voiced.is_voiced = true;
+
+        // Unvoiced segment (consonant - should get 60% saturation)
+        let mut analysis_unvoiced = create_test_analysis();
+        analysis_unvoiced.is_voiced = false;
+
+        // Warm up RMS for voiced
+        for _ in 0..1000 {
+            saturator.process(
+                input,
+                input,
+                0.8,
+                1.0,
+                SaturationCharacter::Warm,
+                &analysis_voiced,
+            );
+        }
+
+        // Process voiced segment
+        let (out_voiced, _) = saturator.process(
+            input,
+            input,
+            0.8,
+            1.0,
+            SaturationCharacter::Warm,
+            &analysis_voiced,
+        );
+
+        // Reset for unvoiced
+        saturator = AdaptiveSaturator::new(44100.0);
+        for _ in 0..1000 {
+            saturator.process(
+                input,
+                input,
+                0.8,
+                1.0,
+                SaturationCharacter::Warm,
+                &analysis_unvoiced,
+            );
+        }
+
+        // Process unvoiced segment
+        let (out_unvoiced, _) = saturator.process(
+            input,
+            input,
+            0.8,
+            1.0,
+            SaturationCharacter::Warm,
+            &analysis_unvoiced,
+        );
+
+        assert!(out_voiced.is_finite());
+        assert!(out_unvoiced.is_finite());
+
+        // Unvoiced should be closer to input (less saturation for clarity)
+        let voiced_diff = (out_voiced - input).abs();
+        let unvoiced_diff = (out_unvoiced - input).abs();
+        assert!(
+            unvoiced_diff < voiced_diff,
+            "Unvoiced segments should get less saturation. Voiced diff: {}, Unvoiced diff: {}",
+            voiced_diff,
+            unvoiced_diff
+        );
+    }
+
+    #[test]
+    fn test_zcr_frequency_adaptation() {
+        let mut saturator = AdaptiveSaturator::new(44100.0);
+        let input = 0.5;
+
+        // Low ZCR (bass content - should get full saturation)
+        let mut analysis_bass = create_test_analysis();
+        analysis_bass.zcr_hz = 100.0;
+
+        // Mid ZCR (vocal fundamentals - should get balanced saturation)
+        let mut analysis_mid = create_test_analysis();
+        analysis_mid.zcr_hz = 500.0;
+
+        // High ZCR (bright/harsh content - should get reduced saturation)
+        let mut analysis_bright = create_test_analysis();
+        analysis_bright.zcr_hz = 1500.0;
+
+        // Warm up and process bass content
+        for _ in 0..1000 {
+            saturator.process(
+                input,
+                input,
+                0.8,
+                1.0,
+                SaturationCharacter::Warm,
+                &analysis_bass,
+            );
+        }
+        let (out_bass, _) = saturator.process(
+            input,
+            input,
+            0.8,
+            1.0,
+            SaturationCharacter::Warm,
+            &analysis_bass,
+        );
+
+        // Reset and process mid content
+        saturator = AdaptiveSaturator::new(44100.0);
+        for _ in 0..1000 {
+            saturator.process(
+                input,
+                input,
+                0.8,
+                1.0,
+                SaturationCharacter::Warm,
+                &analysis_mid,
+            );
+        }
+        let (out_mid, _) = saturator.process(
+            input,
+            input,
+            0.8,
+            1.0,
+            SaturationCharacter::Warm,
+            &analysis_mid,
+        );
+
+        // Reset and process bright content
+        saturator = AdaptiveSaturator::new(44100.0);
+        for _ in 0..1000 {
+            saturator.process(
+                input,
+                input,
+                0.8,
+                1.0,
+                SaturationCharacter::Warm,
+                &analysis_bright,
+            );
+        }
+        let (out_bright, _) = saturator.process(
+            input,
+            input,
+            0.8,
+            1.0,
+            SaturationCharacter::Warm,
+            &analysis_bright,
+        );
+
+        assert!(out_bass.is_finite());
+        assert!(out_mid.is_finite());
+        assert!(out_bright.is_finite());
+
+        // Calculate difference from input (larger = more saturation effect)
+        let bass_diff = (out_bass - input).abs();
+        let mid_diff = (out_mid - input).abs();
+        let bright_diff = (out_bright - input).abs();
+
+        // Bass should get most saturation, bright should get least
+        assert!(
+            bass_diff > bright_diff,
+            "Bass content should get more saturation than bright. Bass: {}, Bright: {}",
+            bass_diff,
+            bright_diff
+        );
+        assert!(
+            mid_diff > bright_diff,
+            "Mid content should get more saturation than bright. Mid: {}, Bright: {}",
+            mid_diff,
+            bright_diff
+        );
     }
 }
