@@ -124,9 +124,9 @@ impl AdaptiveSaturator {
         let dry_left = left;
         let dry_right = right;
 
-        // Apply drive^3.5 for transparent vocal enhancement (very gentle at moderate levels)
-        // This prevents audible distortion at 50% drive while still allowing creative saturation at higher levels
-        let drive_internal = drive.powf(3.5);
+        // Apply drive^3.0 for balanced vocal enhancement (more pronounced at moderate levels)
+        // Reduced from 3.5 to 3.0 to make character differences more audible
+        let drive_internal = drive.powf(3.0);
 
         // Transient-adaptive drive boost (up to 30% more drive on transients)
         let transient_mult = 1.0 + (analysis.transient_strength * 0.3);
@@ -157,8 +157,8 @@ impl AdaptiveSaturator {
         let combined_mult = transient_mult * sibilance_reduction * voice_factor * freq_factor;
         let adaptive_drive = (drive_internal * combined_mult).min(1.0);
 
-        // Calculate stage drive distribution (40%/20%/10% for gentler natural buildup)
-        // Reduced from 60/25/15 to prevent cumulative distortion while maintaining multi-stage character
+        // Calculate stage drive distribution (40%/20%/10% for balanced multi-stage character)
+        // Conservative distribution prevents excessive buildup at high drive while maintaining character
         let stage1_drive = adaptive_drive * 0.40;
         let stage2_drive = adaptive_drive * 0.20;
         let stage3_drive = adaptive_drive * 0.10;
@@ -225,56 +225,79 @@ impl AdaptiveSaturator {
     #[inline]
     fn warm_saturation(&self, x: f32) -> f32 {
         // Tube-style soft saturation with asymmetric clipping
-        // Linear below threshold, gentle compression above
-        // Asymmetry adds even harmonics for warmth
+        // Balanced threshold (0.50) with always-on harmonic exciter for pronounced warmth
+        // 2nd harmonic exciter adds tube-like character at all levels
         let abs_x = x.abs();
 
-        // Wide linear region (transparent at low levels)
-        if abs_x <= 0.6 {
-            return x;
+        // Balanced linear region (0.50 threshold)
+        if abs_x <= 0.50 {
+            // 2nd harmonic exciter always active (even in linear region)
+            let harmonic = (x * 2.0 * std::f32::consts::PI).sin() * abs_x * 0.08;
+            return (x + harmonic).clamp(-0.95, 0.95);
         }
 
-        // Soft clip above threshold with asymmetric behavior
+        // Soft clip above threshold with strong asymmetric behavior
         let sign = x.signum();
-        let excess = abs_x - 0.6;
+        let excess = abs_x - 0.50;
 
-        // Asymmetric compression (positive peaks compress more = even harmonics)
+        // Stronger asymmetric compression (3.0/1.2 ratio for pronounced even harmonics)
         let compression_factor = if x > 0.0 {
-            2.0 // Positive: more compression
+            3.0 // Positive: strong compression
         } else {
-            1.5 // Negative: less compression (asymmetry)
+            1.2 // Negative: minimal compression (strong asymmetry)
         };
 
-        let compressed = 0.6 + excess / (1.0 + excess * compression_factor);
-        sign * compressed.min(0.95)
+        let compressed = 0.50 + excess / (1.0 + excess * compression_factor);
+        let saturated = sign * compressed.min(0.95);
+
+        // 2nd harmonic exciter for tube warmth (stronger above threshold)
+        let harmonic = (saturated * 2.0 * std::f32::consts::PI).sin() * abs_x * 0.15;
+
+        (saturated + harmonic).clamp(-0.95, 0.95)
     }
 
     /// Smooth character: Tape-style soft-knee saturation (balanced harmonics)
     #[inline]
     fn smooth_saturation(&self, x: f32) -> f32 {
-        // Gentler tanh-based saturation with soft knee
-        // Models magnetic tape saturation - smooth, musical, transparent
-        // Reduced scaling from 1.2 to 0.7 to preserve vocal clarity
-        let scaled = x * 0.7; // Gentle drive into tanh
-        scaled.tanh() * 0.95 // Minimal output attenuation
+        // Enhanced tanh-based saturation for more tape character
+        // Increased drive (0.7→0.9) for more pronounced saturation
+        // Always-on odd harmonic exciter adds tape-style "glue" at all levels
+        let abs_x = x.abs();
+        let scaled = x * 0.9; // Stronger drive into tanh for more character
+        let saturated = scaled.tanh() * 0.95;
+
+        // Subtle odd harmonic exciter for tape "glue" (3rd harmonic)
+        // Always active to create the smooth, cohesive quality of magnetic tape
+        let harmonic = (saturated * 3.0 * std::f32::consts::PI).sin() * abs_x * 0.12;
+
+        (saturated + harmonic).clamp(-0.95, 0.95)
     }
 
     /// Punchy character: Console-style saturation (aggressive mids)
     #[inline]
     fn punchy_saturation(&self, x: f32) -> f32 {
-        // Soft clip with gentle knee transition
-        // Models console preamp saturation - transient bite without harshness
+        // Aggressive soft clip for console-style bite
+        // Balanced threshold (0.60) with always-on harmonics for pronounced character
+        // 3rd/5th harmonic exciters add console "edge" at all levels
         let abs_x = x.abs();
 
-        if abs_x <= 0.7 {
-            // Expanded linear region from 0.5 to 0.7
-            x // Preserve transient clarity
+        if abs_x <= 0.60 {
+            // Linear region with always-on harmonic exciters
+            let harmonic_3rd = (x * 3.0 * std::f32::consts::PI).sin() * abs_x * 0.10;
+            let harmonic_5th = (x * 5.0 * std::f32::consts::PI).sin() * abs_x * 0.06;
+            return (x + harmonic_3rd + harmonic_5th).clamp(-0.95, 0.95);
         } else {
-            // Hyperbolic compression for smooth transition (no hard knee)
+            // Stronger hyperbolic compression for aggressive character
             let sign = x.signum();
-            let excess = abs_x - 0.7;
-            let compressed = 0.7 + excess / (1.0 + excess * 1.5); // Gentle rolloff
-            sign * compressed.min(0.95) // Soft limit
+            let excess = abs_x - 0.60;
+            let compressed = 0.60 + excess / (1.0 + excess * 2.5); // Aggressive rolloff
+            let saturated = sign * compressed.min(0.95);
+
+            // 3rd + 5th harmonic exciter for console "bite" and presence (stronger above threshold)
+            let harmonic_3rd = (saturated * 3.0 * std::f32::consts::PI).sin() * abs_x * 0.18;
+            let harmonic_5th = (saturated * 5.0 * std::f32::consts::PI).sin() * abs_x * 0.12;
+
+            (saturated + harmonic_3rd + harmonic_5th).clamp(-0.95, 0.95)
         }
     }
 
