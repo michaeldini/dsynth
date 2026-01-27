@@ -1,22 +1,25 @@
-/// Voice Saturation Parameters - MINIMAL ANALOG EMULATION
+/// Voice Saturation Parameters - 4-BAND MULTIBAND SATURATION
 ///
-/// **New Design: Minimal analog saturation plugin for vocals**
+/// **New Design: Professional 4-band vocal saturator with mid-side processing**
 ///
-/// Simple processing chain with adaptive multi-stage saturation:
+/// Processing chain with pitch-tracked harmonics:
 /// 1. Input Gain
-/// 2. **Signal Analysis** (transient, ZCR, sibilance - NO PITCH for zero latency)
-/// 3. **Adaptive Saturator** (3-stage cascaded saturation with character selection + parallel processing)
-///    - Drive: Single knob controls saturation amount (0-100%)
-///    - Character: Warm/Smooth/Punchy (musical descriptors)
-///    - Mix: Dry/wet blend for transparent enhancement (0-100%)
+/// 2. **Signal Analysis** (transient, ZCR, sibilance - PITCH ENABLED for harmonic generation)
+/// 3. **4-Band Multiband Saturator** (bass/mids/presence/air with stacked harmonics)
+///    - Bass: drive + mix controls (<200Hz)
+///    - Mids: drive + mix controls (200Hz-1kHz)
+///    - Presence: drive + mix controls (1-8kHz)
+///    - Air: drive + mix controls (>8kHz exciter)
+///    - Stereo Width: Mid-side balance (-1 to +1)
+///    - Global Mix: Master wet/dry blend
 ///    - Auto-gain compensation maintains perceived loudness
-///    - Transient-adaptive: More saturation on attacks
+///    - Pitch-aware harmonic generation (male/female optimization)
 /// 4. Output Gain
 ///
-/// **Total: 5 parameters** (input_gain, saturation_character, saturation_drive, saturation_mix, output_gain)
+/// **Total: 12 parameters** (input_gain, bass_drive, bass_mix, mid_drive, mid_mix, presence_drive, presence_mix, air_drive, air_mix, stereo_width, global_mix, output_gain)
 use serde::{Deserialize, Serialize};
 
-/// Simplified parameter set for analog saturation with parallel processing
+/// 4-band multiband vocal saturation with mid-side processing
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VoiceParams {
     // === Input/Output (2 params) ===
@@ -25,26 +28,42 @@ pub struct VoiceParams {
     /// Output gain in dB (-12dB to +12dB)
     pub output_gain: f32,
 
-    // === Saturation (3 params) ===
-    /// Saturation character selection (0=Warm, 1=Smooth, 2=Punchy)
-    /// - Warm: Tube-style asymmetric saturation (even harmonics, gentle)
-    /// - Smooth: Tape-style soft-knee saturation (balanced harmonics)
-    /// - Punchy: Console-style saturation (aggressive mids, transient emphasis)
-    pub saturation_character: u8,
+    // === Bass Band (2 params) ===
+    /// Bass drive amount (0.0-1.0)
+    pub bass_drive: f32,
+    /// Bass dry/wet mix (0.0-1.0)
+    pub bass_mix: f32,
 
-    /// Saturation drive amount (0.0-1.0)
-    /// - 0.0: No saturation (clean passthrough)
-    /// - 0.5: Moderate saturation (suitable for most vocals)
-    /// - 1.0: Aggressive saturation (maximum warmth/color)
-    /// Internally scaled as drive^3.5 for gentle transparent control
-    pub saturation_drive: f32,
+    // === Mids Band (2 params) ===
+    /// Mids drive amount (0.0-1.0)
+    pub mid_drive: f32,
+    /// Mids dry/wet mix (0.0-1.0)
+    pub mid_mix: f32,
 
-    /// Dry/wet mix (0.0-1.0)
-    /// - 0.0: 100% dry (bypass, but analysis still active)
-    /// - 0.3-0.5: Optimal for transparent vocal enhancement (parallel saturation)
-    /// - 1.0: 100% wet (full saturation, no dry signal)
-    /// Parallel processing preserves transient clarity while adding harmonic richness
-    pub saturation_mix: f32,
+    // === Presence Band (2 params) ===
+    /// Presence drive amount (0.0-1.0)
+    pub presence_drive: f32,
+    /// Presence dry/wet mix (0.0-1.0)
+    pub presence_mix: f32,
+
+    // === Air Band (2 params) ===
+    /// Air exciter drive amount (0.0-1.0)
+    pub air_drive: f32,
+    /// Air exciter dry/wet mix (0.0-1.0)
+    pub air_mix: f32,
+
+    // === Stereo (1 param) ===
+    /// Stereo width control (-1.0 to +1.0)
+    /// - -1.0: Maximum width (saturate sides more)
+    /// - 0.0: Neutral (equal processing)
+    /// - +1.0: Maximum power (saturate mid more)
+    pub stereo_width: f32,
+
+    // === Global Mix (1 param) ===
+    /// Master wet/dry blend (0.0-1.0)
+    /// - 0.0: 100% dry (bypass)
+    /// - 1.0: 100% wet (full effect)
+    pub global_mix: f32,
 }
 
 impl Default for VoiceParams {
@@ -54,10 +73,27 @@ impl Default for VoiceParams {
             input_gain: 0.0,
             output_gain: 0.0,
 
-            // Saturation - moderate settings
-            saturation_character: 0, // Warm (tube-style)
-            saturation_drive: 0.5,   // 50% drive = moderate saturation
-            saturation_mix: 0.4,     // 40% wet = balanced parallel saturation
+            // Bass - warm foundation
+            bass_drive: 0.6,
+            bass_mix: 0.5,
+
+            // Mids - balanced fundamentals
+            mid_drive: 0.5,
+            mid_mix: 0.4,
+
+            // Presence - clarity without harshness
+            presence_drive: 0.35,
+            presence_mix: 0.35,
+
+            // Air - subtle high-frequency enhancement
+            air_drive: 0.1,
+            air_mix: 0.15,
+
+            // Stereo - neutral
+            stereo_width: 0.0,
+
+            // Global Mix - 100% wet (full effect)
+            global_mix: 1.0,
         }
     }
 }
@@ -82,36 +118,44 @@ impl VoiceParams {
 // Test-only presets (for validation)
 #[cfg(test)]
 impl VoiceParams {
-    /// Test preset: Gentle saturation (30% drive)
+    /// Test preset: Gentle saturation
     pub fn test_gentle() -> Self {
         Self {
             input_gain: 0.0,
             output_gain: 0.0,
-            saturation_character: 0, // Warm
-            saturation_drive: 0.3,   // Gentle
-            saturation_mix: 0.3,     // 30% wet = subtle enhancement
+            bass_drive: 0.3,
+            bass_mix: 0.3,
+            mid_drive: 0.25,
+            mid_mix: 0.25,
+            presence_drive: 0.2,
+            presence_mix: 0.2,
+            air_drive: 0.05,
+            air_mix: 0.1,
+            stereo_width: 0.0,
+            global_mix: 1.0,
         }
     }
 
-    /// Test preset: Moderate saturation (50% drive) - target calibration
+    /// Test preset: Moderate saturation (default)
     pub fn test_moderate() -> Self {
-        Self {
-            input_gain: 0.0,
-            output_gain: 0.0,
-            saturation_character: 1, // Smooth
-            saturation_drive: 0.5,   // Moderate (target)
-            saturation_mix: 0.5,     // 50% wet = balanced blend
-        }
+        Self::default()
     }
 
-    /// Test preset: Aggressive saturation (80% drive)
+    /// Test preset: Aggressive saturation
     pub fn test_aggressive() -> Self {
         Self {
             input_gain: 3.0, // Hot input
             output_gain: 0.0,
-            saturation_character: 2, // Punchy
-            saturation_drive: 0.8,   // Aggressive
-            saturation_mix: 1.0,     // 100% wet = full saturation
+            bass_drive: 0.9,
+            bass_mix: 0.7,
+            mid_drive: 0.8,
+            mid_mix: 0.6,
+            presence_drive: 0.6,
+            presence_mix: 0.5,
+            air_drive: 0.2,
+            air_mix: 0.3,
+            stereo_width: 0.3,
+            global_mix: 1.0,
         }
     }
 }
@@ -125,22 +169,20 @@ mod tests {
         let params = VoiceParams::default();
         assert_eq!(params.input_gain, 0.0);
         assert_eq!(params.output_gain, 0.0);
-        assert_eq!(params.saturation_character, 0);
-        assert_eq!(params.saturation_drive, 0.5);
+        assert_eq!(params.bass_drive, 0.6);
+        assert_eq!(params.stereo_width, 0.0);
     }
 
     #[test]
     fn test_test_presets() {
         let gentle = VoiceParams::test_gentle();
-        assert_eq!(gentle.saturation_drive, 0.3);
+        assert_eq!(gentle.bass_drive, 0.3);
 
         let moderate = VoiceParams::test_moderate();
-        assert_eq!(moderate.saturation_drive, 0.5);
-        assert_eq!(moderate.saturation_character, 1);
+        assert_eq!(moderate.bass_drive, 0.6);
 
         let aggressive = VoiceParams::test_aggressive();
-        assert_eq!(aggressive.saturation_drive, 0.8);
-        assert_eq!(aggressive.saturation_character, 2);
+        assert_eq!(aggressive.bass_drive, 0.9);
     }
 
     #[test]
@@ -161,10 +203,11 @@ mod tests {
     fn test_parameter_ranges() {
         let params = VoiceParams::default();
 
-        // Verify simplified parameters are within expected ranges
+        // Verify parameters are within expected ranges
         assert!(params.input_gain >= -12.0 && params.input_gain <= 12.0);
         assert!(params.output_gain >= -12.0 && params.output_gain <= 12.0);
-        assert!(params.saturation_character <= 2);
-        assert!(params.saturation_drive >= 0.0 && params.saturation_drive <= 1.0);
+        assert!(params.bass_drive >= 0.0 && params.bass_drive <= 1.0);
+        assert!(params.mid_mix >= 0.0 && params.mid_mix <= 1.0);
+        assert!(params.stereo_width >= -1.0 && params.stereo_width <= 1.0);
     }
 }

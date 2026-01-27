@@ -48,7 +48,7 @@ pub use time_based::{CombFilter, Delay, Reverb, StereoDelay};
 pub use delay::SmartDelay;
 
 // Adaptive Saturator
-pub use adaptive_saturator::{AdaptiveSaturator, SaturationCharacter};
+pub use adaptive_saturator::AdaptiveSaturator;
 
 // Spectral
 pub use spectral::{

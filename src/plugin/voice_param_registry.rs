@@ -1,15 +1,18 @@
-/// Voice Saturation Parameter Registry - MINIMAL ANALOG EMULATION
+/// Voice Saturation Parameter Registry - 4-BAND MULTIBAND SATURATION
 ///
-/// **Simplified parameter registry for analog vocal saturation with parallel processing**
+/// **Parameter registry for 4-band vocal saturator with mid-side processing**
 ///
 /// Parameter namespace: 0x0300_xxxx (voice plugin)
 ///
-/// Total Parameters: **5** (minimal analog design + mix)
+/// Total Parameters: **12**
 /// 1. Input Gain: -12 to +12 dB
-/// 2. Saturation Character: Warm/Smooth/Punchy (Int 0-2)
-/// 3. Saturation Drive: 0.0-1.0 (calibrated for transparent enhancement)
-/// 4. Saturation Mix: 0.0-1.0 (dry/wet blend, 0.3-0.5 optimal for vocals)
-/// 5. Output Gain: -12 to +12 dB
+/// 2-3. Bass: drive (0-1), mix (0-1)
+/// 4-5. Mids: drive (0-1), mix (0-1)
+/// 6-7. Presence: drive (0-1), mix (0-1)
+/// 8-9. Air: drive (0-1), mix (0-1)
+/// 10. Stereo Width: -1 to +1
+/// 11. Global Mix: 0 to 1
+/// 12. Output Gain: -12 to +12 dB
 use crate::params_voice::VoiceParams;
 use crate::plugin::param_descriptor::{ParamDescriptor, ParamId};
 use std::collections::HashMap;
@@ -20,10 +23,17 @@ use std::sync::OnceLock;
 // ============================================================================
 
 pub const PARAM_VOICE_INPUT_GAIN: ParamId = 0x0300_0001;
-pub const PARAM_VOICE_SATURATION_CHARACTER: ParamId = 0x0300_0002;
-pub const PARAM_VOICE_SATURATION_DRIVE: ParamId = 0x0300_0003;
-pub const PARAM_VOICE_SATURATION_MIX: ParamId = 0x0300_0004;
-pub const PARAM_VOICE_OUTPUT_GAIN: ParamId = 0x0300_0005;
+pub const PARAM_VOICE_BASS_DRIVE: ParamId = 0x0300_0002;
+pub const PARAM_VOICE_BASS_MIX: ParamId = 0x0300_0003;
+pub const PARAM_VOICE_MID_DRIVE: ParamId = 0x0300_0004;
+pub const PARAM_VOICE_MID_MIX: ParamId = 0x0300_0005;
+pub const PARAM_VOICE_PRESENCE_DRIVE: ParamId = 0x0300_0006;
+pub const PARAM_VOICE_PRESENCE_MIX: ParamId = 0x0300_0007;
+pub const PARAM_VOICE_AIR_DRIVE: ParamId = 0x0300_0008;
+pub const PARAM_VOICE_AIR_MIX: ParamId = 0x0300_0009;
+pub const PARAM_VOICE_STEREO_WIDTH: ParamId = 0x0300_000A;
+pub const PARAM_VOICE_GLOBAL_MIX: ParamId = 0x0300_000B;
+pub const PARAM_VOICE_OUTPUT_GAIN: ParamId = 0x0300_000C;
 
 // ============================================================================
 // PARAMETER REGISTRY
@@ -49,43 +59,136 @@ pub fn get_voice_param_registry() -> &'static HashMap<ParamId, ParamDescriptor> 
             ),
         );
 
-        // Saturation Character (Warm/Smooth/Punchy as Int with 3 values)
-        // NOTE: For CLAP plugin, this will be exposed as Float with is_stepped flag
-        // in the actual CLAP wrapper. Here we just define it as Int.
-        let character_descriptor = ParamDescriptor::int(
-            PARAM_VOICE_SATURATION_CHARACTER,
-            "Character",
-            "Saturation",
-            0,
-            2,
-            0, // Default: Warm
+        // Bass Band
+        registry.insert(
+            PARAM_VOICE_BASS_DRIVE,
+            ParamDescriptor::float(
+                PARAM_VOICE_BASS_DRIVE,
+                "Bass Drive",
+                "Bass",
+                0.0,
+                1.0,
+                0.6,
+                Some("%"),
+            ),
         );
-        registry.insert(PARAM_VOICE_SATURATION_CHARACTER, character_descriptor);
-
-        // Saturation Drive (0.0-1.0, logarithmic for smooth vocal control)
-        let drive_descriptor = ParamDescriptor::float(
-            PARAM_VOICE_SATURATION_DRIVE,
-            "Drive",
-            "Saturation",
-            0.0,
-            1.0,
-            0.5, // Default 50% = moderate saturation
-            Some("%"),
+        registry.insert(
+            PARAM_VOICE_BASS_MIX,
+            ParamDescriptor::float(
+                PARAM_VOICE_BASS_MIX,
+                "Bass Mix",
+                "Bass",
+                0.0,
+                1.0,
+                0.5,
+                Some("%"),
+            ),
         );
-        registry.insert(PARAM_VOICE_SATURATION_DRIVE, drive_descriptor);
 
-        // Saturation Mix (0.0-1.0 dry/wet blend)
-        let mix_descriptor = ParamDescriptor::float(
-            PARAM_VOICE_SATURATION_MIX,
-            "Mix",
-            "Saturation",
-            0.0,
-            1.0,
-            0.4, // Default 40% wet = transparent parallel saturation
-            Some("%"),
+        // Mids Band
+        registry.insert(
+            PARAM_VOICE_MID_DRIVE,
+            ParamDescriptor::float(
+                PARAM_VOICE_MID_DRIVE,
+                "Mid Drive",
+                "Mids",
+                0.0,
+                1.0,
+                0.5,
+                Some("%"),
+            ),
         );
-        registry.insert(PARAM_VOICE_SATURATION_MIX, mix_descriptor);
+        registry.insert(
+            PARAM_VOICE_MID_MIX,
+            ParamDescriptor::float(
+                PARAM_VOICE_MID_MIX,
+                "Mid Mix",
+                "Mids",
+                0.0,
+                1.0,
+                0.4,
+                Some("%"),
+            ),
+        );
 
+        // Presence Band
+        registry.insert(
+            PARAM_VOICE_PRESENCE_DRIVE,
+            ParamDescriptor::float(
+                PARAM_VOICE_PRESENCE_DRIVE,
+                "Presence Drive",
+                "Presence",
+                0.0,
+                1.0,
+                0.35,
+                Some("%"),
+            ),
+        );
+        registry.insert(
+            PARAM_VOICE_PRESENCE_MIX,
+            ParamDescriptor::float(
+                PARAM_VOICE_PRESENCE_MIX,
+                "Presence Mix",
+                "Presence",
+                0.0,
+                1.0,
+                0.35,
+                Some("%"),
+            ),
+        );
+
+        // Air Band
+        registry.insert(
+            PARAM_VOICE_AIR_DRIVE,
+            ParamDescriptor::float(
+                PARAM_VOICE_AIR_DRIVE,
+                "Air Drive",
+                "Air",
+                0.0,
+                1.0,
+                0.1,
+                Some("%"),
+            ),
+        );
+        registry.insert(
+            PARAM_VOICE_AIR_MIX,
+            ParamDescriptor::float(
+                PARAM_VOICE_AIR_MIX,
+                "Air Mix",
+                "Air",
+                0.0,
+                1.0,
+                0.15,
+                Some("%"),
+            ),
+        );
+
+        // Stereo Width
+        registry.insert(
+            PARAM_VOICE_STEREO_WIDTH,
+            ParamDescriptor::float(
+                PARAM_VOICE_STEREO_WIDTH,
+                "Stereo Width",
+                "Stereo",
+                -1.0,
+                1.0,
+                0.0,
+                None,
+            ),
+        );
+        // Global Mix
+        registry.insert(
+            PARAM_VOICE_GLOBAL_MIX,
+            ParamDescriptor::float(
+                PARAM_VOICE_GLOBAL_MIX,
+                "Global Mix",
+                "Master",
+                0.0,
+                1.0,
+                1.0,
+                Some("%"),
+            ),
+        );
         // Output Gain (-12 to +12 dB)
         registry.insert(
             PARAM_VOICE_OUTPUT_GAIN,
@@ -113,12 +216,16 @@ pub fn get_param_descriptor(param_id: ParamId) -> Option<&'static ParamDescripto
 pub fn apply_param(params: &mut VoiceParams, param_id: ParamId, value: f32) {
     match param_id {
         PARAM_VOICE_INPUT_GAIN => params.input_gain = value.clamp(-12.0, 12.0),
-        PARAM_VOICE_SATURATION_CHARACTER => {
-            params.saturation_character = value.round() as u8;
-            params.saturation_character = params.saturation_character.clamp(0, 2);
-        }
-        PARAM_VOICE_SATURATION_DRIVE => params.saturation_drive = value.clamp(0.0, 1.0),
-        PARAM_VOICE_SATURATION_MIX => params.saturation_mix = value.clamp(0.0, 1.0),
+        PARAM_VOICE_BASS_DRIVE => params.bass_drive = value.clamp(0.0, 1.0),
+        PARAM_VOICE_BASS_MIX => params.bass_mix = value.clamp(0.0, 1.0),
+        PARAM_VOICE_MID_DRIVE => params.mid_drive = value.clamp(0.0, 1.0),
+        PARAM_VOICE_MID_MIX => params.mid_mix = value.clamp(0.0, 1.0),
+        PARAM_VOICE_PRESENCE_DRIVE => params.presence_drive = value.clamp(0.0, 1.0),
+        PARAM_VOICE_PRESENCE_MIX => params.presence_mix = value.clamp(0.0, 1.0),
+        PARAM_VOICE_AIR_DRIVE => params.air_drive = value.clamp(0.0, 1.0),
+        PARAM_VOICE_AIR_MIX => params.air_mix = value.clamp(0.0, 1.0),
+        PARAM_VOICE_STEREO_WIDTH => params.stereo_width = value.clamp(-1.0, 1.0),
+        PARAM_VOICE_GLOBAL_MIX => params.global_mix = value.clamp(0.0, 1.0),
         PARAM_VOICE_OUTPUT_GAIN => params.output_gain = value.clamp(-12.0, 12.0),
         _ => {
             // Unknown parameter - ignore silently
@@ -130,9 +237,16 @@ pub fn apply_param(params: &mut VoiceParams, param_id: ParamId, value: f32) {
 pub fn get_param(params: &VoiceParams, param_id: ParamId) -> Option<f32> {
     match param_id {
         PARAM_VOICE_INPUT_GAIN => Some(params.input_gain),
-        PARAM_VOICE_SATURATION_CHARACTER => Some(params.saturation_character as f32),
-        PARAM_VOICE_SATURATION_DRIVE => Some(params.saturation_drive),
-        PARAM_VOICE_SATURATION_MIX => Some(params.saturation_mix),
+        PARAM_VOICE_BASS_DRIVE => Some(params.bass_drive),
+        PARAM_VOICE_BASS_MIX => Some(params.bass_mix),
+        PARAM_VOICE_MID_DRIVE => Some(params.mid_drive),
+        PARAM_VOICE_MID_MIX => Some(params.mid_mix),
+        PARAM_VOICE_PRESENCE_DRIVE => Some(params.presence_drive),
+        PARAM_VOICE_PRESENCE_MIX => Some(params.presence_mix),
+        PARAM_VOICE_AIR_DRIVE => Some(params.air_drive),
+        PARAM_VOICE_AIR_MIX => Some(params.air_mix),
+        PARAM_VOICE_STEREO_WIDTH => Some(params.stereo_width),
+        PARAM_VOICE_GLOBAL_MIX => Some(params.global_mix),
         PARAM_VOICE_OUTPUT_GAIN => Some(params.output_gain),
         _ => None,
     }
@@ -145,7 +259,7 @@ mod tests {
     #[test]
     fn test_registry_initialized() {
         let registry = get_voice_param_registry();
-        assert_eq!(registry.len(), 5); // 5 total parameters (added mix)
+        assert_eq!(registry.len(), 12); // 12 total parameters
     }
 
     #[test]
@@ -153,8 +267,16 @@ mod tests {
         let registry = get_voice_param_registry();
 
         assert!(registry.contains_key(&PARAM_VOICE_INPUT_GAIN));
-        assert!(registry.contains_key(&PARAM_VOICE_SATURATION_CHARACTER));
-        assert!(registry.contains_key(&PARAM_VOICE_SATURATION_DRIVE));
+        assert!(registry.contains_key(&PARAM_VOICE_BASS_DRIVE));
+        assert!(registry.contains_key(&PARAM_VOICE_BASS_MIX));
+        assert!(registry.contains_key(&PARAM_VOICE_MID_DRIVE));
+        assert!(registry.contains_key(&PARAM_VOICE_MID_MIX));
+        assert!(registry.contains_key(&PARAM_VOICE_PRESENCE_DRIVE));
+        assert!(registry.contains_key(&PARAM_VOICE_PRESENCE_MIX));
+        assert!(registry.contains_key(&PARAM_VOICE_AIR_DRIVE));
+        assert!(registry.contains_key(&PARAM_VOICE_AIR_MIX));
+        assert!(registry.contains_key(&PARAM_VOICE_STEREO_WIDTH));
+        assert!(registry.contains_key(&PARAM_VOICE_GLOBAL_MIX));
         assert!(registry.contains_key(&PARAM_VOICE_OUTPUT_GAIN));
     }
 
@@ -163,46 +285,68 @@ mod tests {
         let mut params = VoiceParams::default();
 
         // Test applying parameters
-        apply_param(&mut params, PARAM_VOICE_SATURATION_DRIVE, 0.7);
-        assert_eq!(params.saturation_drive, 0.7);
+        apply_param(&mut params, PARAM_VOICE_BASS_DRIVE, 0.7);
+        assert_eq!(params.bass_drive, 0.7);
+
+        apply_param(&mut params, PARAM_VOICE_MID_MIX, 0.3);
+        assert_eq!(params.mid_mix, 0.3);
+
+        apply_param(&mut params, PARAM_VOICE_STEREO_WIDTH, 0.5);
+        assert_eq!(params.stereo_width, 0.5);
 
         apply_param(&mut params, PARAM_VOICE_INPUT_GAIN, 3.0);
         assert_eq!(params.input_gain, 3.0);
 
         // Test getting parameters
-        assert_eq!(get_param(&params, PARAM_VOICE_SATURATION_DRIVE), Some(0.7));
+        assert_eq!(get_param(&params, PARAM_VOICE_BASS_DRIVE), Some(0.7));
+        assert_eq!(get_param(&params, PARAM_VOICE_MID_MIX), Some(0.3));
+        assert_eq!(get_param(&params, PARAM_VOICE_STEREO_WIDTH), Some(0.5));
         assert_eq!(get_param(&params, PARAM_VOICE_INPUT_GAIN), Some(3.0));
-    }
-
-    #[test]
-    fn test_character_param() {
-        let mut params = VoiceParams::default();
-
-        // Test character selection
-        apply_param(&mut params, PARAM_VOICE_SATURATION_CHARACTER, 0.0);
-        assert_eq!(params.saturation_character, 0); // Warm
-
-        apply_param(&mut params, PARAM_VOICE_SATURATION_CHARACTER, 1.0);
-        assert_eq!(params.saturation_character, 1); // Smooth
-
-        apply_param(&mut params, PARAM_VOICE_SATURATION_CHARACTER, 2.0);
-        assert_eq!(params.saturation_character, 2); // Punchy
-
-        // Test clamping
-        apply_param(&mut params, PARAM_VOICE_SATURATION_CHARACTER, 99.0);
-        assert_eq!(params.saturation_character, 2); // Clamped to max
     }
 
     #[test]
     fn test_drive_param_clamping() {
         let mut params = VoiceParams::default();
 
-        // Test clamping at boundaries
-        apply_param(&mut params, PARAM_VOICE_SATURATION_DRIVE, -0.5);
-        assert_eq!(params.saturation_drive, 0.0);
+        // Test clamping at boundaries for all drive parameters
+        apply_param(&mut params, PARAM_VOICE_BASS_DRIVE, -0.5);
+        assert_eq!(params.bass_drive, 0.0);
 
-        apply_param(&mut params, PARAM_VOICE_SATURATION_DRIVE, 1.5);
-        assert_eq!(params.saturation_drive, 1.0);
+        apply_param(&mut params, PARAM_VOICE_MID_DRIVE, 1.5);
+        assert_eq!(params.mid_drive, 1.0);
+
+        apply_param(&mut params, PARAM_VOICE_PRESENCE_DRIVE, 0.5);
+        assert_eq!(params.presence_drive, 0.5);
+    }
+
+    #[test]
+    fn test_mix_param_clamping() {
+        let mut params = VoiceParams::default();
+
+        // Test clamping for mix parameters
+        apply_param(&mut params, PARAM_VOICE_BASS_MIX, -0.1);
+        assert_eq!(params.bass_mix, 0.0);
+
+        apply_param(&mut params, PARAM_VOICE_MID_MIX, 1.2);
+        assert_eq!(params.mid_mix, 1.0);
+
+        apply_param(&mut params, PARAM_VOICE_PRESENCE_MIX, 0.7);
+        assert_eq!(params.presence_mix, 0.7);
+    }
+
+    #[test]
+    fn test_stereo_width_clamping() {
+        let mut params = VoiceParams::default();
+
+        // Test stereo width clamping (-1 to +1 range)
+        apply_param(&mut params, PARAM_VOICE_STEREO_WIDTH, -2.0);
+        assert_eq!(params.stereo_width, -1.0);
+
+        apply_param(&mut params, PARAM_VOICE_STEREO_WIDTH, 2.0);
+        assert_eq!(params.stereo_width, 1.0);
+
+        apply_param(&mut params, PARAM_VOICE_STEREO_WIDTH, -0.5);
+        assert_eq!(params.stereo_width, -0.5);
     }
 
     #[test]
@@ -222,18 +366,5 @@ mod tests {
 
         apply_param(&mut params, PARAM_VOICE_OUTPUT_GAIN, 20.0);
         assert_eq!(params.output_gain, 12.0);
-    }
-
-    #[test]
-    fn test_character_descriptor_is_int() {
-        let descriptor = get_param_descriptor(PARAM_VOICE_SATURATION_CHARACTER).unwrap();
-        // Character should be Int type with 3 values (0, 1, 2)
-        match &descriptor.param_type {
-            crate::plugin::param_descriptor::ParamType::Int { min, max } => {
-                assert_eq!(*min, 0);
-                assert_eq!(*max, 2);
-            }
-            _ => panic!("Character parameter should be Int type"),
-        }
     }
 }
