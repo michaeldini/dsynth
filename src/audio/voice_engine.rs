@@ -160,6 +160,33 @@ mod tests {
     }
 
     #[test]
+    fn test_zero_latency_impulse_response() {
+        // Verify that output appears immediately on the same sample as input
+        // This is the definitive test for zero-latency operation
+        let mut engine = VoiceEngine::new(44100.0);
+        let params = VoiceParams::default();
+        engine.update_params(params);
+
+        // Process silence to ensure clean state
+        for _ in 0..100 {
+            engine.process(0.0, 0.0);
+        }
+
+        // Send impulse and capture IMMEDIATE output
+        let (left_out, right_out) = engine.process(1.0, 1.0);
+
+        // Zero-latency guarantee: output must be non-zero on SAME sample as input
+        // If there was any buffering/lookahead, the output would be zero here
+        assert!(
+            left_out.abs() > 0.001 || right_out.abs() > 0.001,
+            "Zero-latency violation: engine did not respond immediately to impulse. \
+             Output was L={}, R={} (expected non-zero)",
+            left_out,
+            right_out
+        );
+    }
+
+    #[test]
     fn test_update_params() {
         let mut engine = VoiceEngine::new(44100.0);
         let mut params = VoiceParams::default();

@@ -68,6 +68,10 @@ harness = false
 name = "saturation_bench"
 harness = false
 
+[[bench]]
+name = "voice_latency_bench"
+harness = false
+
 # Standalone binary for main polyphonic synthesizer
 [[bin]]
 name = "dsynth"
