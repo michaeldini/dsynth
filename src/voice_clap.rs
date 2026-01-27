@@ -280,7 +280,9 @@ impl ClapProcessor for DsynthVoiceProcessor {
 pub struct DsynthVoiceParams;
 
 impl DsynthVoiceParams {
-    fn registry() -> &'static std::collections::HashMap<ParamId, crate::plugin::param_descriptor::ParamDescriptor> {
+    fn registry(
+    ) -> &'static indexmap::IndexMap<ParamId, crate::plugin::param_descriptor::ParamDescriptor>
+    {
         voice_param_registry::get_voice_param_registry()
     }
 

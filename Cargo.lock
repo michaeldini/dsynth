@@ -1356,6 +1356,7 @@ dependencies = [
  "dsynth-clap",
  "hound",
  "image",
+ "indexmap",
  "midir",
  "objc",
  "parking_lot",

@@ -3,7 +3,7 @@
 /// Simplified registry for kick drum parameters with CLAP metadata.
 use super::param_descriptor::*;
 use crate::params_kick::{DistortionType, KickParams};
-use std::collections::HashMap;
+use indexmap::IndexMap;
 use std::sync::OnceLock;
 
 // Re-export ParamId for public use
@@ -95,7 +95,7 @@ pub const PARAM_KICK_CLIPPER_THRESHOLD: ParamId = 0x0200_007C;
 
 /// Parameter registry for kick drum synth
 pub struct KickParamRegistry {
-    descriptors: HashMap<ParamId, ParamDescriptor>,
+    descriptors: IndexMap<ParamId, ParamDescriptor>,
     param_ids: Vec<ParamId>,
 }
 
@@ -107,7 +107,7 @@ impl Default for KickParamRegistry {
 
 impl KickParamRegistry {
     pub fn new() -> Self {
-        let mut descriptors = HashMap::new();
+        let mut descriptors = IndexMap::new();
         let mut param_ids = Vec::new();
 
         macro_rules! add_param {

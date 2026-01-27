@@ -9,7 +9,7 @@
 /// - Parameter iteration and lookup
 /// - Consistency checks across the plugin
 use super::param_descriptor::*;
-use std::collections::HashMap;
+use indexmap::IndexMap;
 use std::sync::OnceLock;
 
 /// Global parameter registry (lazy-initialized, thread-safe)
@@ -22,8 +22,8 @@ pub fn get_registry() -> &'static ParamRegistry {
 
 /// Complete parameter registry for DSynth
 pub struct ParamRegistry {
-    /// Map of parameter ID → descriptor
-    descriptors: HashMap<ParamId, ParamDescriptor>,
+    /// Map of parameter ID → descriptor (preserves insertion order)
+    descriptors: IndexMap<ParamId, ParamDescriptor>,
     /// Sorted list of all parameter IDs (for iteration)
     param_ids: Vec<ParamId>,
 }
@@ -37,7 +37,7 @@ impl Default for ParamRegistry {
 impl ParamRegistry {
     /// Create a new parameter registry with all DSynth parameters
     pub fn new() -> Self {
-        let mut descriptors = HashMap::new();
+        let mut descriptors = IndexMap::new();
         let mut param_ids = Vec::new();
 
         // Helper macro to add a parameter

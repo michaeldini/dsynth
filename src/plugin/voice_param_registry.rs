@@ -15,7 +15,7 @@
 /// 12. Output Gain: -12 to +12 dB
 use crate::params_voice::VoiceParams;
 use crate::plugin::param_descriptor::{ParamDescriptor, ParamId};
-use std::collections::HashMap;
+use indexmap::IndexMap;
 use std::sync::OnceLock;
 
 // ============================================================================
@@ -39,11 +39,11 @@ pub const PARAM_VOICE_OUTPUT_GAIN: ParamId = 0x0300_000C;
 // PARAMETER REGISTRY
 // ============================================================================
 
-static VOICE_PARAM_REGISTRY: OnceLock<HashMap<ParamId, ParamDescriptor>> = OnceLock::new();
+static VOICE_PARAM_REGISTRY: OnceLock<IndexMap<ParamId, ParamDescriptor>> = OnceLock::new();
 
-pub fn get_voice_param_registry() -> &'static HashMap<ParamId, ParamDescriptor> {
+pub fn get_voice_param_registry() -> &'static IndexMap<ParamId, ParamDescriptor> {
     VOICE_PARAM_REGISTRY.get_or_init(|| {
-        let mut registry = HashMap::new();
+        let mut registry = IndexMap::new();
 
         // Input Gain (-12 to +12 dB)
         registry.insert(
@@ -260,6 +260,31 @@ mod tests {
     fn test_registry_initialized() {
         let registry = get_voice_param_registry();
         assert_eq!(registry.len(), 12); // 12 total parameters
+    }
+
+    #[test]
+    fn test_parameter_order_preserved() {
+        // IndexMap preserves insertion order, so iteration should match registration order
+        let registry = get_voice_param_registry();
+        let param_ids: Vec<ParamId> = registry.keys().copied().collect();
+
+        // Expected order based on insertion in registry initialization
+        let expected_order = vec![
+            PARAM_VOICE_INPUT_GAIN,
+            PARAM_VOICE_BASS_DRIVE,
+            PARAM_VOICE_BASS_MIX,
+            PARAM_VOICE_MID_DRIVE,
+            PARAM_VOICE_MID_MIX,
+            PARAM_VOICE_PRESENCE_DRIVE,
+            PARAM_VOICE_PRESENCE_MIX,
+            PARAM_VOICE_AIR_DRIVE,
+            PARAM_VOICE_AIR_MIX,
+            PARAM_VOICE_STEREO_WIDTH,
+            PARAM_VOICE_GLOBAL_MIX,
+            PARAM_VOICE_OUTPUT_GAIN,
+        ];
+
+        assert_eq!(param_ids, expected_order, "Parameter order not preserved!");
     }
 
     #[test]
