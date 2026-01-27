@@ -784,8 +784,9 @@ mod tests {
         analysis.pitch_hz = 120.0; // Male vocal
         analysis.pitch_confidence = 0.9;
 
-        let (left, right) =
-            saturator.process(0.5, 0.5, 0.6, 0.5, 0.5, 0.4, 0.35, 0.35, 0.1, 0.15, 0.0, &analysis);
+        let (left, right) = saturator.process(
+            0.5, 0.5, 0.6, 0.5, 0.5, 0.4, 0.35, 0.35, 0.1, 0.15, 0.0, &analysis,
+        );
 
         assert!(left.is_finite());
         assert!(right.is_finite());
@@ -800,8 +801,9 @@ mod tests {
         analysis.pitch_hz = 250.0; // Female vocal
         analysis.pitch_confidence = 0.9;
 
-        let (left, right) =
-            saturator.process(0.5, 0.5, 0.6, 0.5, 0.5, 0.4, 0.35, 0.35, 0.1, 0.15, 0.0, &analysis);
+        let (left, right) = saturator.process(
+            0.5, 0.5, 0.6, 0.5, 0.5, 0.4, 0.35, 0.35, 0.1, 0.15, 0.0, &analysis,
+        );
 
         assert!(left.is_finite());
         assert!(right.is_finite());

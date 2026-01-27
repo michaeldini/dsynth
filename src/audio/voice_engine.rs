@@ -92,7 +92,7 @@ impl VoiceEngine {
             self.params.stereo_width,
             &analysis,
         );
-        
+
         // Apply global mix (parallel processing)
         left = left * (1.0 - self.params.global_mix) + left_sat * self.params.global_mix;
         right = right * (1.0 - self.params.global_mix) + right_sat * self.params.global_mix;
