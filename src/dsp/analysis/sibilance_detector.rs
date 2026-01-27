@@ -48,8 +48,8 @@ pub struct SibilanceDetector {
     hp_y2: f32,
 
     // Energy tracking
-    sibilant_energy: f32,      // Energy in high-frequency band
-    full_band_energy: f32,     // Energy in full spectrum
+    sibilant_energy: f32,  // Energy in high-frequency band
+    full_band_energy: f32, // Energy in full spectrum
     energy_attack_coef: f32,
     energy_release_coef: f32,
 
@@ -155,9 +155,7 @@ impl SibilanceDetector {
     /// Tuple of (sibilance_detected: bool, strength: f32)
     pub fn process(&mut self, input: f32) -> (bool, f32) {
         // Step 1: Filter to isolate high-frequency sibilant range
-        let hp_output = self.hp_b0 * input
-            + self.hp_b1 * self.hp_x1
-            + self.hp_b2 * self.hp_x2
+        let hp_output = self.hp_b0 * input + self.hp_b1 * self.hp_x1 + self.hp_b2 * self.hp_x2
             - self.hp_a1 * self.hp_y1
             - self.hp_a2 * self.hp_y2;
 
@@ -203,12 +201,7 @@ impl SibilanceDetector {
     }
 
     /// Update energy tracker with attack/release
-    fn update_energy(
-        energy: &mut f32,
-        instant_energy: f32,
-        attack_coef: f32,
-        release_coef: f32,
-    ) {
+    fn update_energy(energy: &mut f32, instant_energy: f32, attack_coef: f32, release_coef: f32) {
         if instant_energy > *energy {
             // Attack
             *energy += (instant_energy - *energy) * (1.0 - attack_coef);

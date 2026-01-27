@@ -159,8 +159,14 @@ mod tests {
         let (left, right) = deesser.process(input, input, &analysis);
 
         // Should have minimal reduction (close to input)
-        assert!((left - input).abs() < 0.1, "Should not reduce below threshold");
-        assert!((right - input).abs() < 0.1, "Should not reduce below threshold");
+        assert!(
+            (left - input).abs() < 0.1,
+            "Should not reduce below threshold"
+        );
+        assert!(
+            (right - input).abs() < 0.1,
+            "Should not reduce below threshold"
+        );
     }
 
     #[test]
@@ -180,8 +186,14 @@ mod tests {
         let (left, right) = deesser.process(input, input, &analysis);
 
         // Should have significant reduction
-        assert!(left < input * 0.7, "Should reduce sibilance above threshold");
-        assert!(right < input * 0.7, "Should reduce sibilance above threshold");
+        assert!(
+            left < input * 0.7,
+            "Should reduce sibilance above threshold"
+        );
+        assert!(
+            right < input * 0.7,
+            "Should reduce sibilance above threshold"
+        );
         assert!(left > 0.0, "Should not completely mute");
     }
 
@@ -269,10 +281,7 @@ mod tests {
         let (heavy_left, _) = deesser.process(1.0, 1.0, &analysis);
 
         // Higher amount should reduce more
-        assert!(
-            heavy_left < light_left,
-            "Higher amount should reduce more"
-        );
+        assert!(heavy_left < light_left, "Higher amount should reduce more");
     }
 
     #[test]

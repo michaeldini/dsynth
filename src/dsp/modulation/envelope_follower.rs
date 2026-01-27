@@ -395,8 +395,14 @@ mod tests {
             follower.process(0.5);
         }
 
-        assert!(follower.is_above_threshold(0.3), "Should be above threshold");
-        assert!(!follower.is_above_threshold(0.7), "Should be below threshold");
+        assert!(
+            follower.is_above_threshold(0.3),
+            "Should be above threshold"
+        );
+        assert!(
+            !follower.is_above_threshold(0.7),
+            "Should be below threshold"
+        );
     }
 
     #[test]

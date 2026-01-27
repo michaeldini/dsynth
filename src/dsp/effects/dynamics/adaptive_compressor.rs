@@ -58,7 +58,7 @@ pub struct AdaptiveCompressor {
     /// Time constants (calculated from ms values)
     attack_coeff: f32,
     release_coeff: f32,
-    
+
     /// Fast attack coefficient for transients
     fast_attack_coeff: f32,
 }
@@ -130,7 +130,7 @@ impl AdaptiveCompressor {
     fn update_coefficients(&mut self) {
         self.attack_coeff = Self::ms_to_coeff(self.attack_ms, self.sample_rate);
         self.release_coeff = Self::ms_to_coeff(self.release_ms, self.sample_rate);
-        
+
         // Fast attack for transients (fixed at 2ms)
         self.fast_attack_coeff = Self::ms_to_coeff(2.0, self.sample_rate);
     }
@@ -184,17 +184,17 @@ impl AdaptiveCompressor {
             // Pitch-responsive compression
             // Low pitches (80-200Hz) = more compression (lower threshold)
             // High pitches (400-800Hz) = less compression (higher threshold)
-            
+
             // Logarithmic scaling gives more resolution in vocal range
             let pitch_hz = analysis.pitch_hz.clamp(80.0, 800.0);
-            
+
             // Normalize: 80Hz = 0.0, 400Hz = 0.5, 800Hz = 1.0
             let pitch_norm = (pitch_hz.ln() - 80.0_f32.ln()) / (800.0_f32.ln() - 80.0_f32.ln());
-            
+
             // Threshold offset: -6dB at 80Hz, 0dB at 400Hz, +3dB at 800Hz
             // This means bass gets compressed more, treble gets compressed less
             let pitch_offset = (pitch_norm - 0.5) * 9.0; // ±4.5dB range
-            
+
             self.threshold_db + pitch_offset
         } else {
             // No pitch detected - use standard threshold
@@ -216,11 +216,8 @@ impl AdaptiveCompressor {
         };
 
         // === STEP 3: Calculate Gain Reduction ===
-        let gain_reduction = self.calculate_gain_reduction(
-            self.envelope,
-            effective_threshold,
-            effective_ratio,
-        );
+        let gain_reduction =
+            self.calculate_gain_reduction(self.envelope, effective_threshold, effective_ratio);
 
         // === STEP 4: Apply Compression ===
         let makeup = Self::db_to_amp(self.makeup_gain_db);
@@ -373,7 +370,8 @@ mod tests {
             let (out_l, _) = comp.process(0.5, 0.5, &analysis);
             high_pitch_outputs.push(out_l.abs());
         }
-        let high_pitch_avg = high_pitch_outputs.iter().sum::<f32>() / high_pitch_outputs.len() as f32;
+        let high_pitch_avg =
+            high_pitch_outputs.iter().sum::<f32>() / high_pitch_outputs.len() as f32;
 
         // High pitch should have LESS compression (higher output)
         assert!(
@@ -400,20 +398,24 @@ mod tests {
 
         // Now process loud transient - should use fast attack (2ms) and gentler ratio
         analysis.is_transient = true;
-        
+
         // Process several samples to build up envelope with fast attack
         let mut outputs = Vec::new();
         for _ in 0..200 {
             let (out_l, _) = comp.process(0.6, 0.6, &analysis);
             outputs.push(out_l);
         }
-        
+
         // Later samples should show compression (envelope has caught up)
         let final_output = outputs[outputs.len() - 1];
-        
+
         // Transient gets gentler ratio (6 * 0.6 = 3.6)
         // Should compress but preserve more dynamics than sustained content
-        assert!(final_output < 0.6, "Should apply compression to loud signal: {:.4}", final_output);
+        assert!(
+            final_output < 0.6,
+            "Should apply compression to loud signal: {:.4}",
+            final_output
+        );
         assert!(final_output > 0.1, "But not crush it: {:.4}", final_output);
     }
 
@@ -428,17 +430,23 @@ mod tests {
 
         // Feed quiet signal far below threshold
         let input = 0.001; // About -60dB (far below -10dB threshold)
-        
+
         // Process to establish envelope
         for _ in 0..200 {
             comp.process(input, input, &analysis);
         }
-        
+
         let (out_l, out_r) = comp.process(input, input, &analysis);
 
         // Should pass through with minimal change (far below threshold, outside knee)
         let difference = (out_l - input).abs();
-        assert!(difference < 0.0005, "Output should be close to input. Input={:.6}, Output={:.6}, Diff={:.6}", input, out_l, difference);
+        assert!(
+            difference < 0.0005,
+            "Output should be close to input. Input={:.6}, Output={:.6}, Diff={:.6}",
+            input,
+            out_l,
+            difference
+        );
     }
 
     #[test]
@@ -446,18 +454,18 @@ mod tests {
         let mut comp = AdaptiveCompressor::new(44100.0);
         comp.set_threshold(-70.0); // Extremely low threshold
         comp.set_ratio(1.5); // Very gentle ratio
-        comp.set_knee(0.0); 
-        
+        comp.set_knee(0.0);
+
         let analysis = create_default_analysis();
         let input = 0.1;
-        
+
         // Test WITHOUT makeup gain
         comp.set_makeup_gain(0.0);
         for _ in 0..1000 {
             comp.process(input, input, &analysis);
         }
         let (out_without_makeup, _) = comp.process(input, input, &analysis);
-        
+
         // Reset and test WITH makeup gain
         comp.reset();
         comp.set_makeup_gain(18.0); // +18dB = 8× linear
@@ -505,11 +513,11 @@ mod tests {
 
         // Both channels should get same compression (stereo-linked)
         let (out_l, out_r) = comp.process(0.8, 0.1, &analysis);
-        
+
         // Gain reduction ratio should be similar (within 10%)
         let left_reduction = out_l / 0.8;
         let right_reduction = out_r / 0.1;
-        
+
         assert_relative_eq!(left_reduction, right_reduction, epsilon = 0.1);
     }
 }

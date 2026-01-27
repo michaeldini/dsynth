@@ -270,12 +270,7 @@ impl SpectralCentroid {
     }
 
     /// Update energy tracker with attack/release envelope
-    fn update_energy(
-        energy: &mut f32,
-        instant_energy: f32,
-        attack_coef: f32,
-        release_coef: f32,
-    ) {
+    fn update_energy(energy: &mut f32, instant_energy: f32, attack_coef: f32, release_coef: f32) {
         if instant_energy > *energy {
             // Attack
             *energy += (instant_energy - *energy) * (1.0 - attack_coef);

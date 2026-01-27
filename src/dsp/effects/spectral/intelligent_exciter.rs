@@ -25,7 +25,7 @@
 //!   2× = 440Hz (octave above)
 //!   3× = 660Hz (perfect fifth above octave)
 //!   4× = 880Hz (two octaves above)
-//! 
+//!
 //! Result: Rich, musical harmonics that enhance presence without harshness
 //! ```
 //!
@@ -55,7 +55,7 @@ pub struct IntelligentExciter {
 
     /// Parameters
     amount: f32, // 0.0-1.0: harmonic generation amount
-    mix: f32,    // 0.0-1.0: wet/dry balance
+    mix: f32, // 0.0-1.0: wet/dry balance
 
     /// Oscillator phases for harmonic generation
     phase_2x: f32, // 2× fundamental (octave)
@@ -79,8 +79,8 @@ impl IntelligentExciter {
     pub fn new(sample_rate: f32) -> Self {
         Self {
             sample_rate,
-            amount: 0.3,           // Default 30% harmonic content
-            mix: 0.5,              // Default 50% wet/dry
+            amount: 0.3, // Default 30% harmonic content
+            mix: 0.5,    // Default 50% wet/dry
             phase_2x: 0.0,
             phase_3x: 0.0,
             phase_4x: 0.0,
@@ -385,7 +385,10 @@ mod tests {
         let diff_low = (out_low - input).abs();
         let diff_high = (out_high - input).abs();
 
-        assert!(diff_high > diff_low, "High amount should have stronger effect");
+        assert!(
+            diff_high > diff_low,
+            "High amount should have stronger effect"
+        );
     }
 
     #[test]

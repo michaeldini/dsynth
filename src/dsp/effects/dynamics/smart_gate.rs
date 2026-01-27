@@ -177,7 +177,8 @@ impl SmartGate {
             // Reset hold counter
             self.hold_counter = (self.hold_ms * self.sample_rate / 1000.0) as usize;
             1.0 // Full volume
-        } else if input_level_db < effective_threshold - self.hysteresis_db || self.hold_counter == 0
+        } else if input_level_db < effective_threshold - self.hysteresis_db
+            || self.hold_counter == 0
         {
             // Signal below threshold (with hysteresis) and hold expired
             // Gate closes
@@ -258,7 +259,10 @@ mod tests {
         for _ in 0..100 {
             let (out_l, out_r) = gate.process(0.1, 0.1, &analysis);
             // Gate should open despite low level (transient passes through)
-            assert!(out_l > 0.05 || out_r > 0.05, "Transient should pass through");
+            assert!(
+                out_l > 0.05 || out_r > 0.05,
+                "Transient should pass through"
+            );
         }
     }
 
@@ -277,7 +281,10 @@ mod tests {
         for _ in 0..100 {
             let (out_l, out_r) = gate.process(0.1, 0.1, &analysis);
             // Gate should open for sibilance
-            assert!(out_l > 0.05 || out_r > 0.05, "Sibilance should pass through");
+            assert!(
+                out_l > 0.05 || out_r > 0.05,
+                "Sibilance should pass through"
+            );
         }
     }
 

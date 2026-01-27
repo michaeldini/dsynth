@@ -73,7 +73,7 @@ impl FormantFilter {
         let omega = 2.0 * PI * center_freq / sample_rate;
         let sin_omega = omega.sin();
         let cos_omega = omega.cos();
-        
+
         // Calculate Q from bandwidth
         let q = center_freq / bandwidth;
         let alpha = sin_omega / (2.0 * q);
@@ -188,13 +188,13 @@ impl FormantDetector {
             f2_energies: vec![0.0; f2_freqs.len()],
             f3_energies: vec![0.0; f3_freqs.len()],
             energy_smooth_coef: 0.0,
-            f1_hz: 500.0,  // Default neutral values
+            f1_hz: 500.0, // Default neutral values
             f2_hz: 1500.0,
             f3_hz: 2500.0,
             formant_smooth_coef: 0.0,
         };
 
-        detector.set_energy_smoothing(20.0);   // 20ms energy tracking
+        detector.set_energy_smoothing(20.0); // 20ms energy tracking
         detector.set_formant_smoothing(100.0); // 100ms formant smoothing
 
         detector
@@ -298,10 +298,10 @@ impl FormantDetector {
 
         // Classify based on F1/F2 space
         match (f1, f2) {
-            (f1, f2) if f1 < 400.0 && f2 > 2000.0 => VowelEstimate::EE,  // "beet"
-            (f1, f2) if f1 < 500.0 && f2 < 1200.0 => VowelEstimate::OO,  // "boot"
-            (f1, f2) if f1 > 650.0 && f2 > 1400.0 => VowelEstimate::AE,  // "bat"
-            (f1, f2) if f1 > 650.0 && f2 < 1400.0 => VowelEstimate::AH,  // "father"
+            (f1, f2) if f1 < 400.0 && f2 > 2000.0 => VowelEstimate::EE, // "beet"
+            (f1, f2) if f1 < 500.0 && f2 < 1200.0 => VowelEstimate::OO, // "boot"
+            (f1, f2) if f1 > 650.0 && f2 > 1400.0 => VowelEstimate::AE, // "bat"
+            (f1, f2) if f1 > 650.0 && f2 < 1400.0 => VowelEstimate::AH, // "father"
             (f1, f2) if f1 < 500.0 && f2 > 1400.0 && f2 < 2000.0 => VowelEstimate::EH, // "bet"
             _ => VowelEstimate::Unknown,
         }
@@ -408,18 +408,9 @@ mod tests {
         let (f1_after, f2_after, f3_after) = detector.get_formants();
 
         // Formants should be stable (not jumping around)
-        assert!(
-            (f1_after - f1_before).abs() < 200.0,
-            "F1 should be stable"
-        );
-        assert!(
-            (f2_after - f2_before).abs() < 300.0,
-            "F2 should be stable"
-        );
-        assert!(
-            (f3_after - f3_before).abs() < 500.0,
-            "F3 should be stable"
-        );
+        assert!((f1_after - f1_before).abs() < 200.0, "F1 should be stable");
+        assert!((f2_after - f2_before).abs() < 300.0, "F2 should be stable");
+        assert!((f3_after - f3_before).abs() < 500.0, "F3 should be stable");
     }
 
     #[test]
