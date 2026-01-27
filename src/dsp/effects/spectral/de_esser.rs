@@ -18,6 +18,7 @@
 use crate::dsp::signal_analyzer::SignalAnalysis;
 
 pub struct DeEsser {
+    #[allow(dead_code)]
     sample_rate: f32,
 
     /// Minimum sibilance strength (0.0-1.0) to trigger de-essing

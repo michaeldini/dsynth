@@ -25,7 +25,9 @@ pub struct VocalDoubler {
     stereo_width: f32, // 0.0-1.0 stereo spread
 
     // Adaptive state (smoothed)
+    #[allow(dead_code)]
     current_delay_ms: f32,
+    #[allow(dead_code)]
     current_mix: f32,
 
     // Delay buffers (stereo)

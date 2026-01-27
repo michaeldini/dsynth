@@ -5,11 +5,18 @@
 /// 2. Testing impulse response to confirm no lookahead delay
 /// 3. Measuring real-time processing throughput
 /// 4. Validating signal analysis runs without buffering
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
+
+#[cfg(feature = "voice-clap")]
+use criterion::black_box;
+
+#[cfg(feature = "voice-clap")]
 use dsynth::audio::voice_engine::VoiceEngine;
+#[cfg(feature = "voice-clap")]
 use dsynth::params_voice::VoiceParams;
 
 /// Test 1: Verify get_latency() reports zero samples
+#[cfg(feature = "voice-clap")]
 fn bench_latency_query(c: &mut Criterion) {
     let mut group = c.benchmark_group("latency_query");
 
@@ -30,6 +37,7 @@ fn bench_latency_query(c: &mut Criterion) {
 /// A true zero-latency system will produce non-zero output on the SAME sample
 /// as a non-zero input. Systems with lookahead delay will have N samples of
 /// silence before the output responds.
+#[cfg(feature = "voice-clap")]
 fn bench_impulse_response(c: &mut Criterion) {
     let mut group = c.benchmark_group("impulse_response");
 
@@ -67,6 +75,7 @@ fn bench_impulse_response(c: &mut Criterion) {
 ///
 /// Measures how many samples/second the engine can process, which helps
 /// validate that it can run in real-time with zero buffering delay.
+#[cfg(feature = "voice-clap")]
 fn bench_realtime_throughput(c: &mut Criterion) {
     let mut group = c.benchmark_group("realtime_throughput");
 
@@ -94,6 +103,7 @@ fn bench_realtime_throughput(c: &mut Criterion) {
 ///
 /// Measures the CPU time required to process a single sample, which
 /// directly impacts real-time capability.
+#[cfg(feature = "voice-clap")]
 fn bench_per_sample_latency(c: &mut Criterion) {
     let mut group = c.benchmark_group("per_sample_latency");
 
@@ -114,6 +124,7 @@ fn bench_per_sample_latency(c: &mut Criterion) {
 /// Test 5: Latency under various drive settings
 ///
 /// Ensures that different saturation settings don't introduce latency
+#[cfg(feature = "voice-clap")]
 fn bench_latency_drive_sweep(c: &mut Criterion) {
     let mut group = c.benchmark_group("latency_drive_sweep");
 
@@ -145,6 +156,7 @@ fn bench_latency_drive_sweep(c: &mut Criterion) {
 ///
 /// Tests with worst-case signal (loud transient) and maximum drive
 /// to ensure no hidden buffering is triggered
+#[cfg(feature = "voice-clap")]
 fn bench_worst_case_latency(c: &mut Criterion) {
     let mut group = c.benchmark_group("worst_case_latency");
 
@@ -175,6 +187,7 @@ fn bench_worst_case_latency(c: &mut Criterion) {
     group.finish();
 }
 
+#[cfg(feature = "voice-clap")]
 criterion_group!(
     latency_benches,
     bench_latency_query,
@@ -184,4 +197,11 @@ criterion_group!(
     bench_latency_drive_sweep,
     bench_worst_case_latency,
 );
+
+#[cfg(not(feature = "voice-clap"))]
+fn bench_dummy(_: &mut Criterion) {}
+
+#[cfg(not(feature = "voice-clap"))]
+criterion_group!(latency_benches, bench_dummy);
+
 criterion_main!(latency_benches);

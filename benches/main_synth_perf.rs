@@ -1,94 +1,94 @@
-use criterion::{black_box, BenchmarkId, Criterion};
-use dsynth::audio::engine::{create_parameter_buffer, SynthEngine};
-use dsynth::audio::voice::Voice;
-use dsynth::dsp::filter::BiquadFilter;
+//! Main Synthesizer Performance Benchmarks
+//!
+//! Tests the full polyphonic synthesizer under realistic and stress conditions.
+//!
+//! Performance Target: <11% CPU for 16 voices @ 44.1kHz
+//!
+//! Run: `cargo bench -- main_synth_perf`
+
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use dsynth::audio::{
+    engine::{create_parameter_buffer, SynthEngine},
+    voice::Voice,
+};
 use dsynth::params::{
-    FilterType, LFOWaveform, OscillatorParams, SynthParams, TransientShaperParams, VelocityParams,
-    VoiceCompressorParams, Waveform,
+    EnvelopeParams, FilterParams, FilterType, LFOParams, LFOWaveform, OscillatorParams,
+    SynthParams, TransientShaperParams, VelocityParams, VoiceCompressorParams, Waveform,
 };
 
-/// Benchmark filter with dynamic modulation (realistic scenario)
-/// This tests the actual optimization benefit of quantized coefficient updates
-fn benchmark_filter_with_modulation(c: &mut Criterion) {
-    let mut group = c.benchmark_group("filter_modulation");
+/// Benchmark single voice processing with all features
+fn bench_voice_processing(c: &mut Criterion) {
+    let mut voice = Voice::new(44100.0);
+    let osc_params = [OscillatorParams::default(); 3];
+    let filter_params = [FilterParams::default(); 3];
+    let lfo_params = [LFOParams::default(); 3];
+    let envelope_params = EnvelopeParams::default();
+    let velocity_params = VelocityParams::default();
+    let voice_comp_params = VoiceCompressorParams::default();
+    let transient_params = TransientShaperParams::default();
+    let wavetable_library = dsynth::dsp::WavetableLibrary::new();
 
-    // Simulate LFO-modulated cutoff (changes every sample)
-    group.bench_function("filter_modulated_cutoff", |b| {
-        let mut filter = BiquadFilter::new(44100.0);
-        filter.set_filter_type(FilterType::Lowpass);
-        filter.set_resonance(2.0);
+    voice.note_on(60, 0.8);
+    voice.update_parameters(
+        &osc_params,
+        &filter_params,
+        &lfo_params,
+        &envelope_params,
+        &wavetable_library,
+    );
 
+    c.bench_function("voice_process", |b| {
         b.iter(|| {
-            // Simulate cutoff modulation every sample
-            for i in 0..100 {
-                let modulated = 1000.0 + (i as f32 * 10.0).sin() * 500.0;
-                filter.set_cutoff(modulated);
-                black_box(());
-                black_box(filter.process(black_box(0.5)));
-            }
+            black_box(voice.process(
+                &osc_params,
+                &filter_params,
+                &lfo_params,
+                &velocity_params,
+                false,
+                &voice_comp_params,
+                &transient_params,
+            ))
         });
     });
-
-    group.finish();
 }
 
-/// Benchmark the cost impact of filter coefficient update rate.
-///
-/// We vary an internal `cutoff_update_interval` and measure:
-/// - `set_cutoff_only_*`: isolates coefficient update overhead
-/// - `set_cutoff_plus_process_*`: end-to-end cost (closer to real DSP loop)
-fn benchmark_filter_coefficient_update_rate(c: &mut Criterion) {
-    let mut group = c.benchmark_group("filter_coeff_update_rate");
+/// Benchmark engine polyphony scaling (8 voices)
+fn bench_engine_8_voices(c: &mut Criterion) {
+    let (_producer, consumer) = create_parameter_buffer();
+    let mut engine = SynthEngine::new(44100.0, consumer);
 
-    for interval in [1u8, 2, 4, 8] {
-        group.bench_with_input(
-            BenchmarkId::new("set_cutoff_only", interval),
-            &interval,
-            |b, &interval| {
-                let mut filter = BiquadFilter::new(44100.0);
-                filter.set_cutoff_update_interval(interval);
-                filter.set_filter_type(FilterType::Lowpass);
-                filter.set_resonance(2.0);
-
-                b.iter(|| {
-                    for i in 0..1024 {
-                        let modulated = 1000.0 + (i as f32 * 0.01).sin() * 500.0;
-                        filter.set_cutoff(modulated);
-                        black_box(());
-                    }
-                });
-            },
-        );
-
-        group.bench_with_input(
-            BenchmarkId::new("set_cutoff_plus_process", interval),
-            &interval,
-            |b, &interval| {
-                let mut filter = BiquadFilter::new(44100.0);
-                filter.set_cutoff_update_interval(interval);
-                filter.set_filter_type(FilterType::Lowpass);
-                filter.set_resonance(2.0);
-
-                b.iter(|| {
-                    for i in 0..1024 {
-                        let modulated = 1000.0 + (i as f32 * 0.01).sin() * 500.0;
-                        filter.set_cutoff(modulated);
-                        black_box(());
-                        black_box(filter.process(black_box(0.5)));
-                    }
-                });
-            },
-        );
+    // Trigger 8 voices
+    for i in 0..8 {
+        engine.note_on(60 + i, 0.8);
     }
 
-    group.finish();
+    c.bench_function("engine_8_voices", |b| {
+        b.iter(|| black_box(engine.process_mono()));
+    });
 }
 
-/// Benchmark engine with changing parameters (realistic scenario)
-fn benchmark_engine_with_parameter_changes(c: &mut Criterion) {
-    let mut group = c.benchmark_group("engine_parameter_changes");
+/// Benchmark engine at full polyphony (16 voices)
+fn bench_engine_16_voices(c: &mut Criterion) {
+    let (_producer, consumer) = create_parameter_buffer();
+    let mut engine = SynthEngine::new(44100.0, consumer);
 
-    group.bench_function("engine_16_voices_param_changes", |b| {
+    // Trigger 16 voices (max polyphony)
+    for i in 0..16 {
+        engine.note_on(60 + i, 0.8);
+    }
+
+    c.bench_function("engine_16_voices", |b| {
+        b.iter(|| black_box(engine.process_mono()));
+    });
+}
+
+/// Benchmark engine with real-time parameter changes
+///
+/// Simulates filter cutoff modulation from automation/LFO
+fn bench_engine_parameter_automation(c: &mut Criterion) {
+    let mut group = c.benchmark_group("engine_parameter_automation");
+
+    group.bench_function("16_voices_modulated_cutoff", |b| {
         let (mut producer, consumer) = create_parameter_buffer();
         let mut engine = SynthEngine::new(44100.0, consumer);
 
@@ -119,35 +119,16 @@ fn benchmark_engine_with_parameter_changes(c: &mut Criterion) {
         });
     });
 
-    group.bench_function("engine_16_voices_no_param_changes", |b| {
-        let (_producer, consumer) = create_parameter_buffer();
-        let mut engine = SynthEngine::new(44100.0, consumer);
-
-        // Trigger 16 voices
-        for i in 0..16 {
-            engine.note_on(60 + i, 0.8);
-        }
-
-        b.iter(|| {
-            // No parameter writes; measures steady-state processing + periodic buffer read
-            for _ in 0..32 {
-                black_box(engine.process_mono());
-            }
-        });
-    });
-
     group.finish();
 }
 
-/// Benchmark a single voice in a deliberately "worst-case" configuration.
+/// Benchmark worst-case CPU usage (stress test)
 ///
-/// Goal: capture CPU cliffs from max unison, FM routing, hard-sync, modulation, and saturation.
-fn benchmark_voice_worst_case(c: &mut Criterion) {
-    use dsynth::params::{EnvelopeParams, FilterParams, LFOParams};
+/// Max unison + FM routing + hard sync + saturation + effects
+fn bench_engine_stress_test(c: &mut Criterion) {
+    let mut group = c.benchmark_group("engine_stress_test");
 
-    let mut group = c.benchmark_group("voice_worst_case");
-
-    group.bench_function("voice_process_worst_case", |b| {
+    group.bench_function("voice_worst_case", |b| {
         let mut voice = Voice::new(44100.0);
         voice.note_on(60, 0.9);
 
@@ -168,7 +149,7 @@ fn benchmark_voice_worst_case(c: &mut Criterion) {
             p.wavetable_position = 0.5;
         }
 
-        // Add FM routing to exercise process_with_fm paths.
+        // Add FM routing to exercise process_with_fm paths
         osc_params[1].fm_source = Some(0);
         osc_params[1].fm_amount = 8.0;
         osc_params[2].fm_source = Some(1);
@@ -211,7 +192,7 @@ fn benchmark_voice_worst_case(c: &mut Criterion) {
             sustain_reduction: 0.25,
         };
 
-        let wavetable_library = dsynth::dsp::wavetable_library::WavetableLibrary::new();
+        let wavetable_library = dsynth::dsp::WavetableLibrary::new();
 
         voice.update_parameters(
             &osc_params,
@@ -227,7 +208,7 @@ fn benchmark_voice_worst_case(c: &mut Criterion) {
                 &filter_params,
                 &lfo_params,
                 &velocity_params,
-                true, // hard sync
+                true, // hard sync enabled
                 &voice_comp_params,
                 &transient_params,
             ))
@@ -237,10 +218,10 @@ fn benchmark_voice_worst_case(c: &mut Criterion) {
     group.finish();
 }
 
-/// Benchmark engine `process_block` cost by voice count and block size.
+/// Benchmark block processing with different voice counts and buffer sizes
 ///
-/// This matches plugin reality better than per-sample process() and highlights scaling.
-fn benchmark_engine_block_scaling(c: &mut Criterion) {
+/// Tests scaling with realistic plugin buffer sizes (64, 256, 1024 samples)
+fn bench_engine_block_scaling(c: &mut Criterion) {
     let mut group = c.benchmark_group("engine_block_scaling");
 
     for voices in [1usize, 4, 8, 16] {
@@ -256,7 +237,7 @@ fn benchmark_engine_block_scaling(c: &mut Criterion) {
                         engine.note_on(60 + i as u8, 0.8);
                     }
 
-                    // Apply a heavier-than-default synth configuration once (not in the loop).
+                    // Apply realistic configuration
                     let mut params = SynthParams::default();
                     for (i, p) in params.oscillators.iter_mut().enumerate() {
                         p.gain = 0.7;
@@ -277,13 +258,12 @@ fn benchmark_engine_block_scaling(c: &mut Criterion) {
                     params.voice_compressor.enabled = true;
                     params.transient_shaper.enabled = true;
 
-                    // Keep effects disabled here; this bench focuses on voice + mixing scaling.
                     producer.write(params);
 
                     let mut left = vec![0.0f32; block_size];
                     let mut right = vec![0.0f32; block_size];
 
-                    // Warmup to ensure params propagate (engine checks every 32 samples).
+                    // Warmup to ensure params propagate
                     engine.process_block(&mut left, &mut right);
                     engine.process_block(&mut left, &mut right);
 
@@ -300,12 +280,14 @@ fn benchmark_engine_block_scaling(c: &mut Criterion) {
     group.finish();
 }
 
-criterion::criterion_group!(
-    benches,
-    benchmark_filter_with_modulation,
-    benchmark_filter_coefficient_update_rate,
-    benchmark_engine_with_parameter_changes,
-    benchmark_voice_worst_case,
-    benchmark_engine_block_scaling
+criterion_group!(
+    main_synth_perf_benches,
+    bench_voice_processing,
+    bench_engine_8_voices,
+    bench_engine_16_voices,
+    bench_engine_parameter_automation,
+    bench_engine_stress_test,
+    bench_engine_block_scaling,
 );
-criterion::criterion_main!(benches);
+
+criterion_main!(main_synth_perf_benches);

@@ -1,35 +1,48 @@
-/// Voice Saturation Engine - TWO-KNOB ANALOG EMULATION
+/// Voice Saturation Engine - PROFESSIONAL VOCAL PROCESSING CHAIN
 ///
-/// **Simplified Design: Minimal analog saturation plugin for vocals**
+/// **Design: Zero-latency vocal processor with intelligent dynamics and saturation**
 ///
-/// Processing chain with adaptive hybrid saturation:
+/// Processing chain:
 /// 1. Input Gain
 /// 2. **Signal Analysis** (transient, ZCR, sibilance - NO PITCH for zero latency)
-/// 3. **Adaptive Saturator** (hybrid 2-stage waveshaping + harmonic synthesis)
-///    - Drive: Single knob controls saturation amount (0-100%)
-///    - Character: Warm/Smooth/Punchy (musical descriptors)
-///    - Auto-gain compensation maintains perceived loudness
-///    - Transient-adaptive + sibilance-aware + frequency-adaptive
-///    - Hybrid: 60% waveshaping (analog warmth), 40% harmonic synthesis (spectral precision)
-/// 4. Output Gain
+/// 3. **Intelligent De-Esser** (sibilance-triggered split-band compression)
+/// 4. **Transient Shaper** (attack/sustain control based on analysis)
+/// 5. **Adaptive Saturator** (4-band multiband waveshaping + harmonic synthesis)
+/// 6. **Adaptive Compression Limiter** (transient-aware limiting with -0.5dB ceiling)
+/// 7. Global Mix (parallel processing)
+/// 8. Output Gain
 ///
 /// # Total Latency
-/// - **Zero latency** (pitch detection disabled)
+/// - **Zero latency** (pitch detection disabled, all processors use envelope followers)
 /// - Signal analysis runs <50 CPU ops per sample
+/// - Target: <15% CPU for real-time vocal processing
 use crate::dsp::effects::adaptive_saturator::AdaptiveSaturator;
+use crate::dsp::effects::dynamics::{
+    AdaptiveCompressionLimiter, IntelligentDeEsser, TransientShaper,
+};
 use crate::dsp::signal_analyzer::SignalAnalyzer;
 use crate::params_voice::VoiceParams;
 
-/// Voice saturation engine (two-knob analog emulation)
+/// Professional voice processing engine with zero-latency dynamics chain
 pub struct VoiceEngine {
     /// Sample rate in Hz
+    #[allow(dead_code)]
     sample_rate: f32,
 
     /// Signal analyzer (no pitch detection for zero latency)
     signal_analyzer: SignalAnalyzer,
 
-    /// Adaptive saturator (hybrid 2-stage waveshaping + harmonic synthesis)
+    /// Intelligent de-esser (sibilance-aware split-band compression)
+    de_esser: IntelligentDeEsser,
+
+    /// Transient shaper (analysis-based attack/sustain control)
+    transient_shaper: TransientShaper,
+
+    /// Adaptive saturator (4-band multiband waveshaping)
     adaptive_saturator: AdaptiveSaturator,
+
+    /// Adaptive compression limiter (transient-aware envelope-follower limiting)
+    limiter: AdaptiveCompressionLimiter,
 
     /// Current parameters
     params: VoiceParams,
@@ -39,18 +52,24 @@ impl VoiceEngine {
     /// Create a new voice saturation engine
     pub fn new(sample_rate: f32) -> Self {
         let adaptive_saturator = AdaptiveSaturator::new(sample_rate);
+        let de_esser = IntelligentDeEsser::new(sample_rate);
+        let transient_shaper = TransientShaper::new(sample_rate);
+        let limiter = AdaptiveCompressionLimiter::new(sample_rate);
 
         Self {
             sample_rate,
             signal_analyzer: SignalAnalyzer::new_no_pitch(sample_rate),
+            de_esser,
+            transient_shaper,
             adaptive_saturator,
+            limiter,
             params: VoiceParams::default(),
         }
     }
 
     /// Get the plugin's processing latency in samples
     ///
-    /// Returns 0 since pitch detection is disabled
+    /// Returns 0 since all processors are zero-latency (no lookahead buffers)
     pub fn get_latency(&self) -> u32 {
         0
     }
@@ -60,7 +79,7 @@ impl VoiceEngine {
         self.params = params;
     }
 
-    /// Process a stereo sample pair with adaptive saturation
+    /// Process a stereo sample pair with full vocal processing chain
     ///
     /// # Arguments
     /// * `input_left` - Left channel input
@@ -74,10 +93,28 @@ impl VoiceEngine {
         let mut left = input_left * input_gain;
         let mut right = input_right * input_gain;
 
-        // 2. Signal Analysis (transient, ZCR, sibilance - NO PITCH)
+        // 2. Signal Analysis (transient, ZCR, sibilance - NO PITCH for zero latency)
         let analysis = self.signal_analyzer.analyze(left, right);
 
-        // 3. Adaptive Saturator (4-band multiband processing)
+        // 3. Intelligent De-Esser (sibilance-triggered split-band compression)
+        let (left_deessed, right_deessed) = self.de_esser.process(
+            left,
+            right,
+            self.params.deesser_threshold,
+            self.params.deesser_amount,
+            &analysis,
+        );
+        left = left_deessed;
+        right = right_deessed;
+
+        // 4. Attack Enhancer (transient-only gain modulation)
+        let (left_shaped, right_shaped) =
+            self.transient_shaper
+                .process(left, right, self.params.transient_attack, &analysis);
+        left = left_shaped;
+        right = right_shaped;
+
+        // 5. Adaptive Saturator (4-band multiband processing)
         let (left_sat, right_sat) = self.adaptive_saturator.process(
             left,
             right,
@@ -93,11 +130,19 @@ impl VoiceEngine {
             &analysis,
         );
 
-        // Apply global mix (parallel processing)
-        left = left * (1.0 - self.params.global_mix) + left_sat * self.params.global_mix;
-        right = right * (1.0 - self.params.global_mix) + right_sat * self.params.global_mix;
+        // 6. Adaptive Compression Limiter (transient-aware envelope-follower limiting)
+        let (left_limited, right_limited) = self.limiter.process(
+            left_sat,
+            right_sat,
+            self.params.limiter_threshold,
+            &analysis,
+        );
 
-        // 4. Output Gain
+        // 7. Apply global mix (parallel processing)
+        left = left * (1.0 - self.params.global_mix) + left_limited * self.params.global_mix;
+        right = right * (1.0 - self.params.global_mix) + right_limited * self.params.global_mix;
+
+        // 8. Output Gain
         let output_gain = VoiceParams::db_to_gain(self.params.output_gain);
         left *= output_gain;
         right *= output_gain;
@@ -139,7 +184,10 @@ impl VoiceEngine {
     /// Reset all processing state
     pub fn reset(&mut self) {
         self.signal_analyzer.reset();
+        self.de_esser.reset();
+        self.transient_shaper.reset();
         self.adaptive_saturator.reset();
+        self.limiter.reset();
     }
 }
 

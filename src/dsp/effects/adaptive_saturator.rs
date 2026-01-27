@@ -203,6 +203,7 @@ impl BandSaturator {
 
 /// Professional 4-band vocal saturator with mid-side processing
 pub struct AdaptiveSaturator {
+    #[allow(dead_code)]
     sample_rate: f32,
 
     // Single crossover - shared by mid and side channels for phase coherency
@@ -396,6 +397,7 @@ impl AdaptiveSaturator {
     }
 
     /// Process air band with ultra-light harmonic exciter (>8kHz)
+    #[allow(dead_code)]
     fn process_air_band(&self, input: f32) -> f32 {
         // Ultra-light saturation for "sheen" without harshness
         let drive = 1.0 + self.air_exciter_drive * 2.0; // 1.0-1.2 range
@@ -439,7 +441,10 @@ impl AdaptiveSaturator {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "voice-clap")]
     use crate::audio::voice_engine::VoiceEngine;
+    #[cfg(feature = "voice-clap")]
     use crate::params_voice::VoiceParams;
 
     fn create_test_analysis() -> SignalAnalysis {
@@ -1288,6 +1293,7 @@ mod tests {
     /// INTEGRATION TEST: Phase coherency through full voice engine processing chain
     /// Tests: signal analysis → adaptive saturator → global mix
     #[test]
+    #[cfg(feature = "voice-clap")]
     fn test_voice_engine_phase_coherency() {
         let sample_rate = 44100.0;
         let mut engine = VoiceEngine::new(sample_rate);

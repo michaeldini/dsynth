@@ -1,25 +1,31 @@
-/// Voice Saturation Parameters - 4-BAND MULTIBAND SATURATION
+/// Voice Saturation Parameters - PROFESSIONAL VOCAL PROCESSING CHAIN
 ///
-/// **New Design: Professional 4-band vocal saturator with mid-side processing**
+/// **Design: Zero-latency vocal processor with intelligent dynamics and saturation**
 ///
-/// Processing chain with pitch-tracked harmonics:
+/// Processing chain:
 /// 1. Input Gain
-/// 2. **Signal Analysis** (transient, ZCR, sibilance - PITCH ENABLED for harmonic generation)
-/// 3. **4-Band Multiband Saturator** (bass/mids/presence/air with stacked harmonics)
-///    - Bass: drive + mix controls (<200Hz)
-///    - Mids: drive + mix controls (200Hz-1kHz)
-///    - Presence: drive + mix controls (1-8kHz)
-///    - Air: drive + mix controls (>8kHz exciter)
-///    - Stereo Width: Mid-side balance (-1 to +1)
-///    - Global Mix: Master wet/dry blend
-///    - Auto-gain compensation maintains perceived loudness
-///    - Pitch-aware harmonic generation (male/female optimization)
-/// 4. Output Gain
+/// 2. **Signal Analysis** (transient, ZCR, sibilance - NO PITCH for zero latency)
+/// 3. **Intelligent De-Esser** (sibilance-triggered split-band compression)
+/// 4. **Transient Shaper** (attack/sustain control based on analysis)
+/// 5. **4-Band Multiband Saturator** (bass/mids/presence/air with mid-side processing)
+/// 6. **Adaptive Compression Limiter** (transient-aware envelope-follower limiting)
+/// 7. Global Mix (parallel processing)
+/// 8. Output Gain
 ///
-/// **Total: 12 parameters** (input_gain, bass_drive, bass_mix, mid_drive, mid_mix, presence_drive, presence_mix, air_drive, air_mix, stereo_width, global_mix, output_gain)
+/// **Total: 17 parameters**
+/// - Input/Output (2): input_gain, output_gain
+/// - De-Esser (2): deesser_threshold, deesser_amount
+/// - Attack Enhancer (1): transient_attack
+/// - Bass (2): bass_drive, bass_mix
+/// - Mids (2): mid_drive, mid_mix
+/// - Presence (2): presence_drive, presence_mix
+/// - Air (2): air_drive, air_mix
+/// - Stereo (1): stereo_width
+/// - Global (1): global_mix
+/// - Limiter (2): limiter_threshold, limiter_release
 use serde::{Deserialize, Serialize};
 
-/// 4-band multiband vocal saturation with mid-side processing
+/// Professional vocal processing with zero-latency dynamics chain
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VoiceParams {
     // === Input/Output (2 params) ===
@@ -27,6 +33,16 @@ pub struct VoiceParams {
     pub input_gain: f32,
     /// Output gain in dB (-12dB to +12dB)
     pub output_gain: f32,
+
+    // === Intelligent De-Esser (2 params) ===
+    /// Sibilance strength threshold (0.0-1.0, gates detection)
+    pub deesser_threshold: f32,
+    /// De-esser dry/wet amount (0.0-1.0, 0.0=bypass)
+    pub deesser_amount: f32,
+
+    // === Attack Enhancer (1 param) ===
+    /// Attack gain adjustment (-1.0 to +1.0, negative=soften, positive=punch)
+    pub transient_attack: f32,
 
     // === Bass Band (2 params) ===
     /// Bass drive amount (0.0-1.0)
@@ -64,6 +80,12 @@ pub struct VoiceParams {
     /// - 0.0: 100% dry (bypass)
     /// - 1.0: 100% wet (full effect)
     pub global_mix: f32,
+
+    // === Adaptive Compression Limiter (2 params) ===
+    /// Limiter threshold in dB (-20.0 to 0.0)
+    pub limiter_threshold: f32,
+    /// Limiter release time in ms (50-500ms)
+    pub limiter_release: f32,
 }
 
 impl Default for VoiceParams {
@@ -72,6 +94,13 @@ impl Default for VoiceParams {
             // Input/Output - unity gain
             input_gain: 0.0,
             output_gain: 0.0,
+
+            // De-Esser - moderate settings
+            deesser_threshold: 0.6, // Gates sibilance above 60% strength
+            deesser_amount: 0.5,    // 50% de-essing blend
+
+            // Attack Enhancer - neutral (no effect)
+            transient_attack: 0.0, // No attack boost/cut
 
             // Bass - warm foundation
             bass_drive: 0.6,
@@ -94,6 +123,10 @@ impl Default for VoiceParams {
 
             // Global Mix - 100% wet (full effect)
             global_mix: 1.0,
+
+            // Limiter - safety ceiling
+            limiter_threshold: -6.0, // Start limiting at -6dB
+            limiter_release: 200.0,  // 200ms release time
         }
     }
 }
@@ -123,6 +156,9 @@ impl VoiceParams {
         Self {
             input_gain: 0.0,
             output_gain: 0.0,
+            deesser_threshold: 0.7,
+            deesser_amount: 0.3,
+            transient_attack: 0.0,
             bass_drive: 0.3,
             bass_mix: 0.3,
             mid_drive: 0.25,
@@ -133,6 +169,8 @@ impl VoiceParams {
             air_mix: 0.1,
             stereo_width: 0.0,
             global_mix: 1.0,
+            limiter_threshold: -8.0,
+            limiter_release: 250.0,
         }
     }
 
@@ -146,6 +184,9 @@ impl VoiceParams {
         Self {
             input_gain: 3.0, // Hot input
             output_gain: 0.0,
+            deesser_threshold: 0.5,
+            deesser_amount: 0.8,
+            transient_attack: 0.5,
             bass_drive: 0.9,
             bass_mix: 0.7,
             mid_drive: 0.8,
@@ -156,6 +197,8 @@ impl VoiceParams {
             air_mix: 0.3,
             stereo_width: 0.3,
             global_mix: 1.0,
+            limiter_threshold: -3.0,
+            limiter_release: 100.0,
         }
     }
 }

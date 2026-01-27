@@ -122,6 +122,7 @@ impl SmartGate {
 
     /// Convert dB to linear gain
     #[inline]
+    #[allow(dead_code)]
     fn db_to_linear(db: f32) -> f32 {
         10.0_f32.powf(db / 20.0)
     }

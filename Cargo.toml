@@ -56,20 +56,29 @@ criterion = "0.5"
 tempfile = "3.0"
 serde_json = "1.0"
 
+# Core DSP component benchmarks (oscillators, filters, envelopes)
 [[bench]]
-name = "dsp_bench"
+name = "dsp_primitives"
 harness = false
 
+# Main polyphonic synthesizer performance benchmarks
 [[bench]]
-name = "optimization_bench"
+name = "main_synth_perf"
 harness = false
 
+# Kick drum synthesizer performance benchmarks
 [[bench]]
-name = "saturation_bench"
+name = "kick_synth_perf"
 harness = false
 
+# Voice enhancement plugin performance benchmarks
 [[bench]]
-name = "voice_latency_bench"
+name = "voice_plugin_perf"
+harness = false
+
+# Voice enhancement plugin latency validation
+[[bench]]
+name = "voice_plugin_latency"
 harness = false
 
 # Standalone binary for main polyphonic synthesizer

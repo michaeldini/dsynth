@@ -4,7 +4,7 @@
 mod optimization_tests {
     use dsynth::audio::engine::{create_parameter_buffer, SynthEngine};
     use dsynth::audio::voice::Voice;
-    use dsynth::dsp::filter::BiquadFilter;
+    use dsynth::dsp::BiquadFilter;
     use dsynth::params::{EnvelopeParams, FilterType, OscillatorParams, SynthParams};
 
     // ========== FILTER COEFFICIENT QUANTIZATION TESTS ==========
@@ -189,7 +189,7 @@ mod optimization_tests {
         let filter_params = Default::default();
         let lfo_params = Default::default();
         let envelope_params = EnvelopeParams::default();
-        let wavetable_library = dsynth::dsp::wavetable_library::WavetableLibrary::new();
+        let wavetable_library = dsynth::dsp::WavetableLibrary::new();
 
         // Change unison count from 1 to 7
         for unison_count in 1..=7 {
@@ -260,7 +260,7 @@ mod optimization_tests {
             decay_curve: 0.0,
             release_curve: 0.0,
         };
-        let wavetable_library = dsynth::dsp::wavetable_library::WavetableLibrary::new();
+        let wavetable_library = dsynth::dsp::WavetableLibrary::new();
         voice.update_parameters(
             &osc_params,
             &filter_params,
@@ -312,7 +312,7 @@ mod optimization_tests {
         let filter_params = Default::default();
         let lfo_params = Default::default();
         let envelope_params = EnvelopeParams::default();
-        let wavetable_library = dsynth::dsp::wavetable_library::WavetableLibrary::new();
+        let wavetable_library = dsynth::dsp::WavetableLibrary::new();
 
         voice.update_parameters(
             &osc_params,
@@ -428,7 +428,7 @@ mod optimization_tests {
         let lfo_params = Default::default();
         let velocity_params = Default::default();
         let envelope_params = EnvelopeParams::default();
-        let wavetable_library = dsynth::dsp::wavetable_library::WavetableLibrary::new();
+        let wavetable_library = dsynth::dsp::WavetableLibrary::new();
 
         // Test multiple notes
         for midi_note in [60, 72, 48] {

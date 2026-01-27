@@ -1,17 +1,26 @@
-/// Saturation Benchmarks - Performance validation for analog saturation plugin
+/// Saturation Benchmarks - Performance validation for 4-band adaptive saturator
 ///
 /// Benchmarks validate:
-/// 1. Per-character saturation processing speed
-/// 2. 3-stage cascade overhead
+/// 1. 4-band saturation processing speed
+/// 2. Multi-stage cascade overhead
 /// 3. Signal analysis cost (without pitch detection)
-/// 4. Full engine processing with target <100 samples latency @ 44.1kHz
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+/// 4. Full engine processing with target <15% CPU @ 44.1kHz
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+
+#[cfg(feature = "voice-clap")]
+use criterion::black_box;
+
+#[cfg(feature = "voice-clap")]
 use dsynth::audio::voice_engine::VoiceEngine;
-use dsynth::dsp::effects::adaptive_saturator::{AdaptiveSaturator, SaturationCharacter};
+#[cfg(feature = "voice-clap")]
+use dsynth::dsp::effects::adaptive_saturator::AdaptiveSaturator;
+#[cfg(feature = "voice-clap")]
 use dsynth::dsp::signal_analyzer::{SignalAnalysis, SignalAnalyzer};
+#[cfg(feature = "voice-clap")]
 use dsynth::params_voice::VoiceParams;
 
 /// Helper to create test analysis data
+#[cfg(feature = "voice-clap")]
 fn create_test_analysis() -> SignalAnalysis {
     SignalAnalysis {
         rms_level: 0.3,
@@ -30,30 +39,34 @@ fn create_test_analysis() -> SignalAnalysis {
     }
 }
 
-/// Benchmark: Adaptive saturator per character type
+/// Benchmark: Adaptive saturator with different drive levels
+#[cfg(feature = "voice-clap")]
 fn bench_saturator_per_character(c: &mut Criterion) {
-    let mut group = c.benchmark_group("adaptive_saturator_characters");
+    let mut group = c.benchmark_group("adaptive_saturator_drive_levels");
 
     let sample_rate = 44100.0;
     let analysis = create_test_analysis();
 
-    for character in [
-        SaturationCharacter::Warm,
-        SaturationCharacter::Smooth,
-        SaturationCharacter::Punchy,
-    ] {
+    // Test different drive levels (low, medium, high)
+    for drive_level in [0.3, 0.6, 0.9] {
         group.bench_with_input(
-            BenchmarkId::new("process_sample", format!("{:?}", character)),
-            &character,
-            |b, &character| {
+            BenchmarkId::new("process_sample", format!("{:.0}%", drive_level * 100.0)),
+            &drive_level,
+            |b, &drive| {
                 let mut saturator = AdaptiveSaturator::new(sample_rate);
                 b.iter(|| {
                     black_box(saturator.process(
-                        black_box(0.5),
-                        black_box(0.5),
-                        black_box(0.7),
-                        black_box(1.0),
-                        character,
+                        black_box(0.5),   // left
+                        black_box(0.5),   // right
+                        black_box(drive), // bass_drive
+                        black_box(0.5),   // bass_mix
+                        black_box(drive), // mid_drive
+                        black_box(0.4),   // mid_mix
+                        black_box(drive), // presence_drive
+                        black_box(0.35),  // presence_mix
+                        black_box(drive), // air_drive
+                        black_box(0.15),  // air_mix
+                        black_box(0.0),   // stereo_width
                         &analysis,
                     ))
                 });
@@ -65,21 +78,28 @@ fn bench_saturator_per_character(c: &mut Criterion) {
 }
 
 /// Benchmark: 3-stage cascade overhead
+#[cfg(feature = "voice-clap")]
 fn bench_three_stage_cascade(c: &mut Criterion) {
     let mut group = c.benchmark_group("saturation_stages");
     let sample_rate = 44100.0;
     let analysis = create_test_analysis();
 
-    group.bench_function("3_stage_cascade_warm", |b| {
+    group.bench_function("3_stage_cascade", |b| {
         let mut saturator = AdaptiveSaturator::new(sample_rate);
         b.iter(|| {
-            // This internally does 3-stage processing
+            // This internally does 3-stage processing with 4-band saturation
             black_box(saturator.process(
-                black_box(0.5),
-                black_box(0.5),
-                black_box(0.7),
-                black_box(1.0),
-                SaturationCharacter::Warm,
+                black_box(0.5),  // left
+                black_box(0.5),  // right
+                black_box(0.7),  // bass_drive
+                black_box(0.5),  // bass_mix
+                black_box(0.6),  // mid_drive
+                black_box(0.4),  // mid_mix
+                black_box(0.4),  // presence_drive
+                black_box(0.35), // presence_mix
+                black_box(0.1),  // air_drive
+                black_box(0.15), // air_mix
+                black_box(0.0),  // stereo_width
                 &analysis,
             ))
         });
@@ -89,6 +109,7 @@ fn bench_three_stage_cascade(c: &mut Criterion) {
 }
 
 /// Benchmark: Signal analysis without pitch detection
+#[cfg(feature = "voice-clap")]
 fn bench_signal_analysis_no_pitch(c: &mut Criterion) {
     let mut group = c.benchmark_group("signal_analysis");
 
@@ -111,14 +132,13 @@ fn bench_signal_analysis_no_pitch(c: &mut Criterion) {
 }
 
 /// Benchmark: Full voice engine processing
+#[cfg(feature = "voice-clap")]
 fn bench_voice_engine_full_process(c: &mut Criterion) {
     let mut group = c.benchmark_group("voice_engine");
 
     group.bench_function("process_sample", |b| {
         let mut engine = VoiceEngine::new(44100.0);
-        let mut params = VoiceParams::default();
-        params.saturation_drive = 0.5;
-        params.saturation_character = 0; // Warm
+        let params = VoiceParams::default();
         engine.update_params(params);
 
         b.iter(|| {
@@ -128,9 +148,7 @@ fn bench_voice_engine_full_process(c: &mut Criterion) {
 
     group.bench_function("process_buffer_512", |b| {
         let mut engine = VoiceEngine::new(44100.0);
-        let mut params = VoiceParams::default();
-        params.saturation_drive = 0.5;
-        params.saturation_character = 1; // Smooth
+        let params = VoiceParams::default();
         engine.update_params(params);
 
         let frame_count = 512;
@@ -154,6 +172,7 @@ fn bench_voice_engine_full_process(c: &mut Criterion) {
 }
 
 /// Benchmark: Latency validation
+#[cfg(feature = "voice-clap")]
 fn bench_latency_measurement(c: &mut Criterion) {
     let mut group = c.benchmark_group("latency");
 
@@ -170,6 +189,7 @@ fn bench_latency_measurement(c: &mut Criterion) {
 }
 
 /// Benchmark: Drive levels (0%, 50%, 100%)
+#[cfg(feature = "voice-clap")]
 fn bench_drive_levels(c: &mut Criterion) {
     let mut group = c.benchmark_group("drive_levels");
 
@@ -180,8 +200,11 @@ fn bench_drive_levels(c: &mut Criterion) {
             |b, &drive| {
                 let mut engine = VoiceEngine::new(44100.0);
                 let mut params = VoiceParams::default();
-                params.saturation_drive = drive;
-                params.saturation_character = 0; // Warm
+                // Set all drive params to test value
+                params.bass_drive = drive;
+                params.mid_drive = drive;
+                params.presence_drive = drive;
+                params.air_drive = drive;
                 engine.update_params(params);
 
                 b.iter(|| {
@@ -194,6 +217,7 @@ fn bench_drive_levels(c: &mut Criterion) {
     group.finish();
 }
 
+#[cfg(feature = "voice-clap")]
 criterion_group!(
     benches,
     bench_saturator_per_character,
@@ -203,4 +227,11 @@ criterion_group!(
     bench_latency_measurement,
     bench_drive_levels,
 );
+
+#[cfg(not(feature = "voice-clap"))]
+fn bench_dummy(_: &mut Criterion) {}
+
+#[cfg(not(feature = "voice-clap"))]
+criterion_group!(benches, bench_dummy);
+
 criterion_main!(benches);

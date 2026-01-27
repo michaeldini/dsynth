@@ -132,7 +132,7 @@ fn test_hard_sync_creates_harmonics() {
     // by comparing waveforms with and without hard sync enabled
 
     use dsynth::audio::voice::Voice;
-    use dsynth::dsp::wavetable_library::WavetableLibrary;
+    use dsynth::dsp::WavetableLibrary;
     use dsynth::params::{SynthParams, Waveform};
 
     let sample_rate = 44100.0;

@@ -1,18 +1,21 @@
-/// Voice Saturation Parameter Registry - 4-BAND MULTIBAND SATURATION
+/// Voice Saturation Parameter Registry - PROFESSIONAL VOCAL PROCESSING
 ///
-/// **Parameter registry for 4-band vocal saturator with mid-side processing**
+/// **Parameter registry for zero-latency vocal processor**
 ///
 /// Parameter namespace: 0x0300_xxxx (voice plugin)
 ///
-/// Total Parameters: **12**
+/// Total Parameters: **18**
 /// 1. Input Gain: -12 to +12 dB
-/// 2-3. Bass: drive (0-1), mix (0-1)
-/// 4-5. Mids: drive (0-1), mix (0-1)
-/// 6-7. Presence: drive (0-1), mix (0-1)
-/// 8-9. Air: drive (0-1), mix (0-1)
-/// 10. Stereo Width: -1 to +1
-/// 11. Global Mix: 0 to 1
-/// 12. Output Gain: -12 to +12 dB
+/// 2-3. De-Esser: threshold (0-1), amount (0-1)
+/// 4-5. Transient Shaper: attack (-1 to +1), sustain (-1 to +1)
+/// 6-7. Bass: drive (0-1), mix (0-1)
+/// 8-9. Mids: drive (0-1), mix (0-1)
+/// 10-11. Presence: drive (0-1), mix (0-1)
+/// 12-13. Air: drive (0-1), mix (0-1)
+/// 14. Stereo Width: -1 to +1
+/// 15. Global Mix: 0 to 1
+/// 16-17. Limiter: threshold (-20 to 0 dB), release (50-500ms)
+/// 18. Output Gain: -12 to +12 dB
 use crate::params_voice::VoiceParams;
 use crate::plugin::param_descriptor::{ParamDescriptor, ParamId};
 use indexmap::IndexMap;
@@ -23,6 +26,15 @@ use std::sync::OnceLock;
 // ============================================================================
 
 pub const PARAM_VOICE_INPUT_GAIN: ParamId = 0x0300_0001;
+
+// De-Esser (0x0300_0010-0x0300_0011)
+pub const PARAM_VOICE_DEESSER_THRESHOLD: ParamId = 0x0300_0010;
+pub const PARAM_VOICE_DEESSER_AMOUNT: ParamId = 0x0300_0011;
+
+// Transient Enhancer (0x0300_0020)
+pub const PARAM_VOICE_TRANSIENT_ATTACK: ParamId = 0x0300_0020;
+
+// Saturator Bands
 pub const PARAM_VOICE_BASS_DRIVE: ParamId = 0x0300_0002;
 pub const PARAM_VOICE_BASS_MIX: ParamId = 0x0300_0003;
 pub const PARAM_VOICE_MID_DRIVE: ParamId = 0x0300_0004;
@@ -31,8 +43,15 @@ pub const PARAM_VOICE_PRESENCE_DRIVE: ParamId = 0x0300_0006;
 pub const PARAM_VOICE_PRESENCE_MIX: ParamId = 0x0300_0007;
 pub const PARAM_VOICE_AIR_DRIVE: ParamId = 0x0300_0008;
 pub const PARAM_VOICE_AIR_MIX: ParamId = 0x0300_0009;
+
+// Master Section
 pub const PARAM_VOICE_STEREO_WIDTH: ParamId = 0x0300_000A;
 pub const PARAM_VOICE_GLOBAL_MIX: ParamId = 0x0300_000B;
+
+// Limiter (0x0300_0030-0x0300_0031)
+pub const PARAM_VOICE_LIMITER_THRESHOLD: ParamId = 0x0300_0030;
+pub const PARAM_VOICE_LIMITER_RELEASE: ParamId = 0x0300_0031;
+
 pub const PARAM_VOICE_OUTPUT_GAIN: ParamId = 0x0300_000C;
 
 // ============================================================================
@@ -56,6 +75,46 @@ pub fn get_voice_param_registry() -> &'static IndexMap<ParamId, ParamDescriptor>
                 12.0,
                 0.0,
                 Some("dB"),
+            ),
+        );
+
+        // De-Esser
+        registry.insert(
+            PARAM_VOICE_DEESSER_THRESHOLD,
+            ParamDescriptor::float(
+                PARAM_VOICE_DEESSER_THRESHOLD,
+                "De-Ess Threshold",
+                "De-Esser",
+                0.0,
+                1.0,
+                0.6,
+                Some("%"),
+            ),
+        );
+        registry.insert(
+            PARAM_VOICE_DEESSER_AMOUNT,
+            ParamDescriptor::float(
+                PARAM_VOICE_DEESSER_AMOUNT,
+                "De-Ess Amount",
+                "De-Esser",
+                0.0,
+                1.0,
+                0.5,
+                Some("%"),
+            ),
+        );
+
+        // Attack Enhancer
+        registry.insert(
+            PARAM_VOICE_TRANSIENT_ATTACK,
+            ParamDescriptor::float(
+                PARAM_VOICE_TRANSIENT_ATTACK,
+                "Attack Enhance",
+                "Attack",
+                -1.0,
+                1.0,
+                0.0,
+                None,
             ),
         );
 
@@ -189,6 +248,33 @@ pub fn get_voice_param_registry() -> &'static IndexMap<ParamId, ParamDescriptor>
                 Some("%"),
             ),
         );
+
+        // Limiter
+        registry.insert(
+            PARAM_VOICE_LIMITER_THRESHOLD,
+            ParamDescriptor::float(
+                PARAM_VOICE_LIMITER_THRESHOLD,
+                "Limiter Threshold",
+                "Limiter",
+                -20.0,
+                0.0,
+                -6.0,
+                Some("dB"),
+            ),
+        );
+        registry.insert(
+            PARAM_VOICE_LIMITER_RELEASE,
+            ParamDescriptor::float(
+                PARAM_VOICE_LIMITER_RELEASE,
+                "Limiter Release",
+                "Limiter",
+                50.0,
+                500.0,
+                200.0,
+                Some("ms"),
+            ),
+        );
+
         // Output Gain (-12 to +12 dB)
         registry.insert(
             PARAM_VOICE_OUTPUT_GAIN,
@@ -216,6 +302,9 @@ pub fn get_param_descriptor(param_id: ParamId) -> Option<&'static ParamDescripto
 pub fn apply_param(params: &mut VoiceParams, param_id: ParamId, value: f32) {
     match param_id {
         PARAM_VOICE_INPUT_GAIN => params.input_gain = value.clamp(-12.0, 12.0),
+        PARAM_VOICE_DEESSER_THRESHOLD => params.deesser_threshold = value.clamp(0.0, 1.0),
+        PARAM_VOICE_DEESSER_AMOUNT => params.deesser_amount = value.clamp(0.0, 1.0),
+        PARAM_VOICE_TRANSIENT_ATTACK => params.transient_attack = value.clamp(-1.0, 1.0),
         PARAM_VOICE_BASS_DRIVE => params.bass_drive = value.clamp(0.0, 1.0),
         PARAM_VOICE_BASS_MIX => params.bass_mix = value.clamp(0.0, 1.0),
         PARAM_VOICE_MID_DRIVE => params.mid_drive = value.clamp(0.0, 1.0),
@@ -226,6 +315,8 @@ pub fn apply_param(params: &mut VoiceParams, param_id: ParamId, value: f32) {
         PARAM_VOICE_AIR_MIX => params.air_mix = value.clamp(0.0, 1.0),
         PARAM_VOICE_STEREO_WIDTH => params.stereo_width = value.clamp(-1.0, 1.0),
         PARAM_VOICE_GLOBAL_MIX => params.global_mix = value.clamp(0.0, 1.0),
+        PARAM_VOICE_LIMITER_THRESHOLD => params.limiter_threshold = value.clamp(-20.0, 0.0),
+        PARAM_VOICE_LIMITER_RELEASE => params.limiter_release = value.clamp(50.0, 500.0),
         PARAM_VOICE_OUTPUT_GAIN => params.output_gain = value.clamp(-12.0, 12.0),
         _ => {
             // Unknown parameter - ignore silently
@@ -237,6 +328,9 @@ pub fn apply_param(params: &mut VoiceParams, param_id: ParamId, value: f32) {
 pub fn get_param(params: &VoiceParams, param_id: ParamId) -> Option<f32> {
     match param_id {
         PARAM_VOICE_INPUT_GAIN => Some(params.input_gain),
+        PARAM_VOICE_DEESSER_THRESHOLD => Some(params.deesser_threshold),
+        PARAM_VOICE_DEESSER_AMOUNT => Some(params.deesser_amount),
+        PARAM_VOICE_TRANSIENT_ATTACK => Some(params.transient_attack),
         PARAM_VOICE_BASS_DRIVE => Some(params.bass_drive),
         PARAM_VOICE_BASS_MIX => Some(params.bass_mix),
         PARAM_VOICE_MID_DRIVE => Some(params.mid_drive),
@@ -247,6 +341,8 @@ pub fn get_param(params: &VoiceParams, param_id: ParamId) -> Option<f32> {
         PARAM_VOICE_AIR_MIX => Some(params.air_mix),
         PARAM_VOICE_STEREO_WIDTH => Some(params.stereo_width),
         PARAM_VOICE_GLOBAL_MIX => Some(params.global_mix),
+        PARAM_VOICE_LIMITER_THRESHOLD => Some(params.limiter_threshold),
+        PARAM_VOICE_LIMITER_RELEASE => Some(params.limiter_release),
         PARAM_VOICE_OUTPUT_GAIN => Some(params.output_gain),
         _ => None,
     }
@@ -259,7 +355,7 @@ mod tests {
     #[test]
     fn test_registry_initialized() {
         let registry = get_voice_param_registry();
-        assert_eq!(registry.len(), 12); // 12 total parameters
+        assert_eq!(registry.len(), 17); // 17 total parameters (removed transient_sustain)
     }
 
     #[test]
@@ -271,6 +367,9 @@ mod tests {
         // Expected order based on insertion in registry initialization
         let expected_order = vec![
             PARAM_VOICE_INPUT_GAIN,
+            PARAM_VOICE_DEESSER_THRESHOLD,
+            PARAM_VOICE_DEESSER_AMOUNT,
+            PARAM_VOICE_TRANSIENT_ATTACK,
             PARAM_VOICE_BASS_DRIVE,
             PARAM_VOICE_BASS_MIX,
             PARAM_VOICE_MID_DRIVE,
@@ -281,6 +380,8 @@ mod tests {
             PARAM_VOICE_AIR_MIX,
             PARAM_VOICE_STEREO_WIDTH,
             PARAM_VOICE_GLOBAL_MIX,
+            PARAM_VOICE_LIMITER_THRESHOLD,
+            PARAM_VOICE_LIMITER_RELEASE,
             PARAM_VOICE_OUTPUT_GAIN,
         ];
 
