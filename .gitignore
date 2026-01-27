@@ -1,3 +1,4 @@
 /target
 .DS_Store
 /dsynth-clap/examples/simple_synth/target
+tests/test_audio/vocal_test.wav
