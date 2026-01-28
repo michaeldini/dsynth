@@ -4,22 +4,19 @@
 ///
 /// Processing chain:
 /// 1. Input Gain
-/// 2. **Signal Analysis** (transient, ZCR, sibilance - NO PITCH for zero latency)
-/// 3. **Intelligent De-Esser** (sibilance-triggered split-band compression)
-/// 4. **Transient Shaper** (attack/sustain control based on analysis)
-/// 5. **Adaptive Saturator** (4-band multiband waveshaping + harmonic synthesis)
-/// 6. **Adaptive Compression Limiter** (transient-aware limiting with -0.5dB ceiling)
-/// 7. Global Mix (parallel processing)
-/// 8. Output Gain
+/// 2. **Signal Analysis** (transient, ZCR - NO PITCH for zero latency)
+/// 3. **Transient Shaper** (attack/sustain control based on analysis)
+/// 4. **Adaptive Saturator** (4-band multiband waveshaping + harmonic synthesis)
+/// 5. **Adaptive Compression Limiter** (transient-aware limiting with -0.5dB ceiling)
+/// 6. Global Mix (parallel processing)
+/// 7. Output Gain
 ///
 /// # Total Latency
 /// - **Zero latency** (pitch detection disabled, all processors use envelope followers)
 /// - Signal analysis runs <50 CPU ops per sample
 /// - Target: <15% CPU for real-time vocal processing
 use crate::dsp::effects::adaptive_saturator::AdaptiveSaturator;
-use crate::dsp::effects::dynamics::{
-    AdaptiveCompressionLimiter, IntelligentDeEsser, TransientShaper,
-};
+use crate::dsp::effects::dynamics::{AdaptiveCompressionLimiter, TransientShaper};
 use crate::dsp::signal_analyzer::SignalAnalyzer;
 use crate::params_voice::VoiceParams;
 
@@ -31,9 +28,6 @@ pub struct VoiceEngine {
 
     /// Signal analyzer (no pitch detection for zero latency)
     signal_analyzer: SignalAnalyzer,
-
-    /// Intelligent de-esser (sibilance-aware split-band compression)
-    de_esser: IntelligentDeEsser,
 
     /// Transient shaper (analysis-based attack/sustain control)
     transient_shaper: TransientShaper,
@@ -52,14 +46,12 @@ impl VoiceEngine {
     /// Create a new voice saturation engine
     pub fn new(sample_rate: f32) -> Self {
         let adaptive_saturator = AdaptiveSaturator::new(sample_rate);
-        let de_esser = IntelligentDeEsser::new(sample_rate);
         let transient_shaper = TransientShaper::new(sample_rate);
         let limiter = AdaptiveCompressionLimiter::new(sample_rate);
 
         Self {
             sample_rate,
             signal_analyzer: SignalAnalyzer::new_no_pitch(sample_rate),
-            de_esser,
             transient_shaper,
             adaptive_saturator,
             limiter,
@@ -93,21 +85,10 @@ impl VoiceEngine {
         let mut left = input_left * input_gain;
         let mut right = input_right * input_gain;
 
-        // 2. Signal Analysis (transient, ZCR, sibilance - NO PITCH for zero latency)
+        // 2. Signal Analysis (transient, ZCR - NO PITCH for zero latency)
         let analysis = self.signal_analyzer.analyze(left, right);
 
-        // 3. Intelligent De-Esser (sibilance-triggered split-band compression)
-        let (left_deessed, right_deessed) = self.de_esser.process(
-            left,
-            right,
-            self.params.deesser_threshold,
-            self.params.deesser_amount,
-            &analysis,
-        );
-        left = left_deessed;
-        right = right_deessed;
-
-        // 4. Attack Enhancer (transient-only gain modulation)
+        // 3. Attack Enhancer (transient-only gain modulation)
         let (left_shaped, right_shaped) =
             self.transient_shaper
                 .process(left, right, self.params.transient_attack, &analysis);
@@ -184,7 +165,6 @@ impl VoiceEngine {
     /// Reset all processing state
     pub fn reset(&mut self) {
         self.signal_analyzer.reset();
-        self.de_esser.reset();
         self.transient_shaper.reset();
         self.adaptive_saturator.reset();
         self.limiter.reset();

@@ -5,16 +5,14 @@
 /// Processing chain:
 /// 1. Input Gain
 /// 2. **Signal Analysis** (transient, ZCR, sibilance - NO PITCH for zero latency)
-/// 3. **Intelligent De-Esser** (sibilance-triggered split-band compression)
-/// 4. **Transient Shaper** (attack/sustain control based on analysis)
-/// 5. **4-Band Multiband Saturator** (bass/mids/presence/air with mid-side processing)
-/// 6. **Adaptive Compression Limiter** (transient-aware envelope-follower limiting)
-/// 7. Global Mix (parallel processing)
-/// 8. Output Gain
+/// 3. **Transient Shaper** (attack control based on analysis)
+/// 4. **4-Band Multiband Saturator** (bass/mids/presence/air with mid-side processing)
+/// 5. **Adaptive Compression Limiter** (transient-aware envelope-follower limiting)
+/// 6. Global Mix (parallel processing)
+/// 7. Output Gain
 ///
-/// **Total: 17 parameters**
+/// **Total: 15 parameters**
 /// - Input/Output (2): input_gain, output_gain
-/// - De-Esser (2): deesser_threshold, deesser_amount
 /// - Attack Enhancer (1): transient_attack
 /// - Bass (2): bass_drive, bass_mix
 /// - Mids (2): mid_drive, mid_mix
@@ -33,12 +31,6 @@ pub struct VoiceParams {
     pub input_gain: f32,
     /// Output gain in dB (-12dB to +12dB)
     pub output_gain: f32,
-
-    // === Intelligent De-Esser (2 params) ===
-    /// Sibilance strength threshold (0.0-1.0, gates detection)
-    pub deesser_threshold: f32,
-    /// De-esser dry/wet amount (0.0-1.0, 0.0=bypass)
-    pub deesser_amount: f32,
 
     // === Attack Enhancer (1 param) ===
     /// Attack gain adjustment (-1.0 to +1.0, negative=soften, positive=punch)
@@ -94,10 +86,6 @@ impl Default for VoiceParams {
             // Input/Output - unity gain
             input_gain: 0.0,
             output_gain: 0.0,
-
-            // De-Esser - moderate settings
-            deesser_threshold: 0.6, // Gates sibilance above 60% strength
-            deesser_amount: 0.5,    // 50% de-essing blend
 
             // Attack Enhancer - neutral (no effect)
             transient_attack: 0.0, // No attack boost/cut
@@ -156,8 +144,6 @@ impl VoiceParams {
         Self {
             input_gain: 0.0,
             output_gain: 0.0,
-            deesser_threshold: 0.7,
-            deesser_amount: 0.3,
             transient_attack: 0.0,
             bass_drive: 0.3,
             bass_mix: 0.3,
@@ -184,8 +170,6 @@ impl VoiceParams {
         Self {
             input_gain: 3.0, // Hot input
             output_gain: 0.0,
-            deesser_threshold: 0.5,
-            deesser_amount: 0.8,
             transient_attack: 0.5,
             bass_drive: 0.9,
             bass_mix: 0.7,

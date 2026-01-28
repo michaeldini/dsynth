@@ -4,18 +4,17 @@
 ///
 /// Parameter namespace: 0x0300_xxxx (voice plugin)
 ///
-/// Total Parameters: **18**
+/// Total Parameters: **16**
 /// 1. Input Gain: -12 to +12 dB
-/// 2-3. De-Esser: threshold (0-1), amount (0-1)
-/// 4-5. Transient Shaper: attack (-1 to +1), sustain (-1 to +1)
-/// 6-7. Bass: drive (0-1), mix (0-1)
-/// 8-9. Mids: drive (0-1), mix (0-1)
-/// 10-11. Presence: drive (0-1), mix (0-1)
-/// 12-13. Air: drive (0-1), mix (0-1)
-/// 14. Stereo Width: -1 to +1
-/// 15. Global Mix: 0 to 1
-/// 16-17. Limiter: threshold (-20 to 0 dB), release (50-500ms)
-/// 18. Output Gain: -12 to +12 dB
+/// 2. Transient Shaper: attack (-1 to +1)
+/// 3-4. Bass: drive (0-1), mix (0-1)
+/// 5-6. Mids: drive (0-1), mix (0-1)
+/// 7-8. Presence: drive (0-1), mix (0-1)
+/// 9-10. Air: drive (0-1), mix (0-1)
+/// 11. Stereo Width: -1 to +1
+/// 12. Global Mix: 0 to 1
+/// 13-14. Limiter: threshold (-20 to 0 dB), release (50-500ms)
+/// 15. Output Gain: -12 to +12 dB
 use crate::params_voice::VoiceParams;
 use crate::plugin::param_descriptor::{ParamDescriptor, ParamId};
 use indexmap::IndexMap;
@@ -26,10 +25,6 @@ use std::sync::OnceLock;
 // ============================================================================
 
 pub const PARAM_VOICE_INPUT_GAIN: ParamId = 0x0300_0001;
-
-// De-Esser (0x0300_0010-0x0300_0011)
-pub const PARAM_VOICE_DEESSER_THRESHOLD: ParamId = 0x0300_0010;
-pub const PARAM_VOICE_DEESSER_AMOUNT: ParamId = 0x0300_0011;
 
 // Transient Enhancer (0x0300_0020)
 pub const PARAM_VOICE_TRANSIENT_ATTACK: ParamId = 0x0300_0020;
@@ -75,32 +70,6 @@ pub fn get_voice_param_registry() -> &'static IndexMap<ParamId, ParamDescriptor>
                 12.0,
                 0.0,
                 Some("dB"),
-            ),
-        );
-
-        // De-Esser
-        registry.insert(
-            PARAM_VOICE_DEESSER_THRESHOLD,
-            ParamDescriptor::float(
-                PARAM_VOICE_DEESSER_THRESHOLD,
-                "De-Ess Threshold",
-                "De-Esser",
-                0.0,
-                1.0,
-                0.6,
-                Some("%"),
-            ),
-        );
-        registry.insert(
-            PARAM_VOICE_DEESSER_AMOUNT,
-            ParamDescriptor::float(
-                PARAM_VOICE_DEESSER_AMOUNT,
-                "De-Ess Amount",
-                "De-Esser",
-                0.0,
-                1.0,
-                0.5,
-                Some("%"),
             ),
         );
 
@@ -302,8 +271,6 @@ pub fn get_param_descriptor(param_id: ParamId) -> Option<&'static ParamDescripto
 pub fn apply_param(params: &mut VoiceParams, param_id: ParamId, value: f32) {
     match param_id {
         PARAM_VOICE_INPUT_GAIN => params.input_gain = value.clamp(-12.0, 12.0),
-        PARAM_VOICE_DEESSER_THRESHOLD => params.deesser_threshold = value.clamp(0.0, 1.0),
-        PARAM_VOICE_DEESSER_AMOUNT => params.deesser_amount = value.clamp(0.0, 1.0),
         PARAM_VOICE_TRANSIENT_ATTACK => params.transient_attack = value.clamp(-1.0, 1.0),
         PARAM_VOICE_BASS_DRIVE => params.bass_drive = value.clamp(0.0, 1.0),
         PARAM_VOICE_BASS_MIX => params.bass_mix = value.clamp(0.0, 1.0),
@@ -328,8 +295,6 @@ pub fn apply_param(params: &mut VoiceParams, param_id: ParamId, value: f32) {
 pub fn get_param(params: &VoiceParams, param_id: ParamId) -> Option<f32> {
     match param_id {
         PARAM_VOICE_INPUT_GAIN => Some(params.input_gain),
-        PARAM_VOICE_DEESSER_THRESHOLD => Some(params.deesser_threshold),
-        PARAM_VOICE_DEESSER_AMOUNT => Some(params.deesser_amount),
         PARAM_VOICE_TRANSIENT_ATTACK => Some(params.transient_attack),
         PARAM_VOICE_BASS_DRIVE => Some(params.bass_drive),
         PARAM_VOICE_BASS_MIX => Some(params.bass_mix),
@@ -355,7 +320,7 @@ mod tests {
     #[test]
     fn test_registry_initialized() {
         let registry = get_voice_param_registry();
-        assert_eq!(registry.len(), 17); // 17 total parameters (removed transient_sustain)
+        assert_eq!(registry.len(), 15); // 15 total parameters (removed de-esser)
     }
 
     #[test]
@@ -367,8 +332,6 @@ mod tests {
         // Expected order based on insertion in registry initialization
         let expected_order = vec![
             PARAM_VOICE_INPUT_GAIN,
-            PARAM_VOICE_DEESSER_THRESHOLD,
-            PARAM_VOICE_DEESSER_AMOUNT,
             PARAM_VOICE_TRANSIENT_ATTACK,
             PARAM_VOICE_BASS_DRIVE,
             PARAM_VOICE_BASS_MIX,
