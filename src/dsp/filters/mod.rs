@@ -1,7 +1,8 @@
 // Filter Components - Biquad filters and filter utilities
 
+pub mod crossovers;
 pub mod filter;
-pub mod multiband_crossover;
 
 pub use filter::BiquadFilter;
-pub use multiband_crossover::MultibandCrossover;
+// Professional crossover filters
+pub use crossovers::{MultibandCrossover, SingleCrossover};

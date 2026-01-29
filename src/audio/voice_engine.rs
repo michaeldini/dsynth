@@ -1,3 +1,6 @@
+use crate::dsp::effects::dynamics::{
+    AdaptiveCompressionLimiter, IntelligentDeEsser, TransientShaper,
+};
 /// Voice Saturation Engine - PROFESSIONAL VOCAL PROCESSING CHAIN
 ///
 /// **Design: Zero-latency vocal processor with intelligent dynamics and saturation**
@@ -5,20 +8,23 @@
 /// Processing chain:
 /// 1. Input Gain
 /// 2. **Signal Analysis** (transient, ZCR - NO PITCH for zero latency)
-/// 3. **Transient Shaper** (attack/sustain control based on analysis)
-/// 4. **Adaptive Saturator** (4-band multiband waveshaping + harmonic synthesis)
-/// 5. **Adaptive Compression Limiter** (transient-aware limiting with -0.5dB ceiling)
-/// 6. Global Mix (parallel processing)
-/// 7. Output Gain
+/// 3. **Transient Shaper** (attack control based on analysis)
+/// 4. **De-Esser** (pre-saturation sibilance control)
+/// 5. **Frequency Splitting** (4-band crossover: bass/mid/presence/air)
+/// 6. **Parallel Band Processing**:
+///    - Bass/Mid/Presence: Individual saturators per channel
+///    - Air: Exciter for high-frequency enhancement
+/// 7. **Adaptive Compression Limiter** (transient-aware limiting)
+/// 8. **Global Mix** (dry/wet parallel processing)
+/// 9. **Output Gain**
 ///
 /// # Total Latency
 /// - **Zero latency** (pitch detection disabled, all processors use envelope followers)
 /// - Signal analysis runs <50 CPU ops per sample
 /// - Target: <15% CPU for real-time vocal processing
-use crate::dsp::effects::adaptive_saturator::AdaptiveSaturator;
-use crate::dsp::effects::dynamics::{
-    AdaptiveCompressionLimiter, IntelligentDeEsser, TransientShaper,
-};
+use crate::dsp::effects::saturator::Saturator;
+use crate::dsp::effects::spectral::Exciter;
+use crate::dsp::filters::MultibandCrossover;
 use crate::dsp::signal_analyzer::SignalAnalyzer;
 use crate::params_voice::VoiceParams;
 
@@ -37,11 +43,20 @@ pub struct VoiceEngine {
     /// Split-band de-esser (pre-saturation)
     de_esser: IntelligentDeEsser,
 
-    /// Split-band de-esser (post-saturation)
-    de_esser_post: IntelligentDeEsser,
+    /// 4-band crossover (splits once in voice engine)
+    crossover_left: MultibandCrossover,
+    crossover_right: MultibandCrossover,
 
-    /// Adaptive saturator (4-band multiband waveshaping)
-    adaptive_saturator: AdaptiveSaturator,
+    /// 3-band saturators (individual instances for clean processing)
+    bass_saturator_left: Saturator,
+    bass_saturator_right: Saturator,
+    mid_saturator_left: Saturator,
+    mid_saturator_right: Saturator,
+    presence_saturator_left: Saturator,
+    presence_saturator_right: Saturator,
+
+    /// Air band exciter (separate processor)
+    air_exciter: Exciter,
 
     /// Adaptive compression limiter (transient-aware envelope-follower limiting)
     limiter: AdaptiveCompressionLimiter,
@@ -53,19 +68,41 @@ pub struct VoiceEngine {
 impl VoiceEngine {
     /// Create a new voice saturation engine
     pub fn new(sample_rate: f32) -> Self {
-        let adaptive_saturator = AdaptiveSaturator::new(sample_rate);
+        // Individual band saturators
+        let bass_saturator_left = Saturator::new(sample_rate, false);
+        let bass_saturator_right = Saturator::new(sample_rate, false);
+        let mid_saturator_left = Saturator::new(sample_rate, false);
+        let mid_saturator_right = Saturator::new(sample_rate, false);
+        let presence_saturator_left = Saturator::new(sample_rate, false);
+        let presence_saturator_right = Saturator::new(sample_rate, false);
+
         let transient_shaper = TransientShaper::new(sample_rate);
         let de_esser = IntelligentDeEsser::new(sample_rate);
-        let de_esser_post = IntelligentDeEsser::new(sample_rate);
         let limiter = AdaptiveCompressionLimiter::new(sample_rate);
+
+        // Separate crossovers for L/R channels
+        let crossover_left = MultibandCrossover::new(sample_rate);
+        let crossover_right = MultibandCrossover::new(sample_rate);
+
+        // Air exciter configured for high frequencies
+        let mut air_exciter = Exciter::new(sample_rate);
+        air_exciter.set_frequency(3000.0); // Match exciter's new default cutoff
+        air_exciter.set_mix(0.0); // Will be controlled by air_mix parameter
 
         Self {
             sample_rate,
             signal_analyzer: SignalAnalyzer::new_no_pitch(sample_rate),
             transient_shaper,
             de_esser,
-            de_esser_post,
-            adaptive_saturator,
+            crossover_left,
+            crossover_right,
+            bass_saturator_left,
+            bass_saturator_right,
+            mid_saturator_left,
+            mid_saturator_right,
+            presence_saturator_left,
+            presence_saturator_right,
+            air_exciter,
             limiter,
             params: VoiceParams::default(),
         }
@@ -96,21 +133,19 @@ impl VoiceEngine {
         let input_gain = VoiceParams::db_to_gain(self.params.input_gain);
         let mut left = input_left * input_gain;
         let mut right = input_right * input_gain;
-        let dry_left = left;
-        let dry_right = right;
 
-        // 2. Signal Analysis (transient, ZCR - NO PITCH for zero latency)
+        // 2. Signal Analysis (needed by adaptive saturator)
         let analysis = self.signal_analyzer.analyze(left, right);
 
-        // 3. Attack Enhancer (transient-only gain modulation)
+        // 3. Transient Shaper
         let (left_shaped, right_shaped) =
             self.transient_shaper
                 .process(left, right, self.params.transient_attack, &analysis);
         left = left_shaped;
         right = right_shaped;
 
-        // 4. Split-band De-Esser (pre-saturation)
-        let ((left_pre, right_pre), (delta_pre_l, delta_pre_r)) =
+        // 4. First De-Esser (before saturation)
+        let ((left_deessed, right_deessed), (delta_left, delta_right)) =
             self.de_esser.process_with_hf_delta(
                 left,
                 right,
@@ -119,53 +154,79 @@ impl VoiceEngine {
                 &analysis,
             );
 
-        // 5. Adaptive Saturator (4-band multiband processing)
-        let (left_sat, right_sat) = self.adaptive_saturator.process(
-            left_pre,
-            right_pre,
+        // De-Esser Listen Mode: Output the removed sibilance for auditioning
+        if self.params.de_esser_listen_hf {
+            left = delta_left;
+            right = delta_right;
+        } else {
+            left = left_deessed;
+            right = right_deessed;
+        }
+
+        // 5. Frequency Splitting (split once in voice engine)
+        let (bass_left, mid_left, presence_left, air_left) = self.crossover_left.process(left);
+        let (bass_right, mid_right, presence_right, air_right) =
+            self.crossover_right.process(right);
+
+        // 6. Parallel Band Processing
+        // 6a. Individual Band Saturators (clean and direct)
+        let sat_bass_left = self.bass_saturator_left.process(
+            bass_left,
             self.params.bass_drive,
             self.params.bass_mix,
-            self.params.mid_drive,
-            self.params.mid_mix,
-            self.params.presence_drive,
-            self.params.presence_mix,
-            self.params.air_drive,
-            self.params.air_mix,
-            self.params.stereo_width,
+            &analysis,
+        );
+        let sat_bass_right = self.bass_saturator_right.process(
+            bass_right,
+            self.params.bass_drive,
+            self.params.bass_mix,
             &analysis,
         );
 
-        // 6. Split-band De-Esser (post-saturation)
-        let ((left_post, right_post), (delta_post_l, delta_post_r)) =
-            self.de_esser_post.process_with_hf_delta(
-                left_sat,
-                right_sat,
-                self.params.de_esser_threshold,
-                self.params.de_esser_amount,
-                &analysis,
-            );
+        let sat_mid_left = self.mid_saturator_left.process(
+            mid_left,
+            self.params.mid_drive,
+            self.params.mid_mix,
+            &analysis,
+        );
+        let sat_mid_right = self.mid_saturator_right.process(
+            mid_right,
+            self.params.mid_drive,
+            self.params.mid_mix,
+            &analysis,
+        );
 
-        // Debug listen: output HF reduction delta from both stages.
-        if self.params.de_esser_listen_hf {
-            let listen_gain = 4.0; // +12 dB
-            let mut l = (delta_pre_l + delta_post_l) * listen_gain;
-            let mut r = (delta_pre_r + delta_post_r) * listen_gain;
-            l = l.clamp(-1.0, 1.0);
-            r = r.clamp(-1.0, 1.0);
-            return (l, r);
-        }
+        let sat_presence_left = self.presence_saturator_left.process(
+            presence_left,
+            self.params.presence_drive,
+            self.params.presence_mix,
+            &analysis,
+        );
+        let sat_presence_right = self.presence_saturator_right.process(
+            presence_right,
+            self.params.presence_drive,
+            self.params.presence_mix,
+            &analysis,
+        );
 
-        left = left_post;
-        right = right_post;
+        // 6b. Air Exciter (separate processor)
+        self.air_exciter.set_drive(self.params.air_drive);
+        self.air_exciter.set_mix(self.params.air_mix);
+        let (exc_air_left, exc_air_right) = self.air_exciter.process(air_left, air_right);
 
-        // 7. Adaptive Compression Limiter (transient-aware envelope-follower limiting)
+        // 7. Recombine frequency bands (no stereo processing)
+        let left = sat_bass_left + sat_mid_left + sat_presence_left + exc_air_left;
+        let right = sat_bass_right + sat_mid_right + sat_presence_right + exc_air_right;
+
+        // 8. Adaptive Compression Limiter
         let (left_limited, right_limited) =
             self.limiter
                 .process(left, right, self.params.limiter_threshold, &analysis);
 
-        // 8. Apply global mix (parallel processing)
-        left = dry_left * (1.0 - self.params.global_mix) + left_limited * self.params.global_mix;
-        right = dry_right * (1.0 - self.params.global_mix) + right_limited * self.params.global_mix;
+        // 8. Global Mix (dry/wet) - Apply BEFORE output gain
+        let dry_wet = self.params.global_mix;
+        let mut left = input_left * (1.0 - dry_wet) + left_limited * dry_wet;
+        let mut right = input_right * (1.0 - dry_wet) + right_limited * dry_wet;
 
         // 9. Output Gain
         let output_gain = VoiceParams::db_to_gain(self.params.output_gain);
@@ -211,8 +272,15 @@ impl VoiceEngine {
         self.signal_analyzer.reset();
         self.transient_shaper.reset();
         self.de_esser.reset();
-        self.de_esser_post.reset();
-        self.adaptive_saturator.reset();
+        self.crossover_left.reset();
+        self.crossover_right.reset();
+        self.bass_saturator_left.reset();
+        self.bass_saturator_right.reset();
+        self.mid_saturator_left.reset();
+        self.mid_saturator_right.reset();
+        self.presence_saturator_left.reset();
+        self.presence_saturator_right.reset();
+        self.air_exciter.reset();
         self.limiter.reset();
     }
 }
@@ -267,7 +335,6 @@ mod tests {
 
         params.bass_drive = 0.7;
         params.mid_mix = 0.6;
-        params.stereo_width = 0.3;
         params.input_gain = 3.0;
 
         engine.update_params(params.clone());
@@ -275,7 +342,6 @@ mod tests {
         // Params should be stored
         assert_eq!(engine.params.bass_drive, 0.7);
         assert_eq!(engine.params.mid_mix, 0.6);
-        assert_eq!(engine.params.stereo_width, 0.3);
         assert_eq!(engine.params.input_gain, 3.0);
     }
 

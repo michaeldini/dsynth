@@ -12,7 +12,7 @@
 /// 6. Global Mix (parallel processing)
 /// 7. Output Gain
 ///
-/// **Total: 18 parameters**
+/// **Total: 17 parameters**
 /// - Input/Output (2): input_gain, output_gain
 /// - Attack Enhancer (1): transient_attack
 /// - De-Esser (3): de_esser_amount, de_esser_threshold, de_esser_listen_hf
@@ -20,7 +20,6 @@
 /// - Mids (2): mid_drive, mid_mix
 /// - Presence (2): presence_drive, presence_mix
 /// - Air (2): air_drive, air_mix
-/// - Stereo (1): stereo_width
 /// - Global (1): global_mix
 /// - Limiter (2): limiter_threshold, limiter_release
 use serde::{Deserialize, Serialize};
@@ -70,13 +69,6 @@ pub struct VoiceParams {
     /// Air exciter dry/wet mix (0.0-1.0)
     pub air_mix: f32,
 
-    // === Stereo (1 param) ===
-    /// Stereo width control (-1.0 to +1.0)
-    /// - -1.0: Maximum width (saturate sides more)
-    /// - 0.0: Neutral (equal processing)
-    /// - +1.0: Maximum power (saturate mid more)
-    pub stereo_width: f32,
-
     // === Global Mix (1 param) ===
     /// Master wet/dry blend (0.0-1.0)
     /// - 0.0: 100% dry (bypass)
@@ -120,9 +112,6 @@ impl Default for VoiceParams {
             // Air - subtle high-frequency enhancement
             air_drive: 0.1,
             air_mix: 0.15,
-
-            // Stereo - neutral
-            stereo_width: 0.0,
 
             // Global Mix - 100% wet (full effect)
             global_mix: 1.0,
@@ -171,7 +160,6 @@ impl VoiceParams {
             presence_mix: 0.2,
             air_drive: 0.05,
             air_mix: 0.1,
-            stereo_width: 0.0,
             global_mix: 1.0,
             limiter_threshold: -8.0,
             limiter_release: 250.0,
@@ -200,7 +188,6 @@ impl VoiceParams {
             presence_mix: 0.5,
             air_drive: 0.2,
             air_mix: 0.3,
-            stereo_width: 0.3,
             global_mix: 1.0,
             limiter_threshold: -3.0,
             limiter_release: 100.0,
@@ -219,7 +206,6 @@ mod tests {
         assert_eq!(params.output_gain, 0.0);
         assert_eq!(params.de_esser_amount, 0.0);
         assert_eq!(params.bass_drive, 0.6);
-        assert_eq!(params.stereo_width, 0.0);
     }
 
     #[test]
@@ -259,6 +245,5 @@ mod tests {
         assert!(params.de_esser_threshold >= 0.0 && params.de_esser_threshold <= 1.0);
         assert!(params.bass_drive >= 0.0 && params.bass_drive <= 1.0);
         assert!(params.mid_mix >= 0.0 && params.mid_mix <= 1.0);
-        assert!(params.stereo_width >= -1.0 && params.stereo_width <= 1.0);
     }
 }

@@ -231,20 +231,6 @@ pub fn get_voice_param_registry() -> &'static IndexMap<ParamId, ParamDescriptor>
                 Some("%"),
             ),
         );
-
-        // Stereo Width
-        registry.insert(
-            PARAM_VOICE_STEREO_WIDTH,
-            ParamDescriptor::float(
-                PARAM_VOICE_STEREO_WIDTH,
-                "Stereo Width",
-                "Stereo",
-                -1.0,
-                1.0,
-                0.0,
-                None,
-            ),
-        );
         // Global Mix
         registry.insert(
             PARAM_VOICE_GLOBAL_MIX,
@@ -324,7 +310,6 @@ pub fn apply_param(params: &mut VoiceParams, param_id: ParamId, value: f32) {
         PARAM_VOICE_PRESENCE_MIX => params.presence_mix = value.clamp(0.0, 1.0),
         PARAM_VOICE_AIR_DRIVE => params.air_drive = value.clamp(0.0, 1.0),
         PARAM_VOICE_AIR_MIX => params.air_mix = value.clamp(0.0, 1.0),
-        PARAM_VOICE_STEREO_WIDTH => params.stereo_width = value.clamp(-1.0, 1.0),
         PARAM_VOICE_GLOBAL_MIX => params.global_mix = value.clamp(0.0, 1.0),
         PARAM_VOICE_LIMITER_THRESHOLD => params.limiter_threshold = value.clamp(-20.0, 0.0),
         PARAM_VOICE_LIMITER_RELEASE => params.limiter_release = value.clamp(50.0, 500.0),
@@ -351,7 +336,6 @@ pub fn get_param(params: &VoiceParams, param_id: ParamId) -> Option<f32> {
         PARAM_VOICE_PRESENCE_MIX => Some(params.presence_mix),
         PARAM_VOICE_AIR_DRIVE => Some(params.air_drive),
         PARAM_VOICE_AIR_MIX => Some(params.air_mix),
-        PARAM_VOICE_STEREO_WIDTH => Some(params.stereo_width),
         PARAM_VOICE_GLOBAL_MIX => Some(params.global_mix),
         PARAM_VOICE_LIMITER_THRESHOLD => Some(params.limiter_threshold),
         PARAM_VOICE_LIMITER_RELEASE => Some(params.limiter_release),
@@ -391,7 +375,6 @@ mod tests {
             PARAM_VOICE_PRESENCE_MIX,
             PARAM_VOICE_AIR_DRIVE,
             PARAM_VOICE_AIR_MIX,
-            PARAM_VOICE_STEREO_WIDTH,
             PARAM_VOICE_GLOBAL_MIX,
             PARAM_VOICE_LIMITER_THRESHOLD,
             PARAM_VOICE_LIMITER_RELEASE,
@@ -433,9 +416,6 @@ mod tests {
         apply_param(&mut params, PARAM_VOICE_MID_MIX, 0.3);
         assert_eq!(params.mid_mix, 0.3);
 
-        apply_param(&mut params, PARAM_VOICE_STEREO_WIDTH, 0.5);
-        assert_eq!(params.stereo_width, 0.5);
-
         apply_param(&mut params, PARAM_VOICE_INPUT_GAIN, 3.0);
         assert_eq!(params.input_gain, 3.0);
 
@@ -448,10 +428,12 @@ mod tests {
         // Test getting parameters
         assert_eq!(get_param(&params, PARAM_VOICE_BASS_DRIVE), Some(0.7));
         assert_eq!(get_param(&params, PARAM_VOICE_MID_MIX), Some(0.3));
-        assert_eq!(get_param(&params, PARAM_VOICE_STEREO_WIDTH), Some(0.5));
         assert_eq!(get_param(&params, PARAM_VOICE_INPUT_GAIN), Some(3.0));
         assert_eq!(get_param(&params, PARAM_VOICE_DE_ESSER_AMOUNT), Some(0.7));
-        assert_eq!(get_param(&params, PARAM_VOICE_DE_ESSER_LISTEN_HF), Some(1.0));
+        assert_eq!(
+            get_param(&params, PARAM_VOICE_DE_ESSER_LISTEN_HF),
+            Some(1.0)
+        );
     }
 
     #[test]
@@ -482,21 +464,6 @@ mod tests {
 
         apply_param(&mut params, PARAM_VOICE_PRESENCE_MIX, 0.7);
         assert_eq!(params.presence_mix, 0.7);
-    }
-
-    #[test]
-    fn test_stereo_width_clamping() {
-        let mut params = VoiceParams::default();
-
-        // Test stereo width clamping (-1 to +1 range)
-        apply_param(&mut params, PARAM_VOICE_STEREO_WIDTH, -2.0);
-        assert_eq!(params.stereo_width, -1.0);
-
-        apply_param(&mut params, PARAM_VOICE_STEREO_WIDTH, 2.0);
-        assert_eq!(params.stereo_width, 1.0);
-
-        apply_param(&mut params, PARAM_VOICE_STEREO_WIDTH, -0.5);
-        assert_eq!(params.stereo_width, -0.5);
     }
 
     #[test]

@@ -55,7 +55,7 @@ impl Exciter {
     pub fn new(sample_rate: f32) -> Self {
         let mut exciter = Self {
             sample_rate,
-            hp_cutoff: 5000.0,
+            hp_cutoff: 3000.0, // Lower cutoff to include more content
             hp_b0: 1.0,
             hp_b1: 0.0,
             hp_b2: 0.0,
@@ -130,24 +130,76 @@ impl Exciter {
         }
     }
 
-    /// Apply harmonic distortion to enhance high frequencies
+    /// Apply musical harmonic enhancement (production version)
     #[inline]
-    fn apply_enhancement(&self, input: f32) -> f32 {
+    fn apply_enhancement_musical(&self, input: f32) -> f32 {
         if self.drive < 0.001 {
             return input;
         }
 
-        // Map drive 0-1 to gain 1x-5x
-        let gain = 1.0 + self.drive * 4.0;
+        // Map drive 0-1 to gain 1.5x-4x for musical enhancement
+        let gain = 1.5 + self.drive * 2.5;
         let driven = input * gain;
 
-        // Soft saturation using tanh for smooth harmonics
-        // This adds odd harmonics that create "presence" and "air"
-        let saturated = driven.tanh();
+        // Gentle multi-stage distortion for musicality
+        let stage1 = driven.tanh(); // Primary saturation
+        let stage2 = (stage1 * 1.5).tanh() * 0.7; // Gentle secondary harmonics
+        let enhanced = stage1 + stage2 * 0.2; // Subtle blend
 
-        // Compensate for gain (with safety check)
+        // Musical compensation with moderate boost
         if gain > 0.0 && gain.is_finite() {
-            saturated / gain.sqrt()
+            enhanced * 1.2 / gain.sqrt() // Gentle boost for presence
+        } else {
+            enhanced
+        }
+    }
+
+    /// Apply harmonic distortion to enhance high frequencies (with explicit drive)
+    /// Kept for reference - more aggressive than musical version
+    #[allow(dead_code)]
+    fn apply_enhancement_with_drive(&self, input: f32, drive: f32) -> f32 {
+        // Always apply some enhancement for debugging
+        let effective_drive = drive.max(0.1);
+
+        // Map drive 0-1 to gain 3x-12x for very aggressive enhancement
+        let gain = 3.0 + effective_drive * 9.0;
+        let driven = input * gain;
+
+        // Multi-stage distortion for richer harmonics
+        let stage1 = driven.tanh(); // Primary saturation
+        let stage2 = (stage1 * 2.0).tanh() * 0.5; // Secondary harmonics
+        let enhanced = stage1 + stage2 * 0.3; // Blend stages
+
+        // Aggressive compensation with significant boost
+        if gain > 0.0 && gain.is_finite() {
+            enhanced * 2.0 / gain.sqrt() // 2x boost for audibility
+        } else {
+            enhanced * 2.0
+        }
+    }
+
+    /// Apply harmonic distortion to enhance high frequencies
+    #[inline]
+    fn apply_enhancement(&self, input: f32) -> f32 {
+        if self.drive < 0.001 {
+            return input * 0.5; // Still apply some gain even with no drive
+        }
+
+        // Map drive 0-1 to gain 2x-10x for more aggressive enhancement
+        let gain = 2.0 + self.drive * 8.0;
+        let driven = input * gain;
+
+        // Use asymmetric saturation for more interesting harmonics
+        let saturated = if driven >= 0.0 {
+            driven.tanh() // Soft clipping for positive
+        } else {
+            // Harder clipping for negative to add more harmonics
+            (driven * 1.5).tanh() * 0.8
+        };
+
+        // More aggressive compensation with boost
+        if gain > 0.0 && gain.is_finite() {
+            saturated * 1.5 / gain.sqrt() // Add 1.5x boost
         } else {
             saturated
         }
@@ -181,7 +233,7 @@ impl Exciter {
         self.hp_y1_left = hp_left;
 
         // Step 2: Apply harmonic enhancement to high frequencies
-        let enhanced_left = self.apply_enhancement(hp_left);
+        let enhanced_left = self.apply_enhancement_musical(hp_left);
 
         // Step 3: Mix enhanced highs back with original
         let left_out = left + enhanced_left * self.mix;
@@ -197,7 +249,7 @@ impl Exciter {
         self.hp_y2_right = self.hp_y1_right;
         self.hp_y1_right = hp_right;
 
-        let enhanced_right = self.apply_enhancement(hp_right);
+        let enhanced_right = self.apply_enhancement_musical(hp_right);
         let right_out = right + enhanced_right * self.mix;
 
         (left_out, right_out)
