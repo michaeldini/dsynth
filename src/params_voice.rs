@@ -6,14 +6,16 @@
 /// 1. Input Gain
 /// 2. **Signal Analysis** (transient, ZCR, sibilance - NO PITCH for zero latency)
 /// 3. **Transient Shaper** (attack control based on analysis)
-/// 4. **4-Band Multiband Saturator** (bass/mids/presence/air with mid-side processing)
+/// 4. **Split-Band De-Esser** (zero-latency, pre-saturation)
+/// 5. **4-Band Multiband Saturator** (bass/mids/presence/air with mid-side processing)
 /// 5. **Adaptive Compression Limiter** (transient-aware envelope-follower limiting)
 /// 6. Global Mix (parallel processing)
 /// 7. Output Gain
 ///
-/// **Total: 15 parameters**
+/// **Total: 18 parameters**
 /// - Input/Output (2): input_gain, output_gain
 /// - Attack Enhancer (1): transient_attack
+/// - De-Esser (3): de_esser_amount, de_esser_threshold, de_esser_listen_hf
 /// - Bass (2): bass_drive, bass_mix
 /// - Mids (2): mid_drive, mid_mix
 /// - Presence (2): presence_drive, presence_mix
@@ -35,6 +37,14 @@ pub struct VoiceParams {
     // === Attack Enhancer (1 param) ===
     /// Attack gain adjustment (-1.0 to +1.0, negative=soften, positive=punch)
     pub transient_attack: f32,
+
+    // === De-Esser (3 params) ===
+    /// De-esser amount (0.0-1.0). 0.0 is a bit-perfect bypass.
+    pub de_esser_amount: f32,
+    /// De-esser threshold (0.0-1.0). Higher = less sensitive.
+    pub de_esser_threshold: f32,
+    /// Debug: listen to the reduction delta (what is being removed).
+    pub de_esser_listen_hf: bool,
 
     // === Bass Band (2 params) ===
     /// Bass drive amount (0.0-1.0)
@@ -89,6 +99,11 @@ impl Default for VoiceParams {
 
             // Attack Enhancer - neutral (no effect)
             transient_attack: 0.0, // No attack boost/cut
+
+            // De-Esser - off by default (amount==0), conservative threshold
+            de_esser_amount: 0.0,
+            de_esser_threshold: 0.6,
+            de_esser_listen_hf: false,
 
             // Bass - warm foundation
             bass_drive: 0.6,
@@ -145,6 +160,9 @@ impl VoiceParams {
             input_gain: 0.0,
             output_gain: 0.0,
             transient_attack: 0.0,
+            de_esser_amount: 0.0,
+            de_esser_threshold: 0.6,
+            de_esser_listen_hf: false,
             bass_drive: 0.3,
             bass_mix: 0.3,
             mid_drive: 0.25,
@@ -171,6 +189,9 @@ impl VoiceParams {
             input_gain: 3.0, // Hot input
             output_gain: 0.0,
             transient_attack: 0.5,
+            de_esser_amount: 0.35,
+            de_esser_threshold: 0.5,
+            de_esser_listen_hf: false,
             bass_drive: 0.9,
             bass_mix: 0.7,
             mid_drive: 0.8,
@@ -196,6 +217,7 @@ mod tests {
         let params = VoiceParams::default();
         assert_eq!(params.input_gain, 0.0);
         assert_eq!(params.output_gain, 0.0);
+        assert_eq!(params.de_esser_amount, 0.0);
         assert_eq!(params.bass_drive, 0.6);
         assert_eq!(params.stereo_width, 0.0);
     }
@@ -233,6 +255,8 @@ mod tests {
         // Verify parameters are within expected ranges
         assert!(params.input_gain >= -12.0 && params.input_gain <= 12.0);
         assert!(params.output_gain >= -12.0 && params.output_gain <= 12.0);
+        assert!(params.de_esser_amount >= 0.0 && params.de_esser_amount <= 1.0);
+        assert!(params.de_esser_threshold >= 0.0 && params.de_esser_threshold <= 1.0);
         assert!(params.bass_drive >= 0.0 && params.bass_drive <= 1.0);
         assert!(params.mid_mix >= 0.0 && params.mid_mix <= 1.0);
         assert!(params.stereo_width >= -1.0 && params.stereo_width <= 1.0);

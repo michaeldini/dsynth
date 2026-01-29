@@ -4,9 +4,10 @@
 ///
 /// Parameter namespace: 0x0300_xxxx (voice plugin)
 ///
-/// Total Parameters: **16**
+/// Total Parameters: **18**
 /// 1. Input Gain: -12 to +12 dB
 /// 2. Transient Shaper: attack (-1 to +1)
+/// 3-5. De-Esser: amount (0-1), threshold (0-1), listen (bool)
 /// 3-4. Bass: drive (0-1), mix (0-1)
 /// 5-6. Mids: drive (0-1), mix (0-1)
 /// 7-8. Presence: drive (0-1), mix (0-1)
@@ -28,6 +29,11 @@ pub const PARAM_VOICE_INPUT_GAIN: ParamId = 0x0300_0001;
 
 // Transient Enhancer (0x0300_0020)
 pub const PARAM_VOICE_TRANSIENT_ATTACK: ParamId = 0x0300_0020;
+
+// De-Esser (0x0300_0040-0x0300_0042)
+pub const PARAM_VOICE_DE_ESSER_AMOUNT: ParamId = 0x0300_0040;
+pub const PARAM_VOICE_DE_ESSER_THRESHOLD: ParamId = 0x0300_0041;
+pub const PARAM_VOICE_DE_ESSER_LISTEN_HF: ParamId = 0x0300_0042;
 
 // Saturator Bands
 pub const PARAM_VOICE_BASS_DRIVE: ParamId = 0x0300_0002;
@@ -84,6 +90,41 @@ pub fn get_voice_param_registry() -> &'static IndexMap<ParamId, ParamDescriptor>
                 1.0,
                 0.0,
                 None,
+            ),
+        );
+
+        // De-Esser
+        registry.insert(
+            PARAM_VOICE_DE_ESSER_AMOUNT,
+            ParamDescriptor::float(
+                PARAM_VOICE_DE_ESSER_AMOUNT,
+                "De-Esser Amount",
+                "De-Esser",
+                0.0,
+                1.0,
+                0.0,
+                Some("%"),
+            ),
+        );
+        registry.insert(
+            PARAM_VOICE_DE_ESSER_THRESHOLD,
+            ParamDescriptor::float(
+                PARAM_VOICE_DE_ESSER_THRESHOLD,
+                "De-Esser Threshold",
+                "De-Esser",
+                0.0,
+                1.0,
+                0.6,
+                Some("%"),
+            ),
+        );
+        registry.insert(
+            PARAM_VOICE_DE_ESSER_LISTEN_HF,
+            ParamDescriptor::bool(
+                PARAM_VOICE_DE_ESSER_LISTEN_HF,
+                "De-Esser Listen",
+                "De-Esser",
+                false,
             ),
         );
 
@@ -272,6 +313,9 @@ pub fn apply_param(params: &mut VoiceParams, param_id: ParamId, value: f32) {
     match param_id {
         PARAM_VOICE_INPUT_GAIN => params.input_gain = value.clamp(-12.0, 12.0),
         PARAM_VOICE_TRANSIENT_ATTACK => params.transient_attack = value.clamp(-1.0, 1.0),
+        PARAM_VOICE_DE_ESSER_AMOUNT => params.de_esser_amount = value.clamp(0.0, 1.0),
+        PARAM_VOICE_DE_ESSER_THRESHOLD => params.de_esser_threshold = value.clamp(0.0, 1.0),
+        PARAM_VOICE_DE_ESSER_LISTEN_HF => params.de_esser_listen_hf = value >= 0.5,
         PARAM_VOICE_BASS_DRIVE => params.bass_drive = value.clamp(0.0, 1.0),
         PARAM_VOICE_BASS_MIX => params.bass_mix = value.clamp(0.0, 1.0),
         PARAM_VOICE_MID_DRIVE => params.mid_drive = value.clamp(0.0, 1.0),
@@ -296,6 +340,9 @@ pub fn get_param(params: &VoiceParams, param_id: ParamId) -> Option<f32> {
     match param_id {
         PARAM_VOICE_INPUT_GAIN => Some(params.input_gain),
         PARAM_VOICE_TRANSIENT_ATTACK => Some(params.transient_attack),
+        PARAM_VOICE_DE_ESSER_AMOUNT => Some(params.de_esser_amount),
+        PARAM_VOICE_DE_ESSER_THRESHOLD => Some(params.de_esser_threshold),
+        PARAM_VOICE_DE_ESSER_LISTEN_HF => Some(if params.de_esser_listen_hf { 1.0 } else { 0.0 }),
         PARAM_VOICE_BASS_DRIVE => Some(params.bass_drive),
         PARAM_VOICE_BASS_MIX => Some(params.bass_mix),
         PARAM_VOICE_MID_DRIVE => Some(params.mid_drive),
@@ -320,7 +367,7 @@ mod tests {
     #[test]
     fn test_registry_initialized() {
         let registry = get_voice_param_registry();
-        assert_eq!(registry.len(), 15); // 15 total parameters (removed de-esser)
+        assert_eq!(registry.len(), 18);
     }
 
     #[test]
@@ -333,6 +380,9 @@ mod tests {
         let expected_order = vec![
             PARAM_VOICE_INPUT_GAIN,
             PARAM_VOICE_TRANSIENT_ATTACK,
+            PARAM_VOICE_DE_ESSER_AMOUNT,
+            PARAM_VOICE_DE_ESSER_THRESHOLD,
+            PARAM_VOICE_DE_ESSER_LISTEN_HF,
             PARAM_VOICE_BASS_DRIVE,
             PARAM_VOICE_BASS_MIX,
             PARAM_VOICE_MID_DRIVE,
@@ -356,6 +406,9 @@ mod tests {
         let registry = get_voice_param_registry();
 
         assert!(registry.contains_key(&PARAM_VOICE_INPUT_GAIN));
+        assert!(registry.contains_key(&PARAM_VOICE_DE_ESSER_AMOUNT));
+        assert!(registry.contains_key(&PARAM_VOICE_DE_ESSER_THRESHOLD));
+        assert!(registry.contains_key(&PARAM_VOICE_DE_ESSER_LISTEN_HF));
         assert!(registry.contains_key(&PARAM_VOICE_BASS_DRIVE));
         assert!(registry.contains_key(&PARAM_VOICE_BASS_MIX));
         assert!(registry.contains_key(&PARAM_VOICE_MID_DRIVE));
@@ -386,11 +439,19 @@ mod tests {
         apply_param(&mut params, PARAM_VOICE_INPUT_GAIN, 3.0);
         assert_eq!(params.input_gain, 3.0);
 
+        apply_param(&mut params, PARAM_VOICE_DE_ESSER_AMOUNT, 0.7);
+        assert_eq!(params.de_esser_amount, 0.7);
+
+        apply_param(&mut params, PARAM_VOICE_DE_ESSER_LISTEN_HF, 1.0);
+        assert!(params.de_esser_listen_hf);
+
         // Test getting parameters
         assert_eq!(get_param(&params, PARAM_VOICE_BASS_DRIVE), Some(0.7));
         assert_eq!(get_param(&params, PARAM_VOICE_MID_MIX), Some(0.3));
         assert_eq!(get_param(&params, PARAM_VOICE_STEREO_WIDTH), Some(0.5));
         assert_eq!(get_param(&params, PARAM_VOICE_INPUT_GAIN), Some(3.0));
+        assert_eq!(get_param(&params, PARAM_VOICE_DE_ESSER_AMOUNT), Some(0.7));
+        assert_eq!(get_param(&params, PARAM_VOICE_DE_ESSER_LISTEN_HF), Some(1.0));
     }
 
     #[test]

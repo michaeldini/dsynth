@@ -16,7 +16,9 @@
 /// - Signal analysis runs <50 CPU ops per sample
 /// - Target: <15% CPU for real-time vocal processing
 use crate::dsp::effects::adaptive_saturator::AdaptiveSaturator;
-use crate::dsp::effects::dynamics::{AdaptiveCompressionLimiter, TransientShaper};
+use crate::dsp::effects::dynamics::{
+    AdaptiveCompressionLimiter, IntelligentDeEsser, TransientShaper,
+};
 use crate::dsp::signal_analyzer::SignalAnalyzer;
 use crate::params_voice::VoiceParams;
 
@@ -31,6 +33,12 @@ pub struct VoiceEngine {
 
     /// Transient shaper (analysis-based attack/sustain control)
     transient_shaper: TransientShaper,
+
+    /// Split-band de-esser (pre-saturation)
+    de_esser: IntelligentDeEsser,
+
+    /// Split-band de-esser (post-saturation)
+    de_esser_post: IntelligentDeEsser,
 
     /// Adaptive saturator (4-band multiband waveshaping)
     adaptive_saturator: AdaptiveSaturator,
@@ -47,12 +55,16 @@ impl VoiceEngine {
     pub fn new(sample_rate: f32) -> Self {
         let adaptive_saturator = AdaptiveSaturator::new(sample_rate);
         let transient_shaper = TransientShaper::new(sample_rate);
+        let de_esser = IntelligentDeEsser::new(sample_rate);
+        let de_esser_post = IntelligentDeEsser::new(sample_rate);
         let limiter = AdaptiveCompressionLimiter::new(sample_rate);
 
         Self {
             sample_rate,
             signal_analyzer: SignalAnalyzer::new_no_pitch(sample_rate),
             transient_shaper,
+            de_esser,
+            de_esser_post,
             adaptive_saturator,
             limiter,
             params: VoiceParams::default(),
@@ -84,6 +96,8 @@ impl VoiceEngine {
         let input_gain = VoiceParams::db_to_gain(self.params.input_gain);
         let mut left = input_left * input_gain;
         let mut right = input_right * input_gain;
+        let dry_left = left;
+        let dry_right = right;
 
         // 2. Signal Analysis (transient, ZCR - NO PITCH for zero latency)
         let analysis = self.signal_analyzer.analyze(left, right);
@@ -95,10 +109,20 @@ impl VoiceEngine {
         left = left_shaped;
         right = right_shaped;
 
+        // 4. Split-band De-Esser (pre-saturation)
+        let ((left_pre, right_pre), (delta_pre_l, delta_pre_r)) =
+            self.de_esser.process_with_hf_delta(
+                left,
+                right,
+                self.params.de_esser_threshold,
+                self.params.de_esser_amount,
+                &analysis,
+            );
+
         // 5. Adaptive Saturator (4-band multiband processing)
         let (left_sat, right_sat) = self.adaptive_saturator.process(
-            left,
-            right,
+            left_pre,
+            right_pre,
             self.params.bass_drive,
             self.params.bass_mix,
             self.params.mid_drive,
@@ -111,19 +135,39 @@ impl VoiceEngine {
             &analysis,
         );
 
-        // 6. Adaptive Compression Limiter (transient-aware envelope-follower limiting)
-        let (left_limited, right_limited) = self.limiter.process(
-            left_sat,
-            right_sat,
-            self.params.limiter_threshold,
-            &analysis,
-        );
+        // 6. Split-band De-Esser (post-saturation)
+        let ((left_post, right_post), (delta_post_l, delta_post_r)) =
+            self.de_esser_post.process_with_hf_delta(
+                left_sat,
+                right_sat,
+                self.params.de_esser_threshold,
+                self.params.de_esser_amount,
+                &analysis,
+            );
 
-        // 7. Apply global mix (parallel processing)
-        left = left * (1.0 - self.params.global_mix) + left_limited * self.params.global_mix;
-        right = right * (1.0 - self.params.global_mix) + right_limited * self.params.global_mix;
+        // Debug listen: output HF reduction delta from both stages.
+        if self.params.de_esser_listen_hf {
+            let listen_gain = 4.0; // +12 dB
+            let mut l = (delta_pre_l + delta_post_l) * listen_gain;
+            let mut r = (delta_pre_r + delta_post_r) * listen_gain;
+            l = l.clamp(-1.0, 1.0);
+            r = r.clamp(-1.0, 1.0);
+            return (l, r);
+        }
 
-        // 8. Output Gain
+        left = left_post;
+        right = right_post;
+
+        // 7. Adaptive Compression Limiter (transient-aware envelope-follower limiting)
+        let (left_limited, right_limited) =
+            self.limiter
+                .process(left, right, self.params.limiter_threshold, &analysis);
+
+        // 8. Apply global mix (parallel processing)
+        left = dry_left * (1.0 - self.params.global_mix) + left_limited * self.params.global_mix;
+        right = dry_right * (1.0 - self.params.global_mix) + right_limited * self.params.global_mix;
+
+        // 9. Output Gain
         let output_gain = VoiceParams::db_to_gain(self.params.output_gain);
         left *= output_gain;
         right *= output_gain;
@@ -166,6 +210,8 @@ impl VoiceEngine {
     pub fn reset(&mut self) {
         self.signal_analyzer.reset();
         self.transient_shaper.reset();
+        self.de_esser.reset();
+        self.de_esser_post.reset();
         self.adaptive_saturator.reset();
         self.limiter.reset();
     }

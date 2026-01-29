@@ -20,6 +20,9 @@ Unlike traditional saturators that process the entire frequency spectrum uniform
 - **Analog-style waveshaping**: Tube-inspired tanh saturation with dynamic drive
 - **Parallel processing**: Global mix control for blend with dry signal
 - **Zero latency processing**: Real-time performance suitable for tracking
+- **Intelligent de-esser**: Dynamic EQ-based sibilance reduction (6.5 kHz center)
+- **Transient shaper**: Attack enhancement for clarity and punch control
+- **Adaptive compression/limiting**: Transient-aware dynamics with -0.5dB ceiling
 
 ---
 
@@ -218,6 +221,310 @@ The "air" and "shimmer" frequency range.
 - **60-100%**: Maximum brightness (bold)
 
 **Pro tip**: Start with 10% drive and 15% mix, then adjust to taste. A little goes a long way.
+
+---
+
+### Dynamics Processing
+
+The following three processors work together to provide professional vocal dynamics control with zero latency.
+
+---
+
+### De-Esser (Intelligent Sibilance Reduction)
+
+The intelligent de-esser uses a **dynamic EQ approach** centered at 6.5 kHz to reduce harsh sibilance (s, sh, ch sounds) without affecting the rest of the vocal spectrum.
+
+#### How It Works
+
+Unlike traditional split-band de-essers that process high frequencies broadly, this uses:
+- **Band-pass detector** at 6.5 kHz to isolate sibilance energy
+- **Dynamic high-shelf cut** that only activates when sibilance is detected
+- **Stereo-linked detection** for consistent stereo image
+- **Zero latency** envelope followers (no lookahead)
+
+#### De-Esser Threshold (0% - 100%)
+
+**What it does**: Controls how sensitive the de-esser is to sibilance. Higher values = less sensitive (triggers less often).
+
+**Why use it**: Different voices and microphones produce different amounts of sibilance. This parameter adapts the de-esser to your source material.
+
+**Expected effect**:
+- **0-20%**: Very sensitive (catches all sibilance, may over-process)
+- **30-50%**: Balanced (typical sibilance reduction)
+- **60-80%**: Conservative (only harsh sibilance)
+- **90-100%**: Minimal processing (barely triggers)
+
+**How to set it**:
+1. Set Amount to 100% (full effect)
+2. Play back vocal with sibilant content ("s", "sh", "ch" sounds)
+3. Adjust Threshold until sibilance is controlled without dulling consonants
+4. Reduce Amount to taste (typically 40-70%)
+
+**Technical note**: The threshold range is mapped non-linearly (0% = -50dB, 100% = -10dB) with a power curve for musical control in the mid-range.
+
+#### De-Esser Amount (0% - 100%)
+
+**What it does**: Controls the intensity of sibilance reduction (like a wet/dry mix for the de-essing effect).
+
+**Why use it**: Allows you to dial in the perfect balance between clarity and sibilance control.
+
+**Expected effect**:
+- **0%**: No de-essing (bypass)
+- **20-40%**: Subtle control (natural)
+- **50-70%**: Moderate reduction (most common range)
+- **80-100%**: Heavy reduction (aggressive)
+
+**When to use**:
+- **High values (70-100%)**: Bright microphones, harsh sibilance, broadcast
+- **Medium values (40-60%)**: Typical vocal production
+- **Low values (20-30%)**: Subtle control, already well-recorded vocals
+
+**Pro tip**: Start at 50% amount and 40% threshold, then adjust. Use your DAW's spectrum analyzer to see the 5-8 kHz range during sibilant sounds.
+
+**Caution**: Excessive de-essing can make vocals sound lispy or dull. Always compare with bypass.
+
+---
+
+### Transient Shaper (Attack Enhancer)
+
+The transient shaper enhances or suppresses transient content (consonants, plosives, percussive elements) while leaving sustained notes untouched. It uses **pre-computed transient detection** for zero-latency, sample-accurate processing.
+
+#### How It Works
+
+- **Analysis-driven**: Uses real-time transient detection (fixed 0.15 sensitivity)
+- **Zero latency**: Envelope-based gain modulation with immediate response
+- **Transient-only**: Only modulates during detected transients (non-transients pass through)
+- **Fast envelope**: 1ms attack for precise transient tracking
+- **Gain smoothing**: 5ms smoothing to prevent clicks
+
+#### Attack (-100% to +100%)
+
+**What it does**: Controls transient boost (positive) or suppression (negative).
+
+**Why use it**: Gives you surgical control over vocal clarity and punch without affecting the body of the vocal.
+
+**Expected effect**:
+- **-100% to -50%**: Heavy transient suppression (smooth, warm, vintage)
+- **-40% to -20%**: Moderate softening (gentle, intimate)
+- **-10% to +10%**: Neutral zone (minimal effect)
+- **+20% to +40%**: Moderate enhancement (clear, present)
+- **+50% to +70%**: Strong enhancement (punchy, aggressive)
+- **+80% to +100%**: Maximum punch (hyper-articulate, modern)
+
+**When to use positive values** (transient boost):
+- Mumbled or unclear vocals
+- Dense mixes where vocals get buried
+- Modern pop/hip-hop production
+- Emphasizing consonants for intelligibility
+- Broadcast/podcasting clarity
+
+**When to use negative values** (transient suppression):
+- Harsh or sibilant vocals
+- Vintage/warm character
+- Intimate ballads
+- Smoothing plosives (p, t, k sounds)
+- Reducing mic pops
+
+**How it works technically**:
+1. Fast envelope (1ms) tracks signal peaks
+2. When transient detected (strength ≥ 0.15), applies gain based on Attack parameter
+3. Gain formula: `1.0 + attack_param × (envelope - 0.5)`
+4. Non-transients pass through at unity gain (no processing)
+
+**Pro tip**: 
+- For clarity: +40% attack + 50% de-esser amount
+- For warmth: -30% attack + low de-esser amount
+- For radio voice: +60% attack + 60% de-esser amount
+
+**Important**: At 0% attack, the processor bypasses completely (bit-perfect passthrough). Small adjustments (±10-20%) are often sufficient.
+
+---
+
+### Adaptive Compression/Limiter
+
+A professional compressor-limiter that combines intelligent compression with hard ceiling limiting. Uses **envelope followers** (no lookahead) for zero-latency operation while being gentle on transients.
+
+#### How It Works
+
+- **Stereo-linked RMS detection**: Uses max of L/R for consistent stereo image
+- **Adaptive attack**: 1ms for peaks, 10ms for transients (preserves punch)
+- **Fixed 10:1 ratio**: Limiting characteristic (transparent → brick wall)
+- **Fixed -0.5dB ceiling**: Safe headroom to prevent intersample peaks
+- **Soft knee**: 3dB knee for smooth compression curve
+
+**Signal flow:**
+```
+Input → RMS Detection (stereo-linked)
+      → Compression Stage (adaptive ratio based on transients)
+      → Hard Ceiling Limiter (-0.5dB)
+      → Output
+```
+
+#### Comp Threshold (-20 dB to 0 dB)
+
+**What it does**: Sets the level above which compression begins. This is the "knee point" where the compressor starts working.
+
+**Why use it**: Controls how much of your vocal is being compressed. Lower thresholds compress more of the signal; higher thresholds only compress peaks.
+
+**Expected effect**:
+- **-20 to -15 dB**: Heavy compression (most of signal compressed)
+- **-12 to -8 dB**: Moderate compression (standard vocal setting)
+- **-6 to -3 dB**: Light compression (only peaks compressed)
+- **-1 to 0 dB**: Safety limiting (almost no compression)
+
+**How to set it**:
+1. Play back vocal at typical level
+2. Watch your DAW's meters to see peak levels
+3. Set threshold 3-6 dB below average peak level
+4. Adjust to taste (lower = more compression)
+
+**When to use**:
+- **-10 dB**: Typical starting point for vocals
+- **-15 dB**: Controlling dynamic range on expressive vocals
+- **-6 dB**: Gentle glue on already well-controlled vocals
+- **-3 dB**: Transparent peak limiting only
+
+**Pro tip**: The compressor has a **soft knee** (3dB), so compression starts gently before the threshold and gradually increases. This makes the threshold setting more forgiving.
+
+#### Comp Release (50 ms to 500 ms)
+
+**What it does**: Controls how quickly the compressor recovers after the signal drops below the threshold.
+
+**Why use it**: Determines the "breathing" character of the compression. Faster = tighter, more obvious; slower = smoother, more transparent.
+
+**Expected effect**:
+- **50-100 ms**: Fast release (tight, pumpy, obvious compression)
+- **150-250 ms**: Moderate release (most common range, natural)
+- **300-400 ms**: Slow release (smooth, transparent, glue)
+- **450-500 ms**: Very slow (gentle, minimal pumping)
+
+**When to use**:
+- **Fast (50-100ms)**: Aggressive vocal control, modern pop, rap
+- **Medium (150-250ms)**: General purpose, most vocals
+- **Slow (300-500ms)**: Ballads, smooth jazz, transparent control
+
+**How it interacts with material**:
+- **Fast release + low threshold**: Obvious "pumping" effect
+- **Slow release + low threshold**: Smooth leveling, bus glue
+- **Medium release + medium threshold**: Balanced, natural control
+
+**Technical note**: The compressor uses **envelope followers** with separate attack/release coefficients. Release time determines how fast the gain reduction "lets go" after the signal level drops.
+
+**Pro tip**: Start at 200ms (default), then adjust:
+- If compression sounds obvious/pumpy → increase release time
+- If compression sounds sluggish/laggy → decrease release time
+- Match release to song tempo for rhythmic compression
+
+#### Transient-Aware Attack
+
+**How it works** (automatic, not user-adjustable):
+- **Non-transient peaks**: 1ms attack (fast response to level spikes)
+- **Transients**: 10ms attack (preserves punch on consonants/plosives)
+
+The compressor automatically detects transients using the signal analyzer and adjusts its attack time accordingly. This preserves vocal articulation while still controlling sustained notes and peaks.
+
+**Why this matters**:
+- Traditional compressors with fixed attack times either:
+  - **Fast attack**: Controls peaks but dulls transients
+  - **Slow attack**: Preserves transients but lets peaks through
+- Adaptive attack gives you **both**: controlled peaks AND punchy transients
+
+#### Hard Ceiling Limiter
+
+**What it does** (automatic, not user-adjustable):
+- Brick wall at **-0.5dB** to prevent intersample peaks
+- Always active as final safety stage
+- Operates after compression stage
+
+**Why it's fixed at -0.5dB**:
+- Prevents digital clipping
+- Leaves headroom for intersample peaks (sample reconstruction can exceed 0dBFS)
+- Ensures safe output for all downstream processing
+
+**How compression and limiting interact**:
+1. Compression stage reduces dynamic range (threshold + 10:1 ratio)
+2. Hard limiter catches any peaks above -0.5dB
+3. Combined effect: controlled dynamics + absolute ceiling
+
+---
+
+### Dynamics Section Workflow
+
+The three dynamics processors work together as a professional vocal chain:
+
+#### Order of Operations (in voice_engine.rs)
+```
+Input → Noise Gate → Pitch Detection
+      → Parametric EQ
+      → Compressor (adaptive compression/limiter)
+      → De-Esser (sibilance reduction)
+      → Sub Oscillator
+      → Exciter
+      → Transient Shaper (attack enhancement)
+      → Limiter (final safety)
+      → Output
+```
+
+#### Recommended Starting Settings
+
+**For Modern Pop Vocals:**
+- Comp Threshold: -10 dB
+- Comp Release: 200 ms
+- De-Esser Threshold: 40%
+- De-Esser Amount: 60%
+- Attack: +30%
+
+**For Warm/Vintage Character:**
+- Comp Threshold: -12 dB
+- Comp Release: 300 ms
+- De-Esser Threshold: 60%
+- De-Esser Amount: 40%
+- Attack: -20%
+
+**For Broadcast/Podcast:**
+- Comp Threshold: -8 dB
+- Comp Release: 150 ms
+- De-Esser Threshold: 30%
+- De-Esser Amount: 70%
+- Attack: +50%
+
+**For Transparent Enhancement:**
+- Comp Threshold: -6 dB
+- Comp Release: 250 ms
+- De-Esser Threshold: 50%
+- De-Esser Amount: 40%
+- Attack: +10%
+
+#### Tips for Dialing In
+
+1. **Start with compression**:
+   - Set threshold to taste (-8 to -12 dB typical)
+   - Leave release at 200ms initially
+   - This provides the foundation for dynamics control
+
+2. **Add de-essing**:
+   - Set amount to 50%, threshold to 40%
+   - Play sibilant content ("s", "sh" sounds)
+   - Adjust threshold until sibilance is controlled but not dull
+   - Fine-tune amount for intensity
+
+3. **Fine-tune attack**:
+   - Start at 0% (neutral)
+   - Boost (+20 to +40%) for clarity in dense mixes
+   - Cut (-20 to -40%) for warmth or to tame harshness
+   - Small adjustments make big differences
+
+4. **Listen in context**:
+   - Always A/B with bypass
+   - Check mono compatibility (fold to mono in DAW)
+   - Verify on multiple playback systems
+   - Rest your ears periodically (ear fatigue affects judgment)
+
+5. **Avoid over-processing**:
+   - If it sounds "squashed" → raise compression threshold or increase release
+   - If it sounds "dull" → reduce de-esser amount
+   - If consonants sound unnatural → reduce attack boost
+   - When in doubt, use less
 
 ---
 
