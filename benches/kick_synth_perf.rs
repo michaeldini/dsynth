@@ -96,9 +96,9 @@ fn bench_kick_key_tracking(c: &mut Criterion) {
                 let mut engine = KickEngine::new(SAMPLE_RATE, Arc::clone(&params_arc));
 
                 b.iter(|| {
-                    // Trigger different notes to test key tracking
-                    for note in [36, 48, 60, 72] {
-                        engine.trigger_note(note, 1.0);
+                    // Trigger kicks to test performance
+                    for _ in [36, 48, 60, 72] {
+                        engine.trigger(1.0);
                         for _ in 0..256 {
                             black_box(engine.process_sample());
                         }

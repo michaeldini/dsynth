@@ -12,10 +12,10 @@
 /// 6. Global Mix (parallel processing)
 /// 7. Output Gain
 ///
-/// **Total: 17 parameters**
+/// **Total: 18 parameters**
 /// - Input/Output (2): input_gain, output_gain
 /// - Attack Enhancer (1): transient_attack
-/// - De-Esser (3): de_esser_amount, de_esser_threshold, de_esser_listen_hf
+/// - De-Esser (4): de_esser_amount, de_esser_threshold, sibilance_frequency, de_esser_listen_hf
 /// - Bass (2): bass_drive, bass_mix
 /// - Mids (2): mid_drive, mid_mix
 /// - Presence (2): presence_drive, presence_mix
@@ -37,11 +37,13 @@ pub struct VoiceParams {
     /// Attack gain adjustment (-1.0 to +1.0, negative=soften, positive=punch)
     pub transient_attack: f32,
 
-    // === De-Esser (3 params) ===
+    // === De-Esser (4 params) ===
     /// De-esser amount (0.0-1.0). 0.0 is a bit-perfect bypass.
     pub de_esser_amount: f32,
     /// De-esser threshold (0.0-1.0). Higher = less sensitive.
     pub de_esser_threshold: f32,
+    /// Sibilance center frequency in Hz (3000-10000 Hz)
+    pub sibilance_frequency: f32,
     /// Debug: listen to the reduction delta (what is being removed).
     pub de_esser_listen_hf: bool,
 
@@ -95,6 +97,7 @@ impl Default for VoiceParams {
             // De-Esser - off by default (amount==0), conservative threshold
             de_esser_amount: 0.0,
             de_esser_threshold: 0.6,
+            sibilance_frequency: 6500.0, // Typical vocal sibilance center
             de_esser_listen_hf: false,
 
             // Bass - warm foundation
@@ -151,6 +154,7 @@ impl VoiceParams {
             transient_attack: 0.0,
             de_esser_amount: 0.0,
             de_esser_threshold: 0.6,
+            sibilance_frequency: 6500.0, // Typical vocal sibilance center
             de_esser_listen_hf: false,
             bass_drive: 0.3,
             bass_mix: 0.3,
@@ -179,6 +183,7 @@ impl VoiceParams {
             transient_attack: 0.5,
             de_esser_amount: 0.35,
             de_esser_threshold: 0.5,
+            sibilance_frequency: 7000.0, // Slightly higher for enhanced presence
             de_esser_listen_hf: false,
             bass_drive: 0.9,
             bass_mix: 0.7,

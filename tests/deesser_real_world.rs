@@ -3,7 +3,7 @@
 //! These tests are intentionally `#[ignore]` because they are long-running and
 //! intended for manual profiling/listening diagnostics.
 
-use dsynth::dsp::effects::dynamics::IntelligentDeEsser;
+use dsynth::dsp::effects::dynamics::DeEsser;
 use dsynth::dsp::signal_analyzer::SignalAnalyzer;
 use std::f32::consts::PI;
 
@@ -11,7 +11,7 @@ use std::f32::consts::PI;
 #[ignore]
 fn diagnose_realistic_vocal_sibilance_reduction() {
     let sample_rate = 44100.0;
-    let mut deesser = IntelligentDeEsser::new(sample_rate);
+    let mut deesser = DeEsser::new(sample_rate);
     let mut analyzer = SignalAnalyzer::new_no_pitch(sample_rate);
 
     // Simulate vocal: 200Hz fundamental + harmonics + periodic sibilance bursts.
@@ -41,7 +41,7 @@ fn diagnose_realistic_vocal_sibilance_reduction() {
         let analysis = analyzer.analyze(input, input);
 
         // Example settings.
-        let (output, _) = deesser.process(input, input, 0.6, 1.0, &analysis);
+        let ((output, _), _) = deesser.process(input, input, 0.6, 1.0, &analysis);
 
         total_input_energy += input * input;
         total_output_energy += output * output;

@@ -30,10 +30,11 @@ pub const PARAM_VOICE_INPUT_GAIN: ParamId = 0x0300_0001;
 // Transient Enhancer (0x0300_0020)
 pub const PARAM_VOICE_TRANSIENT_ATTACK: ParamId = 0x0300_0020;
 
-// De-Esser (0x0300_0040-0x0300_0042)
+// De-Esser (0x0300_0040-0x0300_0043)
 pub const PARAM_VOICE_DE_ESSER_AMOUNT: ParamId = 0x0300_0040;
 pub const PARAM_VOICE_DE_ESSER_THRESHOLD: ParamId = 0x0300_0041;
-pub const PARAM_VOICE_DE_ESSER_LISTEN_HF: ParamId = 0x0300_0042;
+pub const PARAM_VOICE_SIBILANCE_FREQUENCY: ParamId = 0x0300_0042;
+pub const PARAM_VOICE_DE_ESSER_LISTEN_HF: ParamId = 0x0300_0043;
 
 // Saturator Bands
 pub const PARAM_VOICE_BASS_DRIVE: ParamId = 0x0300_0002;
@@ -46,7 +47,6 @@ pub const PARAM_VOICE_AIR_DRIVE: ParamId = 0x0300_0008;
 pub const PARAM_VOICE_AIR_MIX: ParamId = 0x0300_0009;
 
 // Master Section
-pub const PARAM_VOICE_STEREO_WIDTH: ParamId = 0x0300_000A;
 pub const PARAM_VOICE_GLOBAL_MIX: ParamId = 0x0300_000B;
 
 // Limiter (0x0300_0030-0x0300_0031)
@@ -116,6 +116,18 @@ pub fn get_voice_param_registry() -> &'static IndexMap<ParamId, ParamDescriptor>
                 1.0,
                 0.6,
                 Some("%"),
+            ),
+        );
+        registry.insert(
+            PARAM_VOICE_SIBILANCE_FREQUENCY,
+            ParamDescriptor::float(
+                PARAM_VOICE_SIBILANCE_FREQUENCY,
+                "Sibilance Freq",
+                "De-Esser",
+                3000.0,
+                10000.0,
+                6500.0,
+                Some("Hz"),
             ),
         );
         registry.insert(
@@ -301,6 +313,9 @@ pub fn apply_param(params: &mut VoiceParams, param_id: ParamId, value: f32) {
         PARAM_VOICE_TRANSIENT_ATTACK => params.transient_attack = value.clamp(-1.0, 1.0),
         PARAM_VOICE_DE_ESSER_AMOUNT => params.de_esser_amount = value.clamp(0.0, 1.0),
         PARAM_VOICE_DE_ESSER_THRESHOLD => params.de_esser_threshold = value.clamp(0.0, 1.0),
+        PARAM_VOICE_SIBILANCE_FREQUENCY => {
+            params.sibilance_frequency = value.clamp(3000.0, 10000.0)
+        }
         PARAM_VOICE_DE_ESSER_LISTEN_HF => params.de_esser_listen_hf = value >= 0.5,
         PARAM_VOICE_BASS_DRIVE => params.bass_drive = value.clamp(0.0, 1.0),
         PARAM_VOICE_BASS_MIX => params.bass_mix = value.clamp(0.0, 1.0),
@@ -327,6 +342,7 @@ pub fn get_param(params: &VoiceParams, param_id: ParamId) -> Option<f32> {
         PARAM_VOICE_TRANSIENT_ATTACK => Some(params.transient_attack),
         PARAM_VOICE_DE_ESSER_AMOUNT => Some(params.de_esser_amount),
         PARAM_VOICE_DE_ESSER_THRESHOLD => Some(params.de_esser_threshold),
+        PARAM_VOICE_SIBILANCE_FREQUENCY => Some(params.sibilance_frequency),
         PARAM_VOICE_DE_ESSER_LISTEN_HF => Some(if params.de_esser_listen_hf { 1.0 } else { 0.0 }),
         PARAM_VOICE_BASS_DRIVE => Some(params.bass_drive),
         PARAM_VOICE_BASS_MIX => Some(params.bass_mix),
@@ -366,6 +382,7 @@ mod tests {
             PARAM_VOICE_TRANSIENT_ATTACK,
             PARAM_VOICE_DE_ESSER_AMOUNT,
             PARAM_VOICE_DE_ESSER_THRESHOLD,
+            PARAM_VOICE_SIBILANCE_FREQUENCY,
             PARAM_VOICE_DE_ESSER_LISTEN_HF,
             PARAM_VOICE_BASS_DRIVE,
             PARAM_VOICE_BASS_MIX,
@@ -391,6 +408,7 @@ mod tests {
         assert!(registry.contains_key(&PARAM_VOICE_INPUT_GAIN));
         assert!(registry.contains_key(&PARAM_VOICE_DE_ESSER_AMOUNT));
         assert!(registry.contains_key(&PARAM_VOICE_DE_ESSER_THRESHOLD));
+        assert!(registry.contains_key(&PARAM_VOICE_SIBILANCE_FREQUENCY));
         assert!(registry.contains_key(&PARAM_VOICE_DE_ESSER_LISTEN_HF));
         assert!(registry.contains_key(&PARAM_VOICE_BASS_DRIVE));
         assert!(registry.contains_key(&PARAM_VOICE_BASS_MIX));
@@ -400,7 +418,6 @@ mod tests {
         assert!(registry.contains_key(&PARAM_VOICE_PRESENCE_MIX));
         assert!(registry.contains_key(&PARAM_VOICE_AIR_DRIVE));
         assert!(registry.contains_key(&PARAM_VOICE_AIR_MIX));
-        assert!(registry.contains_key(&PARAM_VOICE_STEREO_WIDTH));
         assert!(registry.contains_key(&PARAM_VOICE_GLOBAL_MIX));
         assert!(registry.contains_key(&PARAM_VOICE_OUTPUT_GAIN));
     }

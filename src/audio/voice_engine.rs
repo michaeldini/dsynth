@@ -1,6 +1,4 @@
-use crate::dsp::effects::dynamics::{
-    AdaptiveCompressionLimiter, IntelligentDeEsser, TransientShaper,
-};
+use crate::dsp::effects::dynamics::{AdaptiveCompressionLimiter, DeEsser, TransientShaper};
 /// Voice Saturation Engine - PROFESSIONAL VOCAL PROCESSING CHAIN
 ///
 /// **Design: Zero-latency vocal processor with intelligent dynamics and saturation**
@@ -40,8 +38,8 @@ pub struct VoiceEngine {
     /// Transient shaper (analysis-based attack/sustain control)
     transient_shaper: TransientShaper,
 
-    /// Split-band de-esser (pre-saturation)
-    de_esser: IntelligentDeEsser,
+    /// De-Esser (pre-saturation sibilance control)
+    de_esser: DeEsser,
 
     /// 4-band crossover (splits once in voice engine)
     crossover_left: MultibandCrossover,
@@ -77,7 +75,7 @@ impl VoiceEngine {
         let presence_saturator_right = Saturator::new(sample_rate, false);
 
         let transient_shaper = TransientShaper::new(sample_rate);
-        let de_esser = IntelligentDeEsser::new(sample_rate);
+        let de_esser = DeEsser::new(sample_rate);
         let limiter = AdaptiveCompressionLimiter::new(sample_rate);
 
         // Separate crossovers for L/R channels
@@ -117,6 +115,12 @@ impl VoiceEngine {
 
     /// Update parameters
     pub fn update_params(&mut self, params: VoiceParams) {
+        // Update de-esser frequency if it has changed
+        if (self.params.sibilance_frequency - params.sibilance_frequency).abs() > 1.0 {
+            self.de_esser
+                .set_crossover_frequency(params.sibilance_frequency);
+        }
+
         self.params = params;
     }
 
@@ -145,14 +149,13 @@ impl VoiceEngine {
         right = right_shaped;
 
         // 4. First De-Esser (before saturation)
-        let ((left_deessed, right_deessed), (delta_left, delta_right)) =
-            self.de_esser.process_with_hf_delta(
-                left,
-                right,
-                self.params.de_esser_threshold,
-                self.params.de_esser_amount,
-                &analysis,
-            );
+        let ((left_deessed, right_deessed), (delta_left, delta_right)) = self.de_esser.process(
+            left,
+            right,
+            self.params.de_esser_threshold,
+            self.params.de_esser_amount,
+            &analysis,
+        );
 
         // De-Esser Listen Mode: Output the removed sibilance for auditioning
         if self.params.de_esser_listen_hf {

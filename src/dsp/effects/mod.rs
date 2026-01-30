@@ -31,8 +31,7 @@ pub mod vocal;
 
 // Dynamics
 pub use dynamics::{
-    Clipper, Compressor, DeEsser, LookAheadLimiter, LookaheadLimiter, MultibandCompressor,
-    NoiseGate,
+    Clipper, Compressor, LookAheadLimiter, LookaheadLimiter, MultibandCompressor, NoiseGate,
 };
 
 // Distortion

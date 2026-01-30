@@ -1,14 +1,12 @@
 // Spectral Effects - Frequency-domain processing and EQ
 
 pub mod crossover;
-pub mod de_esser;
 pub mod exciter;
 pub mod intelligent_exciter;
 pub mod parametric_eq;
 pub mod pitch_shifter;
 
 pub use crossover::LR2Crossover;
-pub use de_esser::DeEsser;
 pub use exciter::Exciter;
 pub use intelligent_exciter::IntelligentExciter;
 pub use parametric_eq::{EQBand, ParametricEQ};

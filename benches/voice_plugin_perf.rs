@@ -13,8 +13,6 @@ use criterion::black_box;
 #[cfg(feature = "voice-clap")]
 use dsynth::audio::voice_engine::VoiceEngine;
 #[cfg(feature = "voice-clap")]
-use dsynth::dsp::effects::adaptive_saturator::AdaptiveSaturator;
-#[cfg(feature = "voice-clap")]
 use dsynth::dsp::signal_analyzer::{SignalAnalysis, SignalAnalyzer};
 #[cfg(feature = "voice-clap")]
 use dsynth::params_voice::VoiceParams;
