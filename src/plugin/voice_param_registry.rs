@@ -1,59 +1,36 @@
-/// Voice Saturation Parameter Registry - PROFESSIONAL VOCAL PROCESSING
+/// Voice Processing Parameter Registry - PERCEPTUAL VOCAL ENHANCEMENT
 ///
-/// **Parameter registry for zero-latency vocal processor**
+/// **Parameter registry for perceptual voice processor**
 ///
 /// Parameter namespace: 0x0300_xxxx (voice plugin)
 ///
-/// Total Parameters: **18**
-/// 1. Input Gain: -12 to +12 dB
-/// 2. Transient Shaper: attack (-1 to +1)
-/// 3-5. De-Esser: amount (0-1), threshold (0-1), listen (bool)
-/// 3-4. Bass: drive (0-1), mix (0-1)
-/// 5-6. Mids: drive (0-1), mix (0-1)
-/// 7-8. Presence: drive (0-1), mix (0-1)
-/// 9-10. Air: drive (0-1), mix (0-1)
-/// 11. Stereo Width: -1 to +1
-/// 12. Global Mix: 0 to 1
-/// 13-14. Limiter: threshold (-20 to 0 dB), release (50-500ms)
-/// 15. Output Gain: -12 to +12 dB
+/// Total Parameters: **7 perceptual controls**
+/// 1. Character: -1 to +1 (Warm ← → Bright)
+/// 2. Intensity: 0 to 1 (Gentle ← → Aggressive) 
+/// 3. Presence: -1 to +1 (Distant ← → Intimate)
+/// 4. Dynamics: -1 to +1 (Compressed ← → Dynamic)
+/// 5. Input Gain: -12 to +12 dB
+/// 6. Output Gain: -12 to +12 dB
+/// 7. Dry/Wet Mix: 0 to 1
 use crate::params_voice::VoiceParams;
 use crate::plugin::param_descriptor::{ParamDescriptor, ParamId};
 use indexmap::IndexMap;
 use std::sync::OnceLock;
 
 // ============================================================================
-// PARAMETER IDs (Namespace: 0x0300_xxxx)
+// PARAMETER IDs (Namespace: 0x0300_xxxx) 
 // ============================================================================
 
-pub const PARAM_VOICE_INPUT_GAIN: ParamId = 0x0300_0001;
+// Perceptual Controls (0x0300_0001-0x0300_0004)
+pub const PARAM_VOICE_CHARACTER: ParamId = 0x0300_0001;
+pub const PARAM_VOICE_INTENSITY: ParamId = 0x0300_0002;
+pub const PARAM_VOICE_PRESENCE: ParamId = 0x0300_0003;
+pub const PARAM_VOICE_DYNAMICS: ParamId = 0x0300_0004;
 
-// Transient Enhancer (0x0300_0020)
-pub const PARAM_VOICE_TRANSIENT_ATTACK: ParamId = 0x0300_0020;
-
-// De-Esser (0x0300_0040-0x0300_0043)
-pub const PARAM_VOICE_DE_ESSER_AMOUNT: ParamId = 0x0300_0040;
-pub const PARAM_VOICE_DE_ESSER_THRESHOLD: ParamId = 0x0300_0041;
-pub const PARAM_VOICE_SIBILANCE_FREQUENCY: ParamId = 0x0300_0042;
-pub const PARAM_VOICE_DE_ESSER_LISTEN_HF: ParamId = 0x0300_0043;
-
-// Saturator Bands
-pub const PARAM_VOICE_BASS_DRIVE: ParamId = 0x0300_0002;
-pub const PARAM_VOICE_BASS_MIX: ParamId = 0x0300_0003;
-pub const PARAM_VOICE_MID_DRIVE: ParamId = 0x0300_0004;
-pub const PARAM_VOICE_MID_MIX: ParamId = 0x0300_0005;
-pub const PARAM_VOICE_PRESENCE_DRIVE: ParamId = 0x0300_0006;
-pub const PARAM_VOICE_PRESENCE_MIX: ParamId = 0x0300_0007;
-pub const PARAM_VOICE_AIR_DRIVE: ParamId = 0x0300_0008;
-pub const PARAM_VOICE_AIR_MIX: ParamId = 0x0300_0009;
-
-// Master Section
-pub const PARAM_VOICE_GLOBAL_MIX: ParamId = 0x0300_000B;
-
-// Limiter (0x0300_0030-0x0300_0031)
-pub const PARAM_VOICE_LIMITER_THRESHOLD: ParamId = 0x0300_0030;
-pub const PARAM_VOICE_LIMITER_RELEASE: ParamId = 0x0300_0031;
-
-pub const PARAM_VOICE_OUTPUT_GAIN: ParamId = 0x0300_000C;
+// I/O Controls (0x0300_0005-0x0300_0007)
+pub const PARAM_VOICE_INPUT_GAIN: ParamId = 0x0300_0005;
+pub const PARAM_VOICE_OUTPUT_GAIN: ParamId = 0x0300_0006;
+pub const PARAM_VOICE_DRY_WET_MIX: ParamId = 0x0300_0007;
 
 // ============================================================================
 // PARAMETER REGISTRY
@@ -65,126 +42,26 @@ pub fn get_voice_param_registry() -> &'static IndexMap<ParamId, ParamDescriptor>
     VOICE_PARAM_REGISTRY.get_or_init(|| {
         let mut registry = IndexMap::new();
 
-        // Input Gain (-12 to +12 dB)
+        // Perceptual Controls
         registry.insert(
-            PARAM_VOICE_INPUT_GAIN,
+            PARAM_VOICE_CHARACTER,
             ParamDescriptor::float(
-                PARAM_VOICE_INPUT_GAIN,
-                "Input Gain",
-                "Input",
-                -12.0,
-                12.0,
-                0.0,
-                Some("dB"),
-            ),
-        );
-
-        // Attack Enhancer
-        registry.insert(
-            PARAM_VOICE_TRANSIENT_ATTACK,
-            ParamDescriptor::float(
-                PARAM_VOICE_TRANSIENT_ATTACK,
-                "Attack Enhance",
-                "Attack",
+                PARAM_VOICE_CHARACTER,
+                "Character",
+                "Character",
                 -1.0,
                 1.0,
-                0.0,
+                0.2,
                 None,
             ),
         );
 
-        // De-Esser
         registry.insert(
-            PARAM_VOICE_DE_ESSER_AMOUNT,
+            PARAM_VOICE_INTENSITY,
             ParamDescriptor::float(
-                PARAM_VOICE_DE_ESSER_AMOUNT,
-                "De-Esser Amount",
-                "De-Esser",
-                0.0,
-                1.0,
-                0.0,
-                Some("%"),
-            ),
-        );
-        registry.insert(
-            PARAM_VOICE_DE_ESSER_THRESHOLD,
-            ParamDescriptor::float(
-                PARAM_VOICE_DE_ESSER_THRESHOLD,
-                "De-Esser Threshold",
-                "De-Esser",
-                0.0,
-                1.0,
-                0.6,
-                Some("%"),
-            ),
-        );
-        registry.insert(
-            PARAM_VOICE_SIBILANCE_FREQUENCY,
-            ParamDescriptor::float(
-                PARAM_VOICE_SIBILANCE_FREQUENCY,
-                "Sibilance Freq",
-                "De-Esser",
-                3000.0,
-                10000.0,
-                6500.0,
-                Some("Hz"),
-            ),
-        );
-        registry.insert(
-            PARAM_VOICE_DE_ESSER_LISTEN_HF,
-            ParamDescriptor::bool(
-                PARAM_VOICE_DE_ESSER_LISTEN_HF,
-                "De-Esser Listen",
-                "De-Esser",
-                false,
-            ),
-        );
-
-        // Bass Band
-        registry.insert(
-            PARAM_VOICE_BASS_DRIVE,
-            ParamDescriptor::float(
-                PARAM_VOICE_BASS_DRIVE,
-                "Bass Drive",
-                "Bass",
-                0.0,
-                1.0,
-                0.6,
-                Some("%"),
-            ),
-        );
-        registry.insert(
-            PARAM_VOICE_BASS_MIX,
-            ParamDescriptor::float(
-                PARAM_VOICE_BASS_MIX,
-                "Bass Mix",
-                "Bass",
-                0.0,
-                1.0,
-                0.5,
-                Some("%"),
-            ),
-        );
-
-        // Mids Band
-        registry.insert(
-            PARAM_VOICE_MID_DRIVE,
-            ParamDescriptor::float(
-                PARAM_VOICE_MID_DRIVE,
-                "Mid Drive",
-                "Mids",
-                0.0,
-                1.0,
-                0.5,
-                Some("%"),
-            ),
-        );
-        registry.insert(
-            PARAM_VOICE_MID_MIX,
-            ParamDescriptor::float(
-                PARAM_VOICE_MID_MIX,
-                "Mid Mix",
-                "Mids",
+                PARAM_VOICE_INTENSITY,
+                "Intensity",
+                "Character", 
                 0.0,
                 1.0,
                 0.4,
@@ -192,104 +69,39 @@ pub fn get_voice_param_registry() -> &'static IndexMap<ParamId, ParamDescriptor>
             ),
         );
 
-        // Presence Band
         registry.insert(
-            PARAM_VOICE_PRESENCE_DRIVE,
+            PARAM_VOICE_PRESENCE,
             ParamDescriptor::float(
-                PARAM_VOICE_PRESENCE_DRIVE,
-                "Presence Drive",
+                PARAM_VOICE_PRESENCE,
                 "Presence",
-                0.0,
+                "Character",
+                -1.0,
                 1.0,
-                0.35,
-                Some("%"),
-            ),
-        );
-        registry.insert(
-            PARAM_VOICE_PRESENCE_MIX,
-            ParamDescriptor::float(
-                PARAM_VOICE_PRESENCE_MIX,
-                "Presence Mix",
-                "Presence",
-                0.0,
-                1.0,
-                0.35,
-                Some("%"),
+                0.3,
+                None,
             ),
         );
 
-        // Air Band
         registry.insert(
-            PARAM_VOICE_AIR_DRIVE,
+            PARAM_VOICE_DYNAMICS,
             ParamDescriptor::float(
-                PARAM_VOICE_AIR_DRIVE,
-                "Air Drive",
-                "Air",
-                0.0,
+                PARAM_VOICE_DYNAMICS,
+                "Dynamics",
+                "Character",
+                -1.0,
                 1.0,
                 0.1,
-                Some("%"),
-            ),
-        );
-        registry.insert(
-            PARAM_VOICE_AIR_MIX,
-            ParamDescriptor::float(
-                PARAM_VOICE_AIR_MIX,
-                "Air Mix",
-                "Air",
-                0.0,
-                1.0,
-                0.15,
-                Some("%"),
-            ),
-        );
-        // Global Mix
-        registry.insert(
-            PARAM_VOICE_GLOBAL_MIX,
-            ParamDescriptor::float(
-                PARAM_VOICE_GLOBAL_MIX,
-                "Global Mix",
-                "Master",
-                0.0,
-                1.0,
-                1.0,
-                Some("%"),
+                None,
             ),
         );
 
-        // Limiter
+        // I/O Controls
         registry.insert(
-            PARAM_VOICE_LIMITER_THRESHOLD,
+            PARAM_VOICE_INPUT_GAIN,
             ParamDescriptor::float(
-                PARAM_VOICE_LIMITER_THRESHOLD,
-                "Limiter Threshold",
-                "Limiter",
-                -20.0,
-                0.0,
-                -6.0,
-                Some("dB"),
-            ),
-        );
-        registry.insert(
-            PARAM_VOICE_LIMITER_RELEASE,
-            ParamDescriptor::float(
-                PARAM_VOICE_LIMITER_RELEASE,
-                "Limiter Release",
-                "Limiter",
-                50.0,
-                500.0,
-                200.0,
-                Some("ms"),
-            ),
-        );
-
-        // Output Gain (-12 to +12 dB)
-        registry.insert(
-            PARAM_VOICE_OUTPUT_GAIN,
-            ParamDescriptor::float(
-                PARAM_VOICE_OUTPUT_GAIN,
-                "Output Gain",
-                "Output",
+                PARAM_VOICE_INPUT_GAIN,
+                "Input Gain",
+                "I/O",
                 -12.0,
                 12.0,
                 0.0,
@@ -297,67 +109,88 @@ pub fn get_voice_param_registry() -> &'static IndexMap<ParamId, ParamDescriptor>
             ),
         );
 
+        registry.insert(
+            PARAM_VOICE_OUTPUT_GAIN,
+            ParamDescriptor::float(
+                PARAM_VOICE_OUTPUT_GAIN,
+                "Output Gain",
+                "I/O",
+                -12.0,
+                12.0,
+                0.0,
+                Some("dB"),
+            ),
+        );
+
+        registry.insert(
+            PARAM_VOICE_DRY_WET_MIX,
+            ParamDescriptor::float(
+                PARAM_VOICE_DRY_WET_MIX,
+                "Dry/Wet",
+                "I/O",
+                0.0,
+                1.0,
+                1.0,
+                Some("%"),
+            ),
+        );
+
         registry
     })
 }
+
+// ============================================================================
+// PARAMETER ACCESS FUNCTIONS
+// ============================================================================
 
 /// Get parameter descriptor by ID
 pub fn get_param_descriptor(param_id: ParamId) -> Option<&'static ParamDescriptor> {
     get_voice_param_registry().get(&param_id)
 }
 
-/// Apply parameter value to VoiceParams
-pub fn apply_param(params: &mut VoiceParams, param_id: ParamId, value: f32) {
+/// Apply normalized parameter value to VoiceParams
+pub fn apply_param(param_id: ParamId, value: f32, params: &mut VoiceParams) {
     match param_id {
+        PARAM_VOICE_CHARACTER => params.character = value.clamp(-1.0, 1.0),
+        PARAM_VOICE_INTENSITY => params.intensity = value.clamp(0.0, 1.0),
+        PARAM_VOICE_PRESENCE => params.presence = value.clamp(-1.0, 1.0),
+        PARAM_VOICE_DYNAMICS => params.dynamics = value.clamp(-1.0, 1.0),
         PARAM_VOICE_INPUT_GAIN => params.input_gain = value.clamp(-12.0, 12.0),
-        PARAM_VOICE_TRANSIENT_ATTACK => params.transient_attack = value.clamp(-1.0, 1.0),
-        PARAM_VOICE_DE_ESSER_AMOUNT => params.de_esser_amount = value.clamp(0.0, 1.0),
-        PARAM_VOICE_DE_ESSER_THRESHOLD => params.de_esser_threshold = value.clamp(0.0, 1.0),
-        PARAM_VOICE_SIBILANCE_FREQUENCY => {
-            params.sibilance_frequency = value.clamp(3000.0, 10000.0)
-        }
-        PARAM_VOICE_DE_ESSER_LISTEN_HF => params.de_esser_listen_hf = value >= 0.5,
-        PARAM_VOICE_BASS_DRIVE => params.bass_drive = value.clamp(0.0, 1.0),
-        PARAM_VOICE_BASS_MIX => params.bass_mix = value.clamp(0.0, 1.0),
-        PARAM_VOICE_MID_DRIVE => params.mid_drive = value.clamp(0.0, 1.0),
-        PARAM_VOICE_MID_MIX => params.mid_mix = value.clamp(0.0, 1.0),
-        PARAM_VOICE_PRESENCE_DRIVE => params.presence_drive = value.clamp(0.0, 1.0),
-        PARAM_VOICE_PRESENCE_MIX => params.presence_mix = value.clamp(0.0, 1.0),
-        PARAM_VOICE_AIR_DRIVE => params.air_drive = value.clamp(0.0, 1.0),
-        PARAM_VOICE_AIR_MIX => params.air_mix = value.clamp(0.0, 1.0),
-        PARAM_VOICE_GLOBAL_MIX => params.global_mix = value.clamp(0.0, 1.0),
-        PARAM_VOICE_LIMITER_THRESHOLD => params.limiter_threshold = value.clamp(-20.0, 0.0),
-        PARAM_VOICE_LIMITER_RELEASE => params.limiter_release = value.clamp(50.0, 500.0),
         PARAM_VOICE_OUTPUT_GAIN => params.output_gain = value.clamp(-12.0, 12.0),
-        _ => {
-            // Unknown parameter - ignore silently
-        }
+        PARAM_VOICE_DRY_WET_MIX => params.dry_wet_mix = value.clamp(0.0, 1.0),
+        _ => {} // Unknown parameter
     }
 }
 
-/// Get parameter value from VoiceParams
-pub fn get_param(params: &VoiceParams, param_id: ParamId) -> Option<f32> {
+/// Get normalized parameter value from VoiceParams
+pub fn get_param(param_id: ParamId, params: &VoiceParams) -> Option<f32> {
     match param_id {
+        PARAM_VOICE_CHARACTER => Some(params.character),
+        PARAM_VOICE_INTENSITY => Some(params.intensity),
+        PARAM_VOICE_PRESENCE => Some(params.presence),
+        PARAM_VOICE_DYNAMICS => Some(params.dynamics),
         PARAM_VOICE_INPUT_GAIN => Some(params.input_gain),
-        PARAM_VOICE_TRANSIENT_ATTACK => Some(params.transient_attack),
-        PARAM_VOICE_DE_ESSER_AMOUNT => Some(params.de_esser_amount),
-        PARAM_VOICE_DE_ESSER_THRESHOLD => Some(params.de_esser_threshold),
-        PARAM_VOICE_SIBILANCE_FREQUENCY => Some(params.sibilance_frequency),
-        PARAM_VOICE_DE_ESSER_LISTEN_HF => Some(if params.de_esser_listen_hf { 1.0 } else { 0.0 }),
-        PARAM_VOICE_BASS_DRIVE => Some(params.bass_drive),
-        PARAM_VOICE_BASS_MIX => Some(params.bass_mix),
-        PARAM_VOICE_MID_DRIVE => Some(params.mid_drive),
-        PARAM_VOICE_MID_MIX => Some(params.mid_mix),
-        PARAM_VOICE_PRESENCE_DRIVE => Some(params.presence_drive),
-        PARAM_VOICE_PRESENCE_MIX => Some(params.presence_mix),
-        PARAM_VOICE_AIR_DRIVE => Some(params.air_drive),
-        PARAM_VOICE_AIR_MIX => Some(params.air_mix),
-        PARAM_VOICE_GLOBAL_MIX => Some(params.global_mix),
-        PARAM_VOICE_LIMITER_THRESHOLD => Some(params.limiter_threshold),
-        PARAM_VOICE_LIMITER_RELEASE => Some(params.limiter_release),
         PARAM_VOICE_OUTPUT_GAIN => Some(params.output_gain),
-        _ => None,
+        PARAM_VOICE_DRY_WET_MIX => Some(params.dry_wet_mix),
+        _ => None, // Unknown parameter
     }
+}
+
+/// Count of voice parameters
+pub fn voice_param_count() -> u32 {
+    get_voice_param_registry().len() as u32
+}
+
+/// Get voice parameter info by index
+pub fn voice_param_info(index: u32) -> Option<(&'static ParamId, &'static ParamDescriptor)> {
+    get_voice_param_registry()
+        .iter()
+        .nth(index as usize)
+}
+
+/// Get all voice parameter IDs
+pub fn voice_param_ids() -> Vec<ParamId> {
+    get_voice_param_registry().keys().cloned().collect()
 }
 
 #[cfg(test)]
@@ -365,140 +198,72 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_registry_initialized() {
-        let registry = get_voice_param_registry();
-        assert_eq!(registry.len(), 18);
+    fn test_param_count() {
+        assert_eq!(voice_param_count(), 7);
     }
 
     #[test]
-    fn test_parameter_order_preserved() {
-        // IndexMap preserves insertion order, so iteration should match registration order
+    fn test_param_registry() {
         let registry = get_voice_param_registry();
-        let param_ids: Vec<ParamId> = registry.keys().copied().collect();
-
-        // Expected order based on insertion in registry initialization
-        let expected_order = vec![
-            PARAM_VOICE_INPUT_GAIN,
-            PARAM_VOICE_TRANSIENT_ATTACK,
-            PARAM_VOICE_DE_ESSER_AMOUNT,
-            PARAM_VOICE_DE_ESSER_THRESHOLD,
-            PARAM_VOICE_SIBILANCE_FREQUENCY,
-            PARAM_VOICE_DE_ESSER_LISTEN_HF,
-            PARAM_VOICE_BASS_DRIVE,
-            PARAM_VOICE_BASS_MIX,
-            PARAM_VOICE_MID_DRIVE,
-            PARAM_VOICE_MID_MIX,
-            PARAM_VOICE_PRESENCE_DRIVE,
-            PARAM_VOICE_PRESENCE_MIX,
-            PARAM_VOICE_AIR_DRIVE,
-            PARAM_VOICE_AIR_MIX,
-            PARAM_VOICE_GLOBAL_MIX,
-            PARAM_VOICE_LIMITER_THRESHOLD,
-            PARAM_VOICE_LIMITER_RELEASE,
-            PARAM_VOICE_OUTPUT_GAIN,
-        ];
-
-        assert_eq!(param_ids, expected_order, "Parameter order not preserved!");
-    }
-
-    #[test]
-    fn test_all_params_have_descriptors() {
-        let registry = get_voice_param_registry();
-
+        assert_eq!(registry.len(), 7);
+        
+        // Verify all parameter IDs exist
+        assert!(registry.contains_key(&PARAM_VOICE_CHARACTER));
+        assert!(registry.contains_key(&PARAM_VOICE_INTENSITY));
+        assert!(registry.contains_key(&PARAM_VOICE_PRESENCE));
+        assert!(registry.contains_key(&PARAM_VOICE_DYNAMICS));
         assert!(registry.contains_key(&PARAM_VOICE_INPUT_GAIN));
-        assert!(registry.contains_key(&PARAM_VOICE_DE_ESSER_AMOUNT));
-        assert!(registry.contains_key(&PARAM_VOICE_DE_ESSER_THRESHOLD));
-        assert!(registry.contains_key(&PARAM_VOICE_SIBILANCE_FREQUENCY));
-        assert!(registry.contains_key(&PARAM_VOICE_DE_ESSER_LISTEN_HF));
-        assert!(registry.contains_key(&PARAM_VOICE_BASS_DRIVE));
-        assert!(registry.contains_key(&PARAM_VOICE_BASS_MIX));
-        assert!(registry.contains_key(&PARAM_VOICE_MID_DRIVE));
-        assert!(registry.contains_key(&PARAM_VOICE_MID_MIX));
-        assert!(registry.contains_key(&PARAM_VOICE_PRESENCE_DRIVE));
-        assert!(registry.contains_key(&PARAM_VOICE_PRESENCE_MIX));
-        assert!(registry.contains_key(&PARAM_VOICE_AIR_DRIVE));
-        assert!(registry.contains_key(&PARAM_VOICE_AIR_MIX));
-        assert!(registry.contains_key(&PARAM_VOICE_GLOBAL_MIX));
         assert!(registry.contains_key(&PARAM_VOICE_OUTPUT_GAIN));
+        assert!(registry.contains_key(&PARAM_VOICE_DRY_WET_MIX));
     }
 
     #[test]
-    fn test_apply_and_get_param() {
+    fn test_apply_param() {
         let mut params = VoiceParams::default();
-
-        // Test applying parameters
-        apply_param(&mut params, PARAM_VOICE_BASS_DRIVE, 0.7);
-        assert_eq!(params.bass_drive, 0.7);
-
-        apply_param(&mut params, PARAM_VOICE_MID_MIX, 0.3);
-        assert_eq!(params.mid_mix, 0.3);
-
-        apply_param(&mut params, PARAM_VOICE_INPUT_GAIN, 3.0);
-        assert_eq!(params.input_gain, 3.0);
-
-        apply_param(&mut params, PARAM_VOICE_DE_ESSER_AMOUNT, 0.7);
-        assert_eq!(params.de_esser_amount, 0.7);
-
-        apply_param(&mut params, PARAM_VOICE_DE_ESSER_LISTEN_HF, 1.0);
-        assert!(params.de_esser_listen_hf);
-
-        // Test getting parameters
-        assert_eq!(get_param(&params, PARAM_VOICE_BASS_DRIVE), Some(0.7));
-        assert_eq!(get_param(&params, PARAM_VOICE_MID_MIX), Some(0.3));
-        assert_eq!(get_param(&params, PARAM_VOICE_INPUT_GAIN), Some(3.0));
-        assert_eq!(get_param(&params, PARAM_VOICE_DE_ESSER_AMOUNT), Some(0.7));
-        assert_eq!(
-            get_param(&params, PARAM_VOICE_DE_ESSER_LISTEN_HF),
-            Some(1.0)
-        );
+        
+        apply_param(PARAM_VOICE_CHARACTER, 0.7, &mut params);
+        assert_eq!(params.character, 0.7);
+        
+        apply_param(PARAM_VOICE_INTENSITY, 0.8, &mut params);
+        assert_eq!(params.intensity, 0.8);
+        
+        apply_param(PARAM_VOICE_INPUT_GAIN, 6.0, &mut params);
+        assert_eq!(params.input_gain, 6.0);
     }
 
     #[test]
-    fn test_drive_param_clamping() {
+    fn test_get_param() {
         let mut params = VoiceParams::default();
-
-        // Test clamping at boundaries for all drive parameters
-        apply_param(&mut params, PARAM_VOICE_BASS_DRIVE, -0.5);
-        assert_eq!(params.bass_drive, 0.0);
-
-        apply_param(&mut params, PARAM_VOICE_MID_DRIVE, 1.5);
-        assert_eq!(params.mid_drive, 1.0);
-
-        apply_param(&mut params, PARAM_VOICE_PRESENCE_DRIVE, 0.5);
-        assert_eq!(params.presence_drive, 0.5);
+        params.character = 0.5;
+        params.intensity = 0.3;
+        
+        assert_eq!(get_param(PARAM_VOICE_CHARACTER, &params), Some(0.5));
+        assert_eq!(get_param(PARAM_VOICE_INTENSITY, &params), Some(0.3));
+        assert_eq!(get_param(9999, &params), None); // Invalid ID
     }
 
     #[test]
-    fn test_mix_param_clamping() {
+    fn test_param_clamping() {
         let mut params = VoiceParams::default();
-
-        // Test clamping for mix parameters
-        apply_param(&mut params, PARAM_VOICE_BASS_MIX, -0.1);
-        assert_eq!(params.bass_mix, 0.0);
-
-        apply_param(&mut params, PARAM_VOICE_MID_MIX, 1.2);
-        assert_eq!(params.mid_mix, 1.0);
-
-        apply_param(&mut params, PARAM_VOICE_PRESENCE_MIX, 0.7);
-        assert_eq!(params.presence_mix, 0.7);
+        
+        // Test clamping
+        apply_param(PARAM_VOICE_CHARACTER, 2.0, &mut params); // Should clamp to 1.0
+        assert_eq!(params.character, 1.0);
+        
+        apply_param(PARAM_VOICE_INTENSITY, -0.5, &mut params); // Should clamp to 0.0
+        assert_eq!(params.intensity, 0.0);
     }
 
     #[test]
-    fn test_gain_param_clamping() {
-        let mut params = VoiceParams::default();
-
-        // Test input gain clamping
-        apply_param(&mut params, PARAM_VOICE_INPUT_GAIN, -20.0);
-        assert_eq!(params.input_gain, -12.0); // Clamped to min
-
-        apply_param(&mut params, PARAM_VOICE_INPUT_GAIN, 20.0);
-        assert_eq!(params.input_gain, 12.0); // Clamped to max
-
-        // Test output gain clamping
-        apply_param(&mut params, PARAM_VOICE_OUTPUT_GAIN, -20.0);
-        assert_eq!(params.output_gain, -12.0);
-
-        apply_param(&mut params, PARAM_VOICE_OUTPUT_GAIN, 20.0);
-        assert_eq!(params.output_gain, 12.0);
+    fn test_param_descriptors() {
+        // Test character parameter
+        let char_desc = get_param_descriptor(PARAM_VOICE_CHARACTER).unwrap();
+        assert_eq!(char_desc.name, "Character");
+        assert_eq!(char_desc.module, "Character");
+        
+        // Test intensity parameter  
+        let intensity_desc = get_param_descriptor(PARAM_VOICE_INTENSITY).unwrap();
+        assert_eq!(intensity_desc.name, "Intensity");
+        assert_eq!(intensity_desc.unit, Some("%".to_string()));
     }
 }

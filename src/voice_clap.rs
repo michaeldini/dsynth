@@ -182,7 +182,7 @@ impl DsynthVoiceProcessor {
                     let mut params = shared_params().lock();
                     if let Some(desc) = DsynthVoiceParams::descriptor_by_id(e.param_id) {
                         let denorm = desc.denormalize(normalized);
-                        voice_param_registry::apply_param(&mut params, e.param_id, denorm);
+                        voice_param_registry::apply_param(e.param_id, denorm, &mut params);
                         PARAMS_DIRTY.store(true, Ordering::Release);
                     }
                 }
@@ -333,7 +333,7 @@ impl PluginParams for DsynthVoiceParams {
 
     fn get_param(id: ParamId) -> Option<f32> {
         let params = shared_params().lock();
-        let denorm = voice_param_registry::get_param(&params, id)?;
+        let denorm = voice_param_registry::get_param(id, &params)?;
         let desc = Self::descriptor_by_id(id)?;
         Some(desc.normalize_value(denorm))
     }
@@ -342,7 +342,7 @@ impl PluginParams for DsynthVoiceParams {
         let mut params = shared_params().lock();
         if let Some(desc) = Self::descriptor_by_id(id) {
             let denorm = desc.denormalize(value);
-            voice_param_registry::apply_param(&mut params, id, denorm);
+            voice_param_registry::apply_param(id, denorm, &mut params);
         }
         PARAMS_DIRTY.store(true, Ordering::Release);
     }
@@ -358,7 +358,7 @@ impl PluginParams for DsynthVoiceParams {
 
         for &id in reg.keys() {
             if let Some(desc) = Self::descriptor_by_id(id) {
-                if let Some(denorm) = voice_param_registry::get_param(&params, id) {
+                if let Some(denorm) = voice_param_registry::get_param(id, &params) {
                     let normalized = desc.normalize_value(denorm);
                     state.set_param(id, normalized);
                 }
@@ -374,7 +374,7 @@ impl PluginParams for DsynthVoiceParams {
             for (&id, &value) in state.params.iter() {
                 if let Some(desc) = Self::descriptor_by_id(id) {
                     let denorm = desc.denormalize(value);
-                    voice_param_registry::apply_param(&mut params, id, denorm);
+                    voice_param_registry::apply_param(id, denorm, &mut params);
                 }
             }
         }

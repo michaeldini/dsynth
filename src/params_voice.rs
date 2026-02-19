@@ -12,7 +12,7 @@
 /// 6. Global Mix (parallel processing)
 /// 7. Output Gain
 ///
-/// **Total: 18 parameters**
+/// **Total: 19 parameters**
 /// - Input/Output (2): input_gain, output_gain
 /// - Attack Enhancer (1): transient_attack
 /// - De-Esser (4): de_esser_amount, de_esser_threshold, sibilance_frequency, de_esser_listen_hf
@@ -21,107 +21,48 @@
 /// - Presence (2): presence_drive, presence_mix
 /// - Air (2): air_drive, air_mix
 /// - Global (1): global_mix
+/// - Vocal Character (1): vocal_character
 /// - Limiter (2): limiter_threshold, limiter_release
 use serde::{Deserialize, Serialize};
 
-/// Professional vocal processing with zero-latency dynamics chain
+/// Professional vocal processing with perceptual controls
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VoiceParams {
-    // === Input/Output (2 params) ===
+    // === PERCEPTUAL CONTROLS (4 core parameters) ===
+    /// Character: -1.0 = warm/vintage, +1.0 = bright/modern
+    pub character: f32,
+
+    /// Intensity: 0.0 = transparent/gentle, 1.0 = saturated/aggressive
+    pub intensity: f32,
+
+    /// Presence: -1.0 = distant/laid-back, +1.0 = intimate/upfront
+    pub presence: f32,
+
+    /// Dynamics: -1.0 = controlled/compressed, +1.0 = punchy/dynamic
+    pub dynamics: f32,
+
+    // === I/O CONTROLS ===
     /// Input gain in dB (-12dB to +12dB)
     pub input_gain: f32,
     /// Output gain in dB (-12dB to +12dB)
     pub output_gain: f32,
-
-    // === Attack Enhancer (1 param) ===
-    /// Attack gain adjustment (-1.0 to +1.0, negative=soften, positive=punch)
-    pub transient_attack: f32,
-
-    // === De-Esser (4 params) ===
-    /// De-esser amount (0.0-1.0). 0.0 is a bit-perfect bypass.
-    pub de_esser_amount: f32,
-    /// De-esser threshold (0.0-1.0). Higher = less sensitive.
-    pub de_esser_threshold: f32,
-    /// Sibilance center frequency in Hz (3000-10000 Hz)
-    pub sibilance_frequency: f32,
-    /// Debug: listen to the reduction delta (what is being removed).
-    pub de_esser_listen_hf: bool,
-
-    // === Bass Band (2 params) ===
-    /// Bass drive amount (0.0-1.0)
-    pub bass_drive: f32,
-    /// Bass dry/wet mix (0.0-1.0)
-    pub bass_mix: f32,
-
-    // === Mids Band (2 params) ===
-    /// Mids drive amount (0.0-1.0)
-    pub mid_drive: f32,
-    /// Mids dry/wet mix (0.0-1.0)
-    pub mid_mix: f32,
-
-    // === Presence Band (2 params) ===
-    /// Presence drive amount (0.0-1.0)
-    pub presence_drive: f32,
-    /// Presence dry/wet mix (0.0-1.0)
-    pub presence_mix: f32,
-
-    // === Air Band (2 params) ===
-    /// Air exciter drive amount (0.0-1.0)
-    pub air_drive: f32,
-    /// Air exciter dry/wet mix (0.0-1.0)
-    pub air_mix: f32,
-
-    // === Global Mix (1 param) ===
-    /// Master wet/dry blend (0.0-1.0)
-    /// - 0.0: 100% dry (bypass)
-    /// - 1.0: 100% wet (full effect)
-    pub global_mix: f32,
-
-    // === Adaptive Compression Limiter (2 params) ===
-    /// Limiter threshold in dB (-20.0 to 0.0)
-    pub limiter_threshold: f32,
-    /// Limiter release time in ms (50-500ms)
-    pub limiter_release: f32,
+    /// Dry/wet mix (0.0-1.0)
+    pub dry_wet_mix: f32,
 }
 
 impl Default for VoiceParams {
     fn default() -> Self {
         Self {
-            // Input/Output - unity gain
+            // Professional out-of-box settings for modern pop vocals
+            character: 0.2, // Slightly bright
+            intensity: 0.4, // Moderate processing
+            presence: 0.3,  // Upfront but not harsh
+            dynamics: 0.1,  // Controlled but not squashed
+
+            // I/O defaults
             input_gain: 0.0,
             output_gain: 0.0,
-
-            // Attack Enhancer - neutral (no effect)
-            transient_attack: 0.0, // No attack boost/cut
-
-            // De-Esser - off by default (amount==0), conservative threshold
-            de_esser_amount: 0.0,
-            de_esser_threshold: 0.6,
-            sibilance_frequency: 6500.0, // Typical vocal sibilance center
-            de_esser_listen_hf: false,
-
-            // Bass - warm foundation
-            bass_drive: 0.6,
-            bass_mix: 0.5,
-
-            // Mids - balanced fundamentals
-            mid_drive: 0.5,
-            mid_mix: 0.4,
-
-            // Presence - clarity without harshness
-            presence_drive: 0.35,
-            presence_mix: 0.35,
-
-            // Air - subtle high-frequency enhancement
-            air_drive: 0.1,
-            air_mix: 0.15,
-
-            // Global Mix - 100% wet (full effect)
-            global_mix: 1.0,
-
-            // Limiter - safety ceiling
-            limiter_threshold: -6.0, // Start limiting at -6dB
-            limiter_release: 200.0,  // 200ms release time
+            dry_wet_mix: 1.0, // Full effect
         }
     }
 }
@@ -146,56 +87,29 @@ impl VoiceParams {
 // Test-only presets (for validation)
 #[cfg(test)]
 impl VoiceParams {
-    /// Test preset: Gentle saturation
-    pub fn test_gentle() -> Self {
+    /// Test preset: Warm and gentle
+    pub fn test_warm() -> Self {
         Self {
+            character: -0.7, // Very warm
+            intensity: 0.2,  // Gentle processing
+            presence: -0.3,  // Laid back
+            dynamics: 0.3,   // Some punch
             input_gain: 0.0,
             output_gain: 0.0,
-            transient_attack: 0.0,
-            de_esser_amount: 0.0,
-            de_esser_threshold: 0.6,
-            sibilance_frequency: 6500.0, // Typical vocal sibilance center
-            de_esser_listen_hf: false,
-            bass_drive: 0.3,
-            bass_mix: 0.3,
-            mid_drive: 0.25,
-            mid_mix: 0.25,
-            presence_drive: 0.2,
-            presence_mix: 0.2,
-            air_drive: 0.05,
-            air_mix: 0.1,
-            global_mix: 1.0,
-            limiter_threshold: -8.0,
-            limiter_release: 250.0,
+            dry_wet_mix: 1.0,
         }
     }
 
-    /// Test preset: Moderate saturation (default)
-    pub fn test_moderate() -> Self {
-        Self::default()
-    }
-
-    /// Test preset: Aggressive saturation
-    pub fn test_aggressive() -> Self {
+    /// Test preset: Bright and aggressive
+    pub fn test_bright() -> Self {
         Self {
-            input_gain: 3.0, // Hot input
+            character: 0.8, // Very bright
+            intensity: 0.8, // Aggressive processing
+            presence: 0.6,  // Very upfront
+            dynamics: -0.2, // More controlled
+            input_gain: 0.0,
             output_gain: 0.0,
-            transient_attack: 0.5,
-            de_esser_amount: 0.35,
-            de_esser_threshold: 0.5,
-            sibilance_frequency: 7000.0, // Slightly higher for enhanced presence
-            de_esser_listen_hf: false,
-            bass_drive: 0.9,
-            bass_mix: 0.7,
-            mid_drive: 0.8,
-            mid_mix: 0.6,
-            presence_drive: 0.6,
-            presence_mix: 0.5,
-            air_drive: 0.2,
-            air_mix: 0.3,
-            global_mix: 1.0,
-            limiter_threshold: -3.0,
-            limiter_release: 100.0,
+            dry_wet_mix: 1.0,
         }
     }
 }
@@ -207,22 +121,24 @@ mod tests {
     #[test]
     fn test_default_params() {
         let params = VoiceParams::default();
+        assert_eq!(params.character, 0.2);
+        assert_eq!(params.intensity, 0.4);
+        assert_eq!(params.presence, 0.3);
+        assert_eq!(params.dynamics, 0.1);
         assert_eq!(params.input_gain, 0.0);
         assert_eq!(params.output_gain, 0.0);
-        assert_eq!(params.de_esser_amount, 0.0);
-        assert_eq!(params.bass_drive, 0.6);
+        assert_eq!(params.dry_wet_mix, 1.0);
     }
 
     #[test]
     fn test_test_presets() {
-        let gentle = VoiceParams::test_gentle();
-        assert_eq!(gentle.bass_drive, 0.3);
+        let warm = VoiceParams::test_warm();
+        assert_eq!(warm.character, -0.7);
+        assert_eq!(warm.intensity, 0.2);
 
-        let moderate = VoiceParams::test_moderate();
-        assert_eq!(moderate.bass_drive, 0.6);
-
-        let aggressive = VoiceParams::test_aggressive();
-        assert_eq!(aggressive.bass_drive, 0.9);
+        let bright = VoiceParams::test_bright();
+        assert_eq!(bright.character, 0.8);
+        assert_eq!(bright.intensity, 0.8);
     }
 
     #[test]
@@ -243,12 +159,13 @@ mod tests {
     fn test_parameter_ranges() {
         let params = VoiceParams::default();
 
-        // Verify parameters are within expected ranges
+        // Verify perceptual parameters are within expected ranges
+        assert!(params.character >= -1.0 && params.character <= 1.0);
+        assert!(params.intensity >= 0.0 && params.intensity <= 1.0);
+        assert!(params.presence >= -1.0 && params.presence <= 1.0);
+        assert!(params.dynamics >= -1.0 && params.dynamics <= 1.0);
         assert!(params.input_gain >= -12.0 && params.input_gain <= 12.0);
         assert!(params.output_gain >= -12.0 && params.output_gain <= 12.0);
-        assert!(params.de_esser_amount >= 0.0 && params.de_esser_amount <= 1.0);
-        assert!(params.de_esser_threshold >= 0.0 && params.de_esser_threshold <= 1.0);
-        assert!(params.bass_drive >= 0.0 && params.bass_drive <= 1.0);
-        assert!(params.mid_mix >= 0.0 && params.mid_mix <= 1.0);
+        assert!(params.dry_wet_mix >= 0.0 && params.dry_wet_mix <= 1.0);
     }
 }
